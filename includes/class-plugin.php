@@ -74,6 +74,9 @@ final class Plugin {
 		if ( $this->load( 'frontend/frontend.php' ) ) {
 			Frontend\init();
 		}
+		if ( $this->load( 'bookings/register.php' ) ) {
+			Bookings\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();
