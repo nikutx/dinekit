@@ -253,12 +253,14 @@ function get_preview( $request ) {
 			'show_allergens' => $truthy( $request->get_param( 'allergens' ) ),
 			'show_dietary'   => $truthy( $request->get_param( 'dietary' ) ),
 			'show_matrix'    => $truthy( $request->get_param( 'matrix' ) ),
+			'show_filter'    => $truthy( $request->get_param( 'filter' ) ),
 		)
 	);
 	return rest_ensure_response(
 		array(
 			'html'   => $html,
 			'cssUrl' => esc_url_raw( DINEKIT_URL . 'assets/css/menu.css?ver=' . DINEKIT_VERSION ),
+			'jsUrl'  => esc_url_raw( DINEKIT_URL . 'assets/js/dinekit-filter.js?ver=' . DINEKIT_VERSION ),
 		)
 	);
 }

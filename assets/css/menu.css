@@ -21,6 +21,12 @@
 	box-sizing: border-box;
 }
 
+/* The diner filter hides items/sections via the [hidden] attribute; make sure
+   it wins over the layout's display rules. */
+.dinekit-menu [hidden] {
+	display: none !important;
+}
+
 .dinekit-section {
 	margin: 0 0 2.25rem;
 }
@@ -426,6 +432,81 @@
 	.dinekit-matrix {
 		display: block !important;
 	}
+}
+
+/* ---- Diner-facing filter ---- */
+.dinekit-filter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1.25rem;
+	margin-bottom: 1.75rem;
+	padding-bottom: 1.25rem;
+	border-bottom: 1px solid var(--dinekit-line);
+}
+
+.dinekit-filter__group {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+.dinekit-filter__label {
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--dinekit-muted);
+	margin-right: 0.15rem;
+}
+
+.dinekit-filter__chip {
+	font: inherit;
+	font-size: 0.82rem;
+	font-weight: 600;
+	line-height: 1;
+	color: var(--dinekit-ink);
+	background: #fff;
+	border: 1px solid var(--dinekit-line);
+	border-radius: 999px;
+	padding: 0.4rem 0.8rem;
+	cursor: pointer;
+	transition: all 0.15s ease-in-out;
+}
+
+.dinekit-filter__chip:hover {
+	border-color: var(--dinekit-accent);
+}
+
+.dinekit-filter__chip.is-active {
+	color: #fff;
+	background: #047857;
+	border-color: #047857;
+}
+
+.dinekit-filter__chip--avoid.is-active {
+	background: var(--dinekit-accent);
+	border-color: var(--dinekit-accent);
+}
+
+.dinekit-filter__clear {
+	font: inherit;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--dinekit-muted);
+	background: none;
+	border: 0;
+	cursor: pointer;
+	text-decoration: underline;
+	padding: 0.4rem 0.2rem;
+}
+
+.dinekit-filter__empty {
+	color: var(--dinekit-muted);
+	font-style: italic;
+	padding: 1.5rem 0;
+	text-align: center;
 }
 
 /* ---- Opening hours ---- */

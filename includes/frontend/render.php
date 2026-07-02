@@ -34,6 +34,7 @@ function defaults() {
 		'show_allergens'    => true,
 		'show_dietary'      => true,
 		'show_matrix'       => true,
+		'show_filter'       => true,
 		'currency'          => $settings['currency'],
 		'currency_position' => $settings['currencyPosition'],
 		'accent'            => $settings['accent'],
@@ -144,6 +145,12 @@ function menu( $args = array() ) {
 		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?>"
 		<?php echo $accent ? 'style="--dinekit-accent:' . esc_attr( $accent ) . '"' : ''; ?>
 	>
+		<?php
+		if ( $args['show_filter'] ) {
+			echo render_filter_bar( $groups, $allergen_map ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		?>
+		<div class="dinekit-menu__items">
 		<?php foreach ( $groups as $group ) : ?>
 			<section class="dinekit-section">
 				<?php if ( $group['term'] ) : ?>
@@ -165,6 +172,8 @@ function menu( $args = array() ) {
 				</ul>
 			</section>
 		<?php endforeach; ?>
+		<p class="dinekit-filter__empty" hidden><?php esc_html_e( 'No dishes match your filters.', 'dinekit' ); ?></p>
+		</div>
 
 		<?php
 		if ( $args['show_allergens'] ) {
@@ -194,9 +203,20 @@ function render_item( $post, $args, $allergen_map ) {
 	$prices = is_array( $prices ) ? $prices : array();
 	$badge  = (string) get_post_meta( $post->ID, 'dk_badge', true );
 
+	// Slugs used by the diner-facing filter (get_the_terms returns false, not
+	// an empty array, when there are none).
+	$diet_terms     = get_the_terms( $post, 'dk_dietary' );
+	$allergen_terms = get_the_terms( $post, 'dk_allergen' );
+	$diet_slugs     = is_array( $diet_terms ) ? wp_list_pluck( $diet_terms, 'slug' ) : array();
+	$allergen_slugs = is_array( $allergen_terms ) ? wp_list_pluck( $allergen_terms, 'slug' ) : array();
+
 	ob_start();
 	?>
-	<li class="dinekit-item">
+	<li
+		class="dinekit-item"
+		data-dietary="<?php echo esc_attr( implode( ' ', $diet_slugs ) ); ?>"
+		data-allergens="<?php echo esc_attr( implode( ' ', $allergen_slugs ) ); ?>"
+	>
 		<?php if ( $args['show_images'] && has_post_thumbnail( $post ) ) : ?>
 			<div class="dinekit-item__media">
 				<?php echo get_the_post_thumbnail( $post, 'medium', array( 'loading' => 'lazy', 'class' => 'dinekit-item__img' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -260,6 +280,74 @@ function render_item( $post, $args, $allergen_map ) {
 			</div>
 		</div>
 	</li>
+	<?php
+	return (string) ob_get_clean();
+}
+
+/**
+ * Render the diner-facing filter bar: "show only" dietary chips and "avoid"
+ * allergen chips, built from the terms actually used in this menu. Returns ''
+ * when there is nothing to filter by.
+ *
+ * @param array<int,array>  $groups       Section groups.
+ * @param array<int,array>  $allergen_map Allergen term data keyed by id.
+ * @return string
+ */
+function render_filter_bar( $groups, $allergen_map ) {
+	$diet_used     = array();
+	$allergen_used = array();
+	foreach ( $groups as $group ) {
+		foreach ( $group['items'] as $post ) {
+			$diet_terms = get_the_terms( $post, 'dk_dietary' );
+			if ( is_array( $diet_terms ) ) {
+				foreach ( $diet_terms as $term ) {
+					$diet_used[ $term->slug ] = $term->name;
+				}
+			}
+			$allergen_terms = get_the_terms( $post, 'dk_allergen' );
+			if ( is_array( $allergen_terms ) ) {
+				foreach ( wp_list_pluck( $allergen_terms, 'term_id' ) as $id ) {
+					if ( isset( $allergen_map[ $id ] ) ) {
+						$allergen_used[ $allergen_map[ $id ]['slug'] ] = $allergen_map[ $id ]['name'];
+					}
+				}
+			}
+		}
+	}
+
+	if ( empty( $diet_used ) && empty( $allergen_used ) ) {
+		return '';
+	}
+	ksort( $diet_used );
+	ksort( $allergen_used );
+
+	ob_start();
+	?>
+	<div class="dinekit-filter" data-dinekit-filter>
+		<?php if ( $diet_used ) : ?>
+			<div class="dinekit-filter__group">
+				<span class="dinekit-filter__label"><?php esc_html_e( 'Show only', 'dinekit' ); ?></span>
+				<?php foreach ( $diet_used as $slug => $name ) : ?>
+					<button type="button" class="dinekit-filter__chip" data-diet="<?php echo esc_attr( $slug ); ?>">
+						<?php echo esc_html( $name ); ?>
+					</button>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( $allergen_used ) : ?>
+			<div class="dinekit-filter__group">
+				<span class="dinekit-filter__label"><?php esc_html_e( 'Avoid', 'dinekit' ); ?></span>
+				<?php foreach ( $allergen_used as $slug => $name ) : ?>
+					<button type="button" class="dinekit-filter__chip dinekit-filter__chip--avoid" data-allergen="<?php echo esc_attr( $slug ); ?>">
+						<?php echo esc_html( $name ); ?>
+					</button>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+
+		<button type="button" class="dinekit-filter__clear" hidden><?php esc_html_e( 'Clear', 'dinekit' ); ?></button>
+	</div>
 	<?php
 	return (string) ob_get_clean();
 }
@@ -380,7 +468,8 @@ function render_matrix( $groups, $allergen_map ) {
 					<?php
 					foreach ( $groups as $group ) :
 						foreach ( $group['items'] as $post ) :
-							$ids = wp_list_pluck( (array) get_the_terms( $post, 'dk_allergen' ), 'term_id' );
+							$terms = get_the_terms( $post, 'dk_allergen' );
+							$ids   = is_array( $terms ) ? wp_list_pluck( $terms, 'term_id' ) : array();
 							?>
 							<tr>
 								<th scope="row"><?php echo esc_html( get_the_title( $post ) ); ?></th>

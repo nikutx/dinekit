@@ -23,6 +23,7 @@
 		"showImages": { "type": "boolean", "default": true },
 		"showAllergens": { "type": "boolean", "default": true },
 		"showDietary": { "type": "boolean", "default": true },
-		"showMatrix": { "type": "boolean", "default": true }
+		"showMatrix": { "type": "boolean", "default": true },
+		"showFilter": { "type": "boolean", "default": true }
 	}
 }

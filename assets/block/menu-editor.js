@@ -129,6 +129,13 @@
 					onChange: function ( v ) {
 						setAttributes( { showMatrix: v } );
 					},
+				} ),
+				el( ToggleControl, {
+					label: __( 'Diner filter (show only / avoid)', 'dinekit' ),
+					checked: attributes.showFilter,
+					onChange: function ( v ) {
+						setAttributes( { showFilter: v } );
+					},
 				} )
 			)
 		);

@@ -36,6 +36,7 @@ function init() {
  */
 function register() {
 	wp_register_style( 'dinekit-menu', DINEKIT_URL . 'assets/css/menu.css', array(), DINEKIT_VERSION );
+	wp_register_script( 'dinekit-filter', DINEKIT_URL . 'assets/js/dinekit-filter.js', array(), DINEKIT_VERSION, true );
 
 	wp_register_script(
 		'dinekit-menu-editor',
@@ -116,6 +117,11 @@ function hours_shortcode( $atts ) {
 function render_block( $attributes ) {
 	wp_enqueue_style( 'dinekit-menu' );
 
+	$show_filter = ! isset( $attributes['showFilter'] ) || (bool) $attributes['showFilter'];
+	if ( $show_filter ) {
+		wp_enqueue_script( 'dinekit-filter' );
+	}
+
 	$args = array(
 		'menu'           => isset( $attributes['menu'] ) ? (int) $attributes['menu'] : 0,
 		'sections'       => isset( $attributes['sections'] ) ? array_map( 'intval', (array) $attributes['sections'] ) : array(),
@@ -125,6 +131,7 @@ function render_block( $attributes ) {
 		'show_allergens' => ! isset( $attributes['showAllergens'] ) || (bool) $attributes['showAllergens'],
 		'show_dietary'   => ! isset( $attributes['showDietary'] ) || (bool) $attributes['showDietary'],
 		'show_matrix'    => ! isset( $attributes['showMatrix'] ) || (bool) $attributes['showMatrix'],
+		'show_filter'    => $show_filter,
 	);
 
 	return Render\menu( $args );
@@ -150,6 +157,7 @@ function shortcode( $atts ) {
 			'allergens' => 'yes',
 			'dietary'   => 'yes',
 			'matrix'    => 'yes',
+			'filter'    => 'yes',
 		),
 		$atts,
 		'dinekit_menu'
@@ -161,7 +169,11 @@ function shortcode( $atts ) {
 		return in_array( strtolower( (string) $value ), array( 'yes', 'true', '1', 'on' ), true );
 	};
 
-	$sections = array_filter( array_map( 'intval', explode( ',', (string) $atts['sections'] ) ) );
+	$sections    = array_filter( array_map( 'intval', explode( ',', (string) $atts['sections'] ) ) );
+	$show_filter = $truthy( $atts['filter'] );
+	if ( $show_filter ) {
+		wp_enqueue_script( 'dinekit-filter' );
+	}
 
 	return Render\menu(
 		array(
@@ -173,6 +185,7 @@ function shortcode( $atts ) {
 			'show_allergens' => $truthy( $atts['allergens'] ),
 			'show_dietary'   => $truthy( $atts['dietary'] ),
 			'show_matrix'    => $truthy( $atts['matrix'] ),
+			'show_filter'    => $show_filter,
 		)
 	);
 }

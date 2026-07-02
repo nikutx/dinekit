@@ -32,6 +32,7 @@ export default function DesignView() {
 	const [ allergens, setAllergens ] = useState( true );
 	const [ dietary, setDietary ] = useState( true );
 	const [ matrix, setMatrix ] = useState( true );
+	const [ filter, setFilter ] = useState( true );
 	const [ preview, setPreview ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const toast = useToast();
@@ -44,8 +45,9 @@ export default function DesignView() {
 			allergens: allergens ? '1' : '0',
 			dietary: dietary ? '1' : '0',
 			matrix: matrix ? '1' : '0',
+			filter: filter ? '1' : '0',
 		} ),
-		[ layout, columns, images, allergens, dietary, matrix ]
+		[ layout, columns, images, allergens, dietary, matrix, filter ]
 	);
 
 	useEffect( () => {
@@ -82,11 +84,14 @@ export default function DesignView() {
 		if ( ! matrix ) {
 			parts.push( 'matrix="no"' );
 		}
+		if ( ! filter ) {
+			parts.push( 'filter="no"' );
+		}
 		return `[${ parts.join( ' ' ) }]`;
-	}, [ layout, columns, images, allergens, dietary, matrix ] );
+	}, [ layout, columns, images, allergens, dietary, matrix, filter ] );
 
 	const srcDoc = preview
-		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}</style></head><body>${ preview.html }</body></html>`
+		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
 		: '';
 
 	const copyShortcode = () => {
@@ -145,6 +150,7 @@ export default function DesignView() {
 							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ allergens } onChange={ ( e ) => setAllergens( e.target.checked ) } /> } label="Allergens" />
 							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ dietary } onChange={ ( e ) => setDietary( e.target.checked ) } /> } label="Dietary" />
 							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ matrix } onChange={ ( e ) => setMatrix( e.target.checked ) } /> } label="Matrix" />
+							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ filter } onChange={ ( e ) => setFilter( e.target.checked ) } /> } label="Filter" />
 						</Stack>
 					</Box>
 
