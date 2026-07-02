@@ -83,11 +83,38 @@ export default function MenuTabs( { menus, selected, onSelect, store } ) {
 
 	const chip = statusChip( activeMenu && activeMenu.status );
 
+	// No menus yet: keep it simple with just a subtle opt-in for places that
+	// run separate menus (Lunch/Dinner). Most restaurants never need this.
+	if ( menus.length === 0 ) {
+		return (
+			<Box sx={ { mb: 2 } }>
+				{ adding ? (
+					<InputBase
+						autoFocus
+						placeholder="Menu name (e.g. Lunch)"
+						value={ newName }
+						onChange={ ( e ) => setNewName( e.target.value ) }
+						onKeyDown={ ( e ) => e.key === 'Enter' && addMenu() }
+						onBlur={ addMenu }
+						sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, px: 1, py: 0.5, fontSize: 14, width: 180 } }
+					/>
+				) : (
+					<Button size="small" startIcon={ <AddIcon /> } onClick={ () => setAdding( true ) } sx={ { color: tokens.muted } }>
+						Running separate menus? (Lunch, Dinner…)
+					</Button>
+				) }
+			</Box>
+		);
+	}
+
 	return (
 		<Box sx={ { mb: 2.5 } }>
 			<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" sx={ { rowGap: 1 } }>
+				<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2, mr: 0.5 } }>
+					Menus
+				</Typography>
 				<Box sx={ tabSx( selected === 0 ) } onClick={ () => onSelect( 0 ) }>
-					All menus
+					All
 				</Box>
 
 				{ menus.map( ( m ) =>

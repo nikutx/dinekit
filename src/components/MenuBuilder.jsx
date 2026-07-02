@@ -212,6 +212,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	};
 
 	const activeItem = activeId ? itemsById[ activeId ] : null;
+	const selectedMenuName = ( data.menus.find( ( m ) => m.id === selectedMenu ) || {} ).name || '';
+	const boardItemCount = Object.values( board.map ).reduce( ( sum, arr ) => sum + arr.length, 0 );
 
 	const isEmpty = data.sections.length === 0 && data.items.length === 0;
 	if ( isEmpty && ! skipOnboarding ) {
@@ -223,6 +225,24 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 			<LiveMenuBanner menuPage={ data.menuPage } />
 
 			<MenuTabs menus={ data.menus } selected={ selectedMenu } onSelect={ setSelectedMenu } store={ store } />
+
+			<Stack direction="row" alignItems="baseline" spacing={ 1 } flexWrap="wrap" sx={ { mb: 1.5 } }>
+				<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2 } }>
+					Sections
+				</Typography>
+				<Typography sx={ { fontSize: 13, color: tokens.muted } }>
+					{ selectedMenuName
+						? `Dishes in your “${ selectedMenuName }” menu, grouped into sections.`
+						: 'Group your dishes into sections like Starters, Mains and Desserts. Drag dishes between them.' }
+				</Typography>
+			</Stack>
+
+			{ selectedMenu > 0 && boardItemCount === 0 && (
+				<Box sx={ { mb: 2, p: 2, bgcolor: tokens.accentSoft, borderRadius: 2, fontSize: 13, color: tokens.accentDark } }>
+					No dishes are in the “{ selectedMenuName }” menu yet. Add dishes below (they’ll join this
+					menu), or open any existing dish and tick “{ selectedMenuName }” under Menus.
+				</Box>
+			) }
 
 			<DndContext
 				sensors={ sensors }
@@ -282,7 +302,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				} }
 			>
 				<TextField
-					placeholder="New section name (e.g. Starters)"
+					placeholder="Add a section — e.g. Starters, Mains, Desserts, Sides"
 					value={ newSection }
 					onChange={ ( e ) => setNewSection( e.target.value ) }
 					onKeyDown={ ( e ) => e.key === 'Enter' && addSection() }
