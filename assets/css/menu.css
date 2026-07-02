@@ -434,6 +434,38 @@
 	}
 }
 
+/* ---- "Coming soon" scheduled menu ---- */
+.dinekit-coming__card {
+	text-align: center;
+	border: 2px dashed var(--dinekit-accent);
+	border-radius: var(--dinekit-radius);
+	padding: 3rem 1.5rem;
+}
+
+.dinekit-coming__badge {
+	display: inline-block;
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #fff;
+	background: var(--dinekit-accent);
+	border-radius: 999px;
+	padding: 0.2rem 0.7rem;
+	margin-bottom: 0.75rem;
+}
+
+.dinekit-coming__title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	margin: 0 0 0.35rem;
+}
+
+.dinekit-coming__when {
+	color: var(--dinekit-muted);
+	margin: 0;
+}
+
 /* ---- Diner-facing filter ---- */
 .dinekit-filter {
 	display: flex;

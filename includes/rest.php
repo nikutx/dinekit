@@ -125,6 +125,36 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/menus/(?P<id>\d+)/schedule',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\save_menu_schedule',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_categories_cb',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/menus/(?P<id>\d+)/duplicate',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\duplicate_menu',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_categories_cb',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/menus/(?P<id>\d+)/used',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\menu_used_on',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/settings',
 		array(
 			array(
@@ -211,6 +241,57 @@ function register_routes() {
  */
 function can_manage_settings() {
 	return current_user_can( 'manage_options' );
+}
+
+/**
+ * Category/term management permission.
+ *
+ * @return bool
+ */
+function can_manage_categories_cb() {
+	return current_user_can( 'manage_categories' );
+}
+
+/**
+ * POST /menus/:id/schedule — save a menu's schedule.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function save_menu_schedule( $request ) {
+	require_once DINEKIT_DIR . 'includes/menus.php';
+	$id = (int) $request['id'];
+	if ( ! term_exists( $id, 'dk_menu' ) ) {
+		return new \WP_Error( 'dinekit_no_menu', __( 'Menu not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	\DineKit\Menus\save_schedule( $id, (array) $request->get_json_params() );
+	return rest_ensure_response( menu_response( get_term( $id, 'dk_menu' ) ) );
+}
+
+/**
+ * POST /menus/:id/duplicate — clone a menu and its item assignments.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function duplicate_menu( $request ) {
+	require_once DINEKIT_DIR . 'includes/menus.php';
+	$result = \DineKit\Menus\duplicate( (int) $request['id'] );
+	if ( null === $result ) {
+		return new \WP_Error( 'dinekit_dup_failed', __( 'Could not duplicate the menu.', 'dinekit' ), array( 'status' => 500 ) );
+	}
+	return rest_ensure_response( menu_response( get_term( $result['id'], 'dk_menu' ) ) );
+}
+
+/**
+ * GET /menus/:id/used — pages/posts that display this menu.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function menu_used_on( $request ) {
+	require_once DINEKIT_DIR . 'includes/menus.php';
+	return rest_ensure_response( \DineKit\Menus\used_on( (int) $request['id'] ) );
 }
 
 /**
@@ -394,6 +475,20 @@ function term_response( $term ) {
 }
 
 /**
+ * Serialize a dk_menu term with its schedule + live status.
+ *
+ * @param \WP_Term $term Menu term.
+ * @return array<string,mixed>
+ */
+function menu_response( $term ) {
+	require_once DINEKIT_DIR . 'includes/menus.php';
+	$data             = term_response( $term );
+	$data['schedule'] = \DineKit\Menus\get_schedule( (int) $term->term_id );
+	$data['status']   = \DineKit\Menus\status( (int) $term->term_id );
+	return $data;
+}
+
+/**
  * Serialize a menu item.
  *
  * @param int|\WP_Post $post Post or ID.
@@ -457,7 +552,7 @@ function item_response( $post ) {
 function get_state() {
 	$menus = array();
 	foreach ( PostTypes\ordered_terms( 'dk_menu' ) as $term ) {
-		$menus[] = term_response( $term );
+		$menus[] = menu_response( $term );
 	}
 
 	$sections = array();
@@ -663,6 +758,10 @@ function create_term( $request ) {
 	update_term_meta( (int) $result['term_id'], 'dk_order', $position );
 
 	$term = get_term( (int) $result['term_id'], $taxonomy );
+	if ( 'dk_menu' === $taxonomy ) {
+		update_term_meta( (int) $result['term_id'], 'dk_menu_created', time() );
+		return rest_ensure_response( menu_response( $term ) );
+	}
 	return rest_ensure_response( term_response( $term ) );
 }
 

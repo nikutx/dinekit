@@ -126,6 +126,29 @@ export function useDineKit() {
 		[ track ]
 	);
 
+	// --- Menu scheduling -----------------------------------------------------
+	const saveMenuSchedule = useCallback(
+		async ( id, schedule ) => {
+			const updated = await track( api.saveMenuSchedule( id, schedule ) );
+			setData( ( prev ) => ( {
+				...prev,
+				menus: prev.menus.map( ( m ) => ( m.id === id ? updated : m ) ),
+			} ) );
+			return updated;
+		},
+		[ track ]
+	);
+
+	const duplicateMenu = useCallback(
+		async ( id ) => {
+			const created = await track( api.duplicateMenu( id ) );
+			setData( ( prev ) => ( { ...prev, menus: [ ...prev.menus, created ] } ) );
+			toast.success( 'Menu duplicated' );
+			return created;
+		},
+		[ track, toast ]
+	);
+
 	// --- Ordering ------------------------------------------------------------
 	// Accepts the new local arrangement and persists it. `items` is a flat list
 	// of { id, order }; `sections` / `menus` are ordered id arrays.
@@ -153,6 +176,8 @@ export function useDineKit() {
 		createTerm,
 		renameTerm,
 		deleteTerm,
+		saveMenuSchedule,
+		duplicateMenu,
 		persistOrder,
 		setItems,
 		setSections,

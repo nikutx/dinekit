@@ -50,6 +50,9 @@ export const api = {
 	getPreview: ( params ) => request( 'GET', 'preview?' + new URLSearchParams( params ).toString() ),
 	getSettings: () => request( 'GET', 'settings' ),
 	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),
+	saveMenuSchedule: ( id, schedule ) => request( 'POST', `menus/${ id }/schedule`, schedule ),
+	duplicateMenu: ( id ) => request( 'POST', `menus/${ id }/duplicate` ),
+	getMenuUsed: ( id ) => request( 'GET', `menus/${ id }/used` ),
 	getPages: async () => {
 		const res = await fetch( cfg.restRoot + 'wp/v2/pages?per_page=100&status=publish&_fields=id,link,title', {
 			credentials: 'same-origin',
