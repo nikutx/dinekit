@@ -48,6 +48,8 @@ export const api = {
 	setup: ( name ) => request( 'POST', 'setup', { name } ),
 	createMenuPage: () => request( 'POST', 'menu-page' ),
 	getPreview: ( params ) => request( 'GET', 'preview?' + new URLSearchParams( params ).toString() ),
+	getSettings: () => request( 'GET', 'settings' ),
+	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),
 	getPages: async () => {
 		const res = await fetch( cfg.restRoot + 'wp/v2/pages?per_page=100&status=publish&_fields=id,link,title', {
 			credentials: 'same-origin',

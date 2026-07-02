@@ -125,6 +125,23 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/settings',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\get_settings',
+				'permission_callback' => __NAMESPACE__ . '\\can_edit',
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\save_settings',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/preview',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -194,6 +211,27 @@ function register_routes() {
  */
 function can_manage_settings() {
 	return current_user_can( 'manage_options' );
+}
+
+/**
+ * GET /settings — plugin settings (brand colour, currency).
+ *
+ * @return \WP_REST_Response
+ */
+function get_settings() {
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	return rest_ensure_response( \DineKit\Settings\get() );
+}
+
+/**
+ * POST /settings — save plugin settings.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function save_settings( $request ) {
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	return rest_ensure_response( \DineKit\Settings\save( (array) $request->get_json_params() ) );
 }
 
 /**

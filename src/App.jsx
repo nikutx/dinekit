@@ -4,6 +4,7 @@ import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import PaletteIcon from '@mui/icons-material/Palette';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { tokens } from './theme';
 import { useDineKit } from './data/useDineKit';
 import { useRoute } from './lib/useRoute';
@@ -13,12 +14,14 @@ import MenuBuilder from './components/MenuBuilder';
 import HoursEditor from './components/HoursEditor';
 import QRView from './components/QRView';
 import DesignView from './components/DesignView';
+import SettingsView from './components/SettingsView';
 
 const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
 	{ key: 'qr', label: 'QR Code', icon: <QrCode2Icon fontSize="small" /> },
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
+	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
 export default function App() {
@@ -60,6 +63,7 @@ export default function App() {
 							{ view === 'design' && <DesignView /> }
 							{ view === 'hours' && <HoursEditor /> }
 							{ view === 'qr' && <QRView /> }
+							{ view === 'settings' && <SettingsView /> }
 						</>
 					) }
 				</Box>

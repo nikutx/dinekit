@@ -23,16 +23,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<string,mixed>
  */
 function defaults() {
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	$settings = \DineKit\Settings\get();
 	return array(
-		'menu'           => 0,      // dk_menu term id, 0 = all items.
-		'sections'       => array(), // dk_section term ids, empty = all sections.
-		'layout'         => 'list', // list | grid | chalkboard.
-		'columns'        => 0,      // 0 = layout default; 1–4 forces a column count.
-		'show_images'    => true,
-		'show_allergens' => true,
-		'show_dietary'   => true,
-		'show_matrix'    => true,
-		'currency'       => '£',
+		'menu'              => 0,      // dk_menu term id, 0 = all items.
+		'sections'          => array(), // dk_section term ids, empty = all sections.
+		'layout'            => 'list', // list | grid | chalkboard.
+		'columns'           => 0,      // 0 = layout default; 1–4 forces a column count.
+		'show_images'       => true,
+		'show_allergens'    => true,
+		'show_dietary'      => true,
+		'show_matrix'       => true,
+		'currency'          => $settings['currency'],
+		'currency_position' => $settings['currencyPosition'],
+		'accent'            => $settings['accent'],
 	);
 }
 
@@ -135,7 +139,11 @@ function menu( $args = array() ) {
 
 	ob_start();
 	?>
-	<div class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?>">
+	<?php $accent = isset( $args['accent'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $args['accent'] ) ? $args['accent'] : ''; ?>
+	<div
+		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?>"
+		<?php echo $accent ? 'style="--dinekit-accent:' . esc_attr( $accent ) . '"' : ''; ?>
+	>
 		<?php foreach ( $groups as $group ) : ?>
 			<section class="dinekit-section">
 				<?php if ( $group['term'] ) : ?>
@@ -206,7 +214,7 @@ function render_item( $post, $args, $allergen_map ) {
 				<span class="dinekit-item__leader" aria-hidden="true"></span>
 				<?php if ( $prices ) : ?>
 					<span class="dinekit-item__prices">
-						<?php echo wp_kses_post( price_html( $prices, $args['currency'] ) ); ?>
+						<?php echo wp_kses_post( price_html( $prices, $args['currency'], isset( $args['currency_position'] ) ? $args['currency_position'] : 'before' ) ); ?>
 					</span>
 				<?php endif; ?>
 			</div>
@@ -261,17 +269,22 @@ function render_item( $post, $args, $allergen_map ) {
  *
  * @param array<int,array{label:string,amount:string}> $prices   Prices.
  * @param string                                        $currency Currency symbol.
+ * @param string                                        $position Symbol position: before | after.
  * @return string
  */
-function price_html( $prices, $currency ) {
+function price_html( $prices, $currency, $position = 'before' ) {
 	$out = array();
 	foreach ( $prices as $row ) {
 		$amount = isset( $row['amount'] ) ? trim( (string) $row['amount'] ) : '';
 		if ( '' === $amount ) {
 			continue;
 		}
-		// Prepend the currency symbol only if the amount is bare digits.
-		$display = ( preg_match( '/^[0-9]/', $amount ) ) ? $currency . $amount : $amount;
+		// Add the currency symbol only if the amount is bare digits.
+		if ( preg_match( '/^[0-9]/', $amount ) ) {
+			$display = ( 'after' === $position ) ? $amount . $currency : $currency . $amount;
+		} else {
+			$display = $amount;
+		}
 		$label   = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
 		$out[]   = $label
 			? '<span class="dinekit-price"><span class="dinekit-price__label">' . esc_html( $label ) . '</span> ' . esc_html( $display ) . '</span>'
