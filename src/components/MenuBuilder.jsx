@@ -17,6 +17,7 @@ import ItemRow from './ItemRow';
 import ItemEditor from './ItemEditor';
 import Onboarding from './Onboarding';
 import LiveMenuBanner from './LiveMenuBanner';
+import MenuTabs from './MenuTabs';
 
 const NONE = 'none';
 const cid = ( key ) => `container:${ key }`;
@@ -25,12 +26,16 @@ const keyFromContainerId = ( id ) => id.slice( 'container:'.length );
 
 // Build the ordered container→item-ids map from store data. Each item lives in
 // the first of its sections that still exists, else the "none" bucket.
-function buildBoard( data ) {
+// menuFilter (a dk_menu term id, or 0 for all) limits which items are shown.
+function buildBoard( data, menuFilter ) {
 	const secIds = data.sections.map( ( s ) => String( s.id ) );
 	const map = { [ NONE ]: [] };
 	secIds.forEach( ( id ) => ( map[ id ] = [] ) );
 
-	const sorted = [ ...data.items ].sort(
+	const items = menuFilter
+		? data.items.filter( ( it ) => ( it.menus || [] ).includes( menuFilter ) )
+		: data.items;
+	const sorted = [ ...items ].sort(
 		( a, b ) => a.order - b.order || a.title.localeCompare( b.title )
 	);
 	sorted.forEach( ( item ) => {
@@ -47,7 +52,8 @@ function buildBoard( data ) {
 
 export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const { data } = store;
-	const [ board, setBoard ] = useState( () => buildBoard( data ) );
+	const [ selectedMenu, setSelectedMenu ] = useState( 0 );
+	const [ board, setBoard ] = useState( () => buildBoard( data, 0 ) );
 	const [ activeId, setActiveId ] = useState( null );
 	const [ newSection, setNewSection ] = useState( '' );
 	const [ skipOnboarding, setSkipOnboarding ] = useState( false );
@@ -63,13 +69,13 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 		() =>
 			data.sections.map( ( s ) => s.id ).join( ',' ) +
 			'|' +
-			data.items.map( ( i ) => i.id ).join( ',' ),
+			data.items.map( ( i ) => i.id + ':' + ( i.menus || [] ).join( '.' ) ).join( ',' ),
 		[ data.sections, data.items ]
 	);
 	useEffect( () => {
-		setBoard( buildBoard( data ) );
+		setBoard( buildBoard( data, selectedMenu ) );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ signature ] );
+	}, [ signature, selectedMenu ] );
 
 	const sensors = useSensors(
 		useSensor( PointerSensor, { activationConstraint: { distance: 5 } } ),
@@ -200,6 +206,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 			title: '',
 			order,
 			sections: sectionKey === NONE ? [] : [ Number( sectionKey ) ],
+			menus: selectedMenu ? [ selectedMenu ] : [],
 		} );
 		setEditingId( created.id );
 	};
@@ -214,6 +221,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	return (
 		<Box sx={ { maxWidth: 1180, mx: 'auto' } }>
 			<LiveMenuBanner menuPage={ data.menuPage } />
+
+			<MenuTabs menus={ data.menus } selected={ selectedMenu } onSelect={ setSelectedMenu } store={ store } />
 
 			<DndContext
 				sensors={ sensors }
