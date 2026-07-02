@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "dinekit/hours",
+	"version": "0.1.0",
+	"title": "DineKit Opening Hours",
+	"category": "widgets",
+	"icon": "clock",
+	"description": "Show your opening hours with a live open/closed status.",
+	"keywords": [ "hours", "opening", "times", "schedule", "restaurant" ],
+	"textdomain": "dinekit",
+	"editorScript": "dinekit-hours-editor",
+	"style": "dinekit-menu",
+	"supports": {
+		"html": false,
+		"align": [ "wide" ]
+	},
+	"attributes": {
+		"showStatus": { "type": "boolean", "default": true },
+		"title": { "type": "string", "default": "" }
+	}
+}

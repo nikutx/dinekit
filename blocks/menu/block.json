@@ -1,0 +1,28 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "dinekit/menu",
+	"version": "0.1.0",
+	"title": "DineKit Menu",
+	"category": "widgets",
+	"icon": "food",
+	"description": "Display a restaurant menu with prices, allergens and dietary labels.",
+	"keywords": [ "menu", "restaurant", "food", "allergen", "price" ],
+	"textdomain": "dinekit",
+	"editorScript": "dinekit-menu-editor",
+	"style": "dinekit-menu",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"attributes": {
+		"menu": { "type": "number", "default": 0 },
+		"sections": { "type": "array", "default": [] },
+		"layout": { "type": "string", "default": "list" },
+		"columns": { "type": "number", "default": 0 },
+		"showImages": { "type": "boolean", "default": true },
+		"showAllergens": { "type": "boolean", "default": true },
+		"showDietary": { "type": "boolean", "default": true },
+		"showMatrix": { "type": "boolean", "default": true }
+	}
+}

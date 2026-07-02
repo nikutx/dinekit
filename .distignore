@@ -1,0 +1,24 @@
+# Files excluded from the distributed plugin zip / SVN trunk.
+.git
+.github
+.idea
+.gitignore
+.gitattributes
+.distignore
+CLAUDE.md
+node_modules/
+src/
+public/
+index.html
+package.json
+package-lock.json
+vite.config.js
+eslint.config.js
+composer.json
+composer.lock
+phpcs.xml.dist
+.wp-env.json
+README.md
+build-zip.js
+bump.js
+includes/admin/assets-dev.php

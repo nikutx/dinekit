@@ -37,7 +37,8 @@ function register() {
 			'description'   => __( 'Restaurant menu items managed by DineKit.', 'dinekit' ),
 			'public'        => false,
 			'show_ui'       => true,
-			'show_in_menu'  => true,
+			// Hidden from the menu: the DineKit React app is the primary UI.
+			'show_in_menu'  => false,
 			'show_in_rest'  => true,
 			'menu_icon'     => 'dashicons-food',
 			'menu_position' => 26,
@@ -127,6 +128,39 @@ function register() {
 			'rewrite'           => false,
 		)
 	);
+}
+
+/**
+ * Terms of a taxonomy ordered by the `dk_order` term meta, then name.
+ *
+ * @param string $taxonomy   Taxonomy slug.
+ * @param bool   $hide_empty Whether to hide unused terms.
+ * @return \WP_Term[]
+ */
+function ordered_terms( $taxonomy, $hide_empty = false ) {
+	$terms = get_terms(
+		array(
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => $hide_empty,
+		)
+	);
+	if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
+		return array();
+	}
+	usort(
+		$terms,
+		function ( $a, $b ) {
+			$order_a = get_term_meta( $a->term_id, 'dk_order', true );
+			$order_b = get_term_meta( $b->term_id, 'dk_order', true );
+			$order_a = ( '' === $order_a ) ? PHP_INT_MAX : (int) $order_a;
+			$order_b = ( '' === $order_b ) ? PHP_INT_MAX : (int) $order_b;
+			if ( $order_a === $order_b ) {
+				return strcasecmp( $a->name, $b->name );
+			}
+			return $order_a <=> $order_b;
+		}
+	);
+	return $terms;
 }
 
 /**

@@ -1,0 +1,511 @@
+/**
+ * DineKit frontend menu styles. Scoped to .dinekit-menu, theme-agnostic, no
+ * external fonts. Custom properties allow theme overrides via --dinekit-*.
+ */
+.dinekit-menu {
+	--dinekit-accent: #b91c1c;
+	--dinekit-ink: #1f2937;
+	--dinekit-muted: #6b7280;
+	--dinekit-line: #e5e7eb;
+	--dinekit-bg: transparent;
+	--dinekit-radius: 12px;
+
+	max-width: 1100px;
+	margin: 0 auto;
+	color: var(--dinekit-ink);
+	background: var(--dinekit-bg);
+	line-height: 1.5;
+}
+
+.dinekit-menu * {
+	box-sizing: border-box;
+}
+
+.dinekit-section {
+	margin: 0 0 2.25rem;
+}
+
+.dinekit-section__title {
+	font-size: 1.35rem;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	margin: 0 0 0.25rem;
+	padding-bottom: 0.4rem;
+	border-bottom: 2px solid var(--dinekit-accent);
+	display: inline-block;
+}
+
+.dinekit-section__desc {
+	color: var(--dinekit-muted);
+	font-size: 0.95rem;
+	margin: 0 0 1rem;
+}
+
+.dinekit-items {
+	list-style: none;
+	margin: 0.75rem 0 0;
+	padding: 0;
+}
+
+/* ---- Item (shared) ---- */
+.dinekit-item {
+	padding: 0.85rem 0;
+	border-bottom: 1px solid var(--dinekit-line);
+}
+
+.dinekit-item:last-child {
+	border-bottom: 0;
+}
+
+.dinekit-item__head {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+}
+
+.dinekit-item__name {
+	font-size: 1.05rem;
+	font-weight: 600;
+	margin: 0;
+	flex: 0 1 auto;
+}
+
+.dinekit-item__leader {
+	flex: 1 1 auto;
+	border-bottom: 1px dotted var(--dinekit-line);
+	transform: translateY(-0.25rem);
+	min-width: 1.5rem;
+}
+
+.dinekit-item__prices {
+	flex: 0 0 auto;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.dinekit-price + .dinekit-price {
+	margin-left: 0.6rem;
+}
+
+.dinekit-price__label {
+	color: var(--dinekit-muted);
+	font-weight: 500;
+	font-size: 0.85em;
+}
+
+.dinekit-item__desc {
+	color: var(--dinekit-muted);
+	font-size: 0.92rem;
+	margin: 0.25rem 0 0;
+	max-width: 60ch;
+}
+
+.dinekit-item__tags {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem;
+	margin-top: 0.5rem;
+}
+
+.dinekit-badge {
+	display: inline-block;
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #fff;
+	background: var(--dinekit-accent);
+	border-radius: 999px;
+	padding: 0.1rem 0.5rem;
+	margin-left: 0.4rem;
+	vertical-align: middle;
+}
+
+.dinekit-diet {
+	font-size: 0.72rem;
+	font-weight: 600;
+	color: #047857;
+	background: #d1fae5;
+	border-radius: 6px;
+	padding: 0.1rem 0.45rem;
+}
+
+.dinekit-allergens {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	align-items: center;
+	margin-left: auto;
+}
+
+.dinekit-allergen-icon {
+	width: 18px;
+	height: 18px;
+	opacity: 0.85;
+}
+
+.dinekit-allergen-text {
+	font-size: 0.7rem;
+	color: var(--dinekit-muted);
+	border: 1px solid var(--dinekit-line);
+	border-radius: 6px;
+	padding: 0 0.35rem;
+}
+
+/* ---- Explicit column counts (override the layout default) ---- */
+.dinekit-menu--cols-1 .dinekit-items,
+.dinekit-menu--cols-2 .dinekit-items,
+.dinekit-menu--cols-3 .dinekit-items,
+.dinekit-menu--cols-4 .dinekit-items {
+	display: grid;
+	gap: 1rem 1.5rem;
+}
+
+.dinekit-menu--cols-1 .dinekit-items {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.dinekit-menu--cols-2 .dinekit-items {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dinekit-menu--cols-3 .dinekit-items {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dinekit-menu--cols-4 .dinekit-items {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dinekit-menu--cols-3 .dinekit-items {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+	.dinekit-menu--cols-3 .dinekit-items,
+	.dinekit-menu--cols-4 .dinekit-items {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 560px) {
+	.dinekit-menu--cols-2 .dinekit-items,
+	.dinekit-menu--cols-3 .dinekit-items,
+	.dinekit-menu--cols-4 .dinekit-items {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/*
+ * Keep every item's content inside its own column. The default list layout is a
+ * horizontal name–leader–price row that overflows a narrow column, so in any
+ * multi-column layout we drop the leader, let the head wrap, and allow prices to
+ * wrap instead of forcing a single nowrap line.
+ */
+[class*="dinekit-menu--cols-"] .dinekit-item,
+[class*="dinekit-menu--cols-"] .dinekit-item__body {
+	min-width: 0;
+}
+
+[class*="dinekit-menu--cols-"] .dinekit-item__leader {
+	display: none;
+}
+
+[class*="dinekit-menu--cols-"] .dinekit-item__head {
+	flex-wrap: wrap;
+	column-gap: 0.5rem;
+}
+
+[class*="dinekit-menu--cols-"] .dinekit-item__name {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+[class*="dinekit-menu--cols-"] .dinekit-item__prices {
+	flex: 0 0 auto;
+	white-space: normal;
+}
+
+[class*="dinekit-menu--cols-"] .dinekit-allergens {
+	margin-left: 0;
+}
+
+/* ---- Layout: Card grid ---- */
+.dinekit-menu--grid .dinekit-items {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 1rem;
+}
+
+.dinekit-menu--grid .dinekit-item {
+	border: 1px solid var(--dinekit-line);
+	border-radius: var(--dinekit-radius);
+	overflow: hidden;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.dinekit-menu--grid .dinekit-item__media {
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	background: #f3f4f6;
+}
+
+.dinekit-menu--grid .dinekit-item__img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.dinekit-menu--grid .dinekit-item__body {
+	padding: 0.85rem;
+}
+
+.dinekit-menu--grid .dinekit-item__leader {
+	display: none;
+}
+
+.dinekit-menu--grid .dinekit-item__head {
+	flex-wrap: wrap;
+}
+
+/* ---- Layout: Classic list (with optional thumbnail) ---- */
+.dinekit-menu--list .dinekit-item {
+	display: flex;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.dinekit-menu--list .dinekit-item__media {
+	flex: 0 0 72px;
+}
+
+.dinekit-menu--list .dinekit-item__img {
+	width: 72px;
+	height: 72px;
+	object-fit: cover;
+	border-radius: 10px;
+	display: block;
+}
+
+.dinekit-menu--list .dinekit-item__body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* ---- Layout: Compact chalkboard ---- */
+.dinekit-menu--chalkboard {
+	--dinekit-ink: #f8fafc;
+	--dinekit-muted: #cbd5e1;
+	--dinekit-line: rgba(255, 255, 255, 0.18);
+	--dinekit-accent: #fbbf24;
+	background: #1a202c;
+	color: var(--dinekit-ink);
+	padding: 1.75rem;
+	border-radius: var(--dinekit-radius);
+}
+
+.dinekit-menu--chalkboard .dinekit-item__media {
+	display: none;
+}
+
+.dinekit-menu--chalkboard .dinekit-item {
+	padding: 0.5rem 0;
+}
+
+.dinekit-menu--chalkboard .dinekit-item__desc {
+	font-size: 0.85rem;
+}
+
+/* ---- Allergen legend ---- */
+.dinekit-legend {
+	margin-top: 1.5rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--dinekit-line);
+}
+
+.dinekit-legend__title {
+	display: block;
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--dinekit-muted);
+	margin-bottom: 0.5rem;
+}
+
+.dinekit-legend__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+}
+
+.dinekit-legend__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+	color: var(--dinekit-muted);
+}
+
+/* ---- Allergen matrix ---- */
+.dinekit-matrix {
+	margin-top: 1.25rem;
+	font-size: 0.85rem;
+}
+
+.dinekit-matrix > summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--dinekit-accent);
+	padding: 0.5rem 0;
+}
+
+.dinekit-matrix__scroll {
+	overflow-x: auto;
+}
+
+.dinekit-matrix__table {
+	border-collapse: collapse;
+	width: 100%;
+	min-width: 640px;
+	margin-top: 0.5rem;
+}
+
+.dinekit-matrix__table th,
+.dinekit-matrix__table td {
+	border: 1px solid var(--dinekit-line);
+	padding: 0.35rem 0.5rem;
+	text-align: center;
+	font-size: 0.75rem;
+}
+
+.dinekit-matrix__table thead th {
+	writing-mode: vertical-rl;
+	transform: rotate(180deg);
+	white-space: nowrap;
+	height: 120px;
+	vertical-align: bottom;
+	font-weight: 600;
+}
+
+.dinekit-matrix__table thead th:first-child,
+.dinekit-matrix__table tbody th {
+	writing-mode: horizontal-tb;
+	transform: none;
+	text-align: left;
+	height: auto;
+	font-weight: 600;
+}
+
+.dinekit-matrix__table td.is-yes {
+	background: #fee2e2;
+	color: #b91c1c;
+	font-weight: 700;
+}
+
+.dinekit-menu--empty {
+	color: var(--dinekit-muted);
+	font-style: italic;
+}
+
+@media print {
+	.dinekit-matrix > summary {
+		display: none;
+	}
+	.dinekit-matrix[open] .dinekit-matrix__scroll,
+	.dinekit-matrix .dinekit-matrix__scroll {
+		overflow: visible;
+	}
+	.dinekit-matrix {
+		display: block !important;
+	}
+}
+
+/* ---- Opening hours ---- */
+.dinekit-hours {
+	--dinekit-accent: #b91c1c;
+	--dinekit-ink: #1f2937;
+	--dinekit-muted: #6b7280;
+	--dinekit-line: #e5e7eb;
+	max-width: 420px;
+	color: var(--dinekit-ink);
+	line-height: 1.5;
+}
+
+.dinekit-hours__title {
+	font-size: 1.2rem;
+	font-weight: 700;
+	margin: 0 0 0.6rem;
+}
+
+.dinekit-hours__status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-weight: 600;
+	font-size: 0.95rem;
+	margin: 0 0 0.75rem;
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+}
+
+.dinekit-hours__status.is-open {
+	color: #047857;
+	background: #d1fae5;
+}
+
+.dinekit-hours__status.is-closed {
+	color: #b91c1c;
+	background: #fee2e2;
+}
+
+.dinekit-hours__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.dinekit-hours__until {
+	font-weight: 500;
+	opacity: 0.85;
+}
+
+.dinekit-hours__table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.dinekit-hours__table th,
+.dinekit-hours__table td {
+	padding: 0.4rem 0;
+	border-bottom: 1px solid var(--dinekit-line);
+	text-align: left;
+	font-size: 0.95rem;
+}
+
+.dinekit-hours__table td {
+	text-align: right;
+}
+
+.dinekit-hours__table th {
+	font-weight: 500;
+	color: var(--dinekit-muted);
+}
+
+.dinekit-hours__table tr.is-today th,
+.dinekit-hours__table tr.is-today td {
+	font-weight: 700;
+	color: var(--dinekit-ink);
+}
+
+.dinekit-hours__closed {
+	color: var(--dinekit-muted);
+}

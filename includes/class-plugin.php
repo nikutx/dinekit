@@ -60,16 +60,27 @@ final class Plugin {
 	 * @return void
 	 */
 	private function boot() {
-		load_plugin_textdomain( 'dinekit', false, dirname( plugin_basename( DINEKIT_FILE ) ) . '/languages' );
-
+		// Translations load automatically on wp.org-hosted plugins (WP 4.6+);
+		// no load_plugin_textdomain() call needed.
 		if ( $this->load( 'post-types.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\PostTypes\\register' );
 		}
 		if ( $this->load( 'meta.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\Meta\\register' );
 		}
-		if ( $this->load( 'admin/admin.php' ) && is_admin() ) {
-			Admin\init();
+		if ( $this->load( 'rest.php' ) ) {
+			Rest\init();
+		}
+		if ( $this->load( 'frontend/frontend.php' ) ) {
+			Frontend\init();
+		}
+		if ( is_admin() ) {
+			if ( $this->load( 'admin/admin.php' ) ) {
+				Admin\init();
+			}
+			if ( $this->load( 'admin/app-page.php' ) ) {
+				Admin\App\init();
+			}
 		}
 
 		// Upgrade routine (option-based, cheap).

@@ -25,6 +25,10 @@ if ( ! get_option( 'dinekit_delete_data_on_uninstall' ) ) {
 // Explicit full cleanup.
 delete_option( 'dinekit_dietary_seeded' );
 delete_option( 'dinekit_delete_data_on_uninstall' );
+delete_option( 'dinekit_hours' );
+delete_option( 'dinekit_onboarded' );
+
+// Remove per-item meta is handled by wp_delete_post below.
 
 // Delete all menu items.
 $dinekit_items = get_posts(

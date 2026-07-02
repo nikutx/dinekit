@@ -47,6 +47,21 @@ function register() {
 		)
 	);
 
+	foreach ( array( 'dk_section', 'dk_menu' ) as $taxonomy ) {
+		register_term_meta(
+			$taxonomy,
+			'dk_order',
+			array(
+				'type'              => 'integer',
+				'description'       => __( 'Display order within DineKit menus.', 'dinekit' ),
+				'single'            => true,
+				'default'           => 0,
+				'show_in_rest'      => true,
+				'sanitize_callback' => 'absint',
+			)
+		);
+	}
+
 	register_post_meta(
 		'dk_menu_item',
 		'dk_badge',

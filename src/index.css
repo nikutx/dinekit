@@ -1,0 +1,22 @@
+/* DineKit admin SPA base. Scoped to the mount so it never leaks into wp-admin. */
+#dinekit-root {
+	--dk-bg: #f8fafc;
+	box-sizing: border-box;
+	min-height: calc( 100vh - 32px );
+	background: var( --dk-bg );
+	color: #0f172a;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+#dinekit-root *,
+#dinekit-root *::before,
+#dinekit-root *::after {
+	box-sizing: border-box;
+}
+
+/* Neutralise the theme-injected outer margins on our screen. */
+.dinekit-screen #wpbody-content > .wrap {
+	margin: 0;
+	padding: 0;
+}

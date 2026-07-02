@@ -52,11 +52,11 @@ function column_content( $column, $post_id ) {
 		return;
 	}
 	$prices = get_post_meta( $post_id, 'dk_prices', true );
-	if ( ! is_array( $prices ) || empty( $prices ) ) {
-		echo '&#8212;';
-		return;
+	if ( ! is_array( $prices ) ) {
+		$prices = array();
 	}
-	$parts = array();
+	$prices = array_values( $prices );
+	$parts  = array();
 	foreach ( $prices as $row ) {
 		$label  = isset( $row['label'] ) ? $row['label'] : '';
 		$amount = isset( $row['amount'] ) ? $row['amount'] : '';
@@ -65,5 +65,5 @@ function column_content( $column, $post_id ) {
 		}
 		$parts[] = ( '' !== $label ) ? $label . ': ' . $amount : $amount;
 	}
-	echo esc_html( implode( ' · ', $parts ) );
+	echo empty( $parts ) ? '&#8212;' : esc_html( implode( ' · ', $parts ) );
 }

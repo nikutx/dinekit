@@ -1,22 +1,31 @@
 {
 	"name": "dinekit",
-	"version": "0.1.0",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
 	"description": "DineKit – restaurant menus, UK allergen support and QR table cards for WordPress.",
 	"author": "Web Level Up",
 	"license": "GPL-2.0-or-later",
-	"private": true,
 	"scripts": {
-		"start": "wp-scripts start",
-		"build": "wp-scripts build",
-		"env:start": "wp-env start",
-		"env:stop": "wp-env stop",
-		"env:destroy": "wp-env destroy",
-		"wp": "wp-env run cli wp",
-		"lint:php": "wp-env run cli --env-cwd=/var/www/html/wp-content/plugins/dinekit bash -c \"find . -name '*.php' -not -path './node_modules/*' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l\"",
-		"test:e2e": "wp-scripts test-playwright"
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"zip": "npm run build && node build-zip.js"
+	},
+	"dependencies": {
+		"@dnd-kit/core": "^6.1.0",
+		"@dnd-kit/sortable": "^8.0.0",
+		"@dnd-kit/utilities": "^3.2.2",
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.1",
+		"@mui/icons-material": "^7.3.7",
+		"@mui/material": "^7.3.7",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^10.0.0",
-		"@wordpress/scripts": "^30.0.0"
+		"@vitejs/plugin-react": "^5.1.1",
+		"archiver": "^7.0.1",
+		"vite": "^7.2.4"
 	}
 }
