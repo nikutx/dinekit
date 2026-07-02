@@ -1,0 +1,22 @@
+{
+	"name": "dinekit",
+	"version": "0.1.0",
+	"description": "DineKit – restaurant menus, UK allergen support and QR table cards for WordPress.",
+	"author": "Web Level Up",
+	"license": "GPL-2.0-or-later",
+	"private": true,
+	"scripts": {
+		"start": "wp-scripts start",
+		"build": "wp-scripts build",
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop",
+		"env:destroy": "wp-env destroy",
+		"wp": "wp-env run cli wp",
+		"lint:php": "wp-env run cli --env-cwd=/var/www/html/wp-content/plugins/dinekit bash -c \"find . -name '*.php' -not -path './node_modules/*' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l\"",
+		"test:e2e": "wp-scripts test-playwright"
+	},
+	"devDependencies": {
+		"@wordpress/env": "^10.0.0",
+		"@wordpress/scripts": "^30.0.0"
+	}
+}
