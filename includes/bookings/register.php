@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function init() {
 	add_action( 'init', __NAMESPACE__ . '\\register' );
+	require_once DINEKIT_DIR . 'includes/bookings/rest.php';
+	Rest\init();
 }
 
 /**
