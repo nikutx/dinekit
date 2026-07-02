@@ -1,4 +1,4 @@
-=== DineKit – Restaurant Menu, QR Menus & Allergen Labels ===
+=== DineKit ===
 Contributors: weblevelup
 Tags: restaurant menu, qr menu, food menu, allergen, restaurant
 Requires at least: 6.0
