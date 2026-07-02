@@ -55,6 +55,33 @@ export const api = {
 	saveMenuSchedule: ( id, schedule ) => request( 'POST', `menus/${ id }/schedule`, schedule ),
 	duplicateMenu: ( id ) => request( 'POST', `menus/${ id }/duplicate` ),
 	getMenuUsed: ( id ) => request( 'GET', `menus/${ id }/used` ),
+
+	// Bookings — floor plan (areas + tables).
+	getFloor: () => request( 'GET', 'bookings/floor' ),
+	createArea: ( name ) => request( 'POST', 'bookings/areas', { name } ),
+	updateArea: ( id, name ) => request( 'PATCH', `bookings/areas/${ id }`, { name } ),
+	deleteArea: ( id ) => request( 'DELETE', `bookings/areas/${ id }` ),
+	createTable: ( data ) => request( 'POST', 'bookings/tables', data ),
+	updateTable: ( id, data ) => request( 'PATCH', `bookings/tables/${ id }`, data ),
+	deleteTable: ( id ) => request( 'DELETE', `bookings/tables/${ id }` ),
+
+	// Bookings — availability + diary.
+	getAvailability: ( { date, time, party } ) =>
+		request( 'GET', 'bookings/availability?' + new URLSearchParams( { date, time, party } ).toString() ),
+	listBookings: ( { from, to } = {} ) => {
+		const q = new URLSearchParams();
+		if ( from ) {
+			q.set( 'from', from );
+		}
+		if ( to ) {
+			q.set( 'to', to );
+		}
+		const s = q.toString();
+		return request( 'GET', 'bookings/list' + ( s ? '?' + s : '' ) );
+	},
+	createBooking: ( data ) => request( 'POST', 'bookings', data ),
+	updateBooking: ( id, data ) => request( 'PATCH', `bookings/${ id }`, data ),
+	deleteBooking: ( id ) => request( 'DELETE', `bookings/${ id }` ),
 	getPages: async () => {
 		const res = await fetch( cfg.restRoot + 'wp/v2/pages?per_page=100&status=publish&_fields=id,link,title', {
 			credentials: 'same-origin',

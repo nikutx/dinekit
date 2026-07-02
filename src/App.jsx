@@ -5,6 +5,8 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsIcon from '@mui/icons-material/Settings';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import GridViewIcon from '@mui/icons-material/GridView';
 import { tokens } from './theme';
 import { useDineKit } from './data/useDineKit';
 import { useRoute } from './lib/useRoute';
@@ -15,12 +17,16 @@ import HoursEditor from './components/HoursEditor';
 import QRView from './components/QRView';
 import DesignView from './components/DesignView';
 import SettingsView from './components/SettingsView';
+import BookingsView from './components/BookingsView';
+import FloorPlan from './components/FloorPlan';
 
 const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
 	{ key: 'qr', label: 'QR Code', icon: <QrCode2Icon fontSize="small" /> },
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
+	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
+	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
@@ -63,6 +69,8 @@ export default function App() {
 							{ view === 'design' && <DesignView /> }
 							{ view === 'hours' && <HoursEditor /> }
 							{ view === 'qr' && <QRView /> }
+							{ view === 'bookings' && <BookingsView /> }
+							{ view === 'floor' && <FloorPlan /> }
 							{ view === 'settings' && <SettingsView /> }
 						</>
 					) }
