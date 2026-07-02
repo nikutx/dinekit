@@ -269,6 +269,13 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 								onRename={ ( name ) => store.renameTerm( 'dk_section', Number( key ), name ) }
 								onDelete={ () => store.deleteTerm( 'dk_section', Number( key ) ) }
 								onEditItem={ setEditingId }
+								onDuplicateItem={ async ( id ) => {
+									const copy = await store.duplicateItem( id );
+									if ( copy ) {
+										setEditingId( copy.id );
+									}
+								} }
+								onDuplicateSection={ () => store.duplicateSection( Number( key ) ) }
 							/>
 						) ) }
 

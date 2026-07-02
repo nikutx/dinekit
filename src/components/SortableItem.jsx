@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ItemRow from './ItemRow';
 
-export default function SortableItem( { item, onEdit } ) {
+export default function SortableItem( { item, onEdit, onDuplicate } ) {
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
 		useSortable( { id: item.id } );
 
@@ -20,6 +20,7 @@ export default function SortableItem( { item, onEdit } ) {
 			<ItemRow
 				item={ item }
 				onEdit={ onEdit }
+				onDuplicate={ onDuplicate }
 				dragHandleProps={ { ...attributes, ...listeners } }
 			/>
 		</Box>

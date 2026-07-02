@@ -88,6 +88,26 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/items/(?P<id>\d+)/duplicate',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\duplicate_item',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit_item',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/sections/(?P<id>\d+)/duplicate',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\duplicate_section',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_categories_cb',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/terms/(?P<tax>[a-z_]+)',
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
@@ -718,6 +738,122 @@ function update_item( $request ) {
 	$post_id = (int) $request['id'];
 	apply_item_fields( $post_id, $request );
 	return rest_ensure_response( item_response( $post_id ) );
+}
+
+/**
+ * Clone a menu item (all fields + meta + terms). When $section_override is
+ * given the clone is placed in that section only (used by section duplication);
+ * otherwise it copies the source's sections and appends "(copy)" to the title.
+ *
+ * @param int      $src_id           Source item id.
+ * @param int|null $section_override Section term id, or null.
+ * @return int New item id, or 0 on failure.
+ */
+function clone_item( $src_id, $section_override = null ) {
+	$src = get_post( $src_id );
+	if ( ! $src || 'dk_menu_item' !== $src->post_type ) {
+		return 0;
+	}
+
+	$title = ( null === $section_override )
+		/* translators: %s: original dish name. */
+		? sprintf( __( '%s (copy)', 'dinekit' ), $src->post_title )
+		: $src->post_title;
+
+	$new_id = wp_insert_post(
+		array(
+			'post_type'    => 'dk_menu_item',
+			'post_status'  => $src->post_status,
+			'post_title'   => $title,
+			'post_content' => $src->post_content,
+			'menu_order'   => (int) $src->menu_order + 1,
+		),
+		true
+	);
+	if ( is_wp_error( $new_id ) ) {
+		return 0;
+	}
+
+	update_post_meta( $new_id, 'dk_prices', get_post_meta( $src_id, 'dk_prices', true ) );
+	update_post_meta( $new_id, 'dk_badge', get_post_meta( $src_id, 'dk_badge', true ) );
+	$thumb = get_post_thumbnail_id( $src_id );
+	if ( $thumb ) {
+		set_post_thumbnail( $new_id, $thumb );
+	}
+
+	foreach ( array( 'dk_menu', 'dk_dietary', 'dk_allergen' ) as $tax ) {
+		$ids = wp_get_object_terms( $src_id, $tax, array( 'fields' => 'ids' ) );
+		if ( ! is_wp_error( $ids ) ) {
+			wp_set_object_terms( $new_id, array_map( 'intval', $ids ), $tax );
+		}
+	}
+
+	if ( null !== $section_override ) {
+		wp_set_object_terms( $new_id, array( (int) $section_override ), 'dk_section' );
+	} else {
+		$sids = wp_get_object_terms( $src_id, 'dk_section', array( 'fields' => 'ids' ) );
+		if ( ! is_wp_error( $sids ) ) {
+			wp_set_object_terms( $new_id, array_map( 'intval', $sids ), 'dk_section' );
+		}
+	}
+
+	return (int) $new_id;
+}
+
+/**
+ * POST /items/:id/duplicate — clone a dish.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function duplicate_item( $request ) {
+	$new_id = clone_item( (int) $request['id'] );
+	if ( ! $new_id ) {
+		return new \WP_Error( 'dinekit_dup_failed', __( 'Could not duplicate the dish.', 'dinekit' ), array( 'status' => 500 ) );
+	}
+	return rest_ensure_response( item_response( $new_id ) );
+}
+
+/**
+ * POST /sections/:id/duplicate — clone a section and its dishes.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function duplicate_section( $request ) {
+	$src_id = (int) $request['id'];
+	$term   = get_term( $src_id, 'dk_section' );
+	if ( ! $term || is_wp_error( $term ) ) {
+		return new \WP_Error( 'dinekit_no_section', __( 'Section not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+
+	/* translators: %s: original section name. */
+	$result = wp_insert_term( sprintf( __( '%s (copy)', 'dinekit' ), $term->name ), 'dk_section' );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	$new_section = (int) $result['term_id'];
+
+	$order = get_term_meta( $src_id, 'dk_order', true );
+	update_term_meta( $new_section, 'dk_order', '' !== $order ? (int) $order + 1 : 0 );
+
+	$new_items = array();
+	$members   = get_objects_in_term( $src_id, 'dk_section' );
+	if ( is_array( $members ) ) {
+		foreach ( $members as $item_id ) {
+			$clone = clone_item( (int) $item_id, $new_section );
+			if ( $clone ) {
+				$new_items[] = item_response( $clone );
+			}
+		}
+	}
+
+	return rest_ensure_response(
+		array(
+			'section' => term_response( get_term( $new_section, 'dk_section' ) ),
+			'items'   => $new_items,
+		)
+	);
 }
 
 /**

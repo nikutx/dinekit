@@ -3,6 +3,7 @@ import { Box, Stack, IconButton, InputBase, Tooltip, Typography, Button } from '
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
@@ -23,6 +24,8 @@ export default function SortableSection( {
 	onRename,
 	onDelete,
 	onEditItem,
+	onDuplicateItem,
+	onDuplicateSection,
 } ) {
 	const [ name, setName ] = useState( section.name );
 	const { setNodeRef, isOver } = useDroppable( { id: containerId } );
@@ -77,6 +80,14 @@ export default function SortableSection( {
 					{ itemIds.length } { itemIds.length === 1 ? 'item' : 'items' }
 				</Typography>
 
+				{ ! muted && onDuplicateSection && (
+					<Tooltip title="Duplicate section with its dishes">
+						<IconButton size="small" onClick={ onDuplicateSection } sx={ { color: tokens.muted2 } }>
+							<ContentCopyIcon fontSize="small" />
+						</IconButton>
+					</Tooltip>
+				) }
+
 				{ ! muted && (
 					<Tooltip title="Delete section (items are kept, just unsectioned)">
 						<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted2 } }>
@@ -94,6 +105,7 @@ export default function SortableSection( {
 								key={ id }
 								item={ itemsById[ id ] }
 								onEdit={ () => onEditItem( id ) }
+								onDuplicate={ onDuplicateItem ? () => onDuplicateItem( id ) : undefined }
 							/>
 						) ) }
 					</Stack>

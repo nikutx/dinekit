@@ -91,6 +91,30 @@ export function useDineKit() {
 		[ track, toast ]
 	);
 
+	const duplicateItem = useCallback(
+		async ( id ) => {
+			const created = await track( api.duplicateItem( id ) );
+			setData( ( prev ) => ( { ...prev, items: [ ...prev.items, created ] } ) );
+			toast.success( 'Dish duplicated' );
+			return created;
+		},
+		[ track, toast ]
+	);
+
+	const duplicateSection = useCallback(
+		async ( id ) => {
+			const res = await track( api.duplicateSection( id ) );
+			setData( ( prev ) => ( {
+				...prev,
+				sections: [ ...prev.sections, res.section ],
+				items: [ ...prev.items, ...res.items ],
+			} ) );
+			toast.success( 'Section duplicated' );
+			return res;
+		},
+		[ track, toast ]
+	);
+
 	// --- Terms ---------------------------------------------------------------
 	const createTerm = useCallback(
 		async ( tax, name ) => {
@@ -173,6 +197,8 @@ export function useDineKit() {
 		createItem,
 		updateItem,
 		deleteItem,
+		duplicateItem,
+		duplicateSection,
 		createTerm,
 		renameTerm,
 		deleteTerm,

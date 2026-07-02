@@ -1,12 +1,13 @@
 import React from 'react';
-import { Box, Stack, Typography, Chip, Avatar } from '@mui/material';
+import { Box, Stack, Typography, Chip, Avatar, IconButton, Tooltip } from '@mui/material';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';
 
 // Presentational item row (also used as the drag overlay). Interaction wiring
 // lives in SortableItem.
-export default function ItemRow( { item, dragHandleProps, onEdit, overlay } ) {
+export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, overlay } ) {
 	const priceText = item.prices && item.prices.length
 		? item.prices
 				.map( ( p ) => ( p.label ? `${ p.label } ${ p.amount }` : p.amount ) )
@@ -28,6 +29,7 @@ export default function ItemRow( { item, dragHandleProps, onEdit, overlay } ) {
 				boxShadow: overlay ? tokens.shadowMd || '0 18px 48px rgba(15,23,42,0.18)' : 'none',
 				cursor: overlay ? 'grabbing' : 'default',
 				'&:hover': { borderColor: overlay ? tokens.accent : tokens.border2 },
+				'&:hover .dk-dup': { opacity: 1 },
 			} }
 		>
 			<Box
@@ -94,6 +96,22 @@ export default function ItemRow( { item, dragHandleProps, onEdit, overlay } ) {
 					size="small"
 					sx={ { height: 20, fontSize: 11, bgcolor: tokens.amberSoft, color: tokens.amber } }
 				/>
+			) }
+
+			{ ! overlay && onDuplicate && (
+				<Tooltip title="Duplicate this dish">
+					<IconButton
+						size="small"
+						className="dk-dup"
+						onClick={ ( e ) => {
+							e.stopPropagation();
+							onDuplicate();
+						} }
+						sx={ { color: tokens.muted2, opacity: { xs: 1, sm: 0 }, transition: 'opacity 0.15s' } }
+					>
+						<ContentCopyIcon sx={ { fontSize: 16 } } />
+					</IconButton>
+				</Tooltip>
 			) }
 		</Stack>
 	);
