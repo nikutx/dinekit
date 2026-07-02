@@ -30,7 +30,6 @@
 			<property name="prefixes" type="array">
 				<element value="dinekit"/>
 				<element value="DineKit"/>
-				<element value="dk_"/>
 				<element value="DINEKIT"/>
 			</property>
 		</properties>

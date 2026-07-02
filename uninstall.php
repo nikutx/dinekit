@@ -29,11 +29,11 @@ delete_option( 'dinekit_delete_data_on_uninstall' );
 // Delete all menu items.
 $dinekit_items = get_posts(
 	array(
-		'post_type'      => 'dk_menu_item',
-		'post_status'    => 'any',
-		'numberposts'    => -1,
-		'fields'         => 'ids',
-		'no_found_rows'  => true,
+		'post_type'     => 'dk_menu_item',
+		'post_status'   => 'any',
+		'numberposts'   => -1,
+		'fields'        => 'ids',
+		'no_found_rows' => true,
 	)
 );
 foreach ( $dinekit_items as $dinekit_item_id ) {

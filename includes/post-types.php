@@ -21,7 +21,7 @@ function register() {
 	register_post_type(
 		'dk_menu_item',
 		array(
-			'labels'       => array(
+			'labels'        => array(
 				'name'               => __( 'Menu Items', 'dinekit' ),
 				'singular_name'      => __( 'Menu Item', 'dinekit' ),
 				'add_new'            => __( 'Add Menu Item', 'dinekit' ),
@@ -34,17 +34,17 @@ function register() {
 				'not_found_in_trash' => __( 'No menu items found in Trash.', 'dinekit' ),
 				'menu_name'          => __( 'DineKit', 'dinekit' ),
 			),
-			'description'  => __( 'Restaurant menu items managed by DineKit.', 'dinekit' ),
-			'public'       => false,
-			'show_ui'      => true,
-			'show_in_menu' => true,
-			'show_in_rest' => true,
-			'menu_icon'    => 'dashicons-food',
+			'description'   => __( 'Restaurant menu items managed by DineKit.', 'dinekit' ),
+			'public'        => false,
+			'show_ui'       => true,
+			'show_in_menu'  => true,
+			'show_in_rest'  => true,
+			'menu_icon'     => 'dashicons-food',
 			'menu_position' => 26,
-			'supports'     => array( 'title', 'editor', 'thumbnail', 'page-attributes', 'custom-fields' ),
-			'rewrite'      => false,
-			'has_archive'  => false,
-			'map_meta_cap' => true,
+			'supports'      => array( 'title', 'editor', 'thumbnail', 'page-attributes', 'custom-fields' ),
+			'rewrite'       => false,
+			'has_archive'   => false,
+			'map_meta_cap'  => true,
 		)
 	);
 
