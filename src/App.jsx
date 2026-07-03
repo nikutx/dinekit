@@ -25,6 +25,7 @@ import FloorPlan from './components/FloorPlan';
 import IntegrationsView from './components/IntegrationsView';
 import EventsView from './components/EventsView';
 import GuestsView from './components/GuestsView';
+import Wizard from './components/Wizard';
 
 const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
@@ -39,13 +40,35 @@ const NAV = [
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
+// Views that only make sense for a venue with tables. Hidden for takeaway-only.
+const DINEIN_ONLY = [ 'bookings', 'floor' ];
+
+function visibleNav( businessType ) {
+	if ( 'takeaway' === businessType ) {
+		return NAV.filter( ( n ) => ! DINEIN_ONLY.includes( n.key ) );
+	}
+	return NAV;
+}
+
 export default function App() {
 	const { view, itemId, navigate } = useRoute();
 	const store = useDineKit();
 
+	// First run: guide the owner through the setup wizard before anything else.
+	if ( ! store.loading && store.data && ! store.data.onboarded ) {
+		return (
+			<Box sx={ { minHeight: 'calc(100vh - 32px)', bgcolor: tokens.bg, p: 4 } }>
+				<Wizard />
+			</Box>
+		);
+	}
+
+	const nav = visibleNav( store.data && store.data.businessType );
+	const activeView = nav.some( ( n ) => n.key === view ) ? view : 'builder';
+
 	return (
 		<Box sx={ { display: 'flex', minHeight: 'calc(100vh - 32px)', bgcolor: tokens.bg } }>
-			<Sidebar nav={ NAV } view={ view } onChange={ ( key ) => navigate( key ) } />
+			<Sidebar nav={ nav } view={ activeView } onChange={ ( key ) => navigate( key ) } />
 
 			<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>
 				<Topbar

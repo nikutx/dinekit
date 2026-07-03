@@ -222,12 +222,13 @@ function ensure_menu_page() {
 }
 
 /**
- * Run first-run setup: name, sample menu, menu page.
+ * Run first-run setup: name, (optional) sample menu, menu page.
  *
  * @param string $name Restaurant name.
+ * @param bool   $seed Seed the sample menu (false = start blank).
  * @return array{page:string}
  */
-function run_setup( $name ) {
+function run_setup( $name, $seed = true ) {
 	if ( '' !== $name ) {
 		require_once DINEKIT_DIR . 'includes/hours.php';
 		$hours         = \DineKit\Hours\get();
@@ -235,7 +236,9 @@ function run_setup( $name ) {
 		\DineKit\Hours\save( $hours );
 	}
 
-	seed_menu();
+	if ( $seed ) {
+		seed_menu();
+	}
 	$page = ensure_menu_page();
 	update_option( 'dinekit_onboarded', 1 );
 

@@ -242,6 +242,16 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/wizard',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\run_wizard',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/qr',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -424,6 +434,65 @@ function run_setup( $request ) {
 	require_once DINEKIT_DIR . 'includes/sample.php';
 	$name   = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$result = \DineKit\Sample\run_setup( $name );
+	return rest_ensure_response( $result );
+}
+
+/**
+ * POST /wizard — guided first-run: store name + business type, optionally seed a
+ * sample menu, and (for dine-in) create a starter set of tables.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function run_wizard( $request ) {
+	require_once DINEKIT_DIR . 'includes/sample.php';
+	require_once DINEKIT_DIR . 'includes/settings.php';
+
+	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
+	$type = (string) $request->get_param( 'businessType' );
+	if ( ! in_array( $type, array( 'dinein', 'takeaway', 'both' ), true ) ) {
+		$type = 'both';
+	}
+	$seed   = (bool) $request->get_param( 'seedSample' );
+	$tables = min( 50, absint( $request->get_param( 'tables' ) ) );
+
+	// Persist the business type.
+	$settings                 = \DineKit\Settings\get();
+	$settings['businessType'] = $type;
+	\DineKit\Settings\save( $settings );
+
+	$result         = \DineKit\Sample\run_setup( $name, $seed );
+	$result['type'] = $type;
+
+	// Starter tables for dine-in venues.
+	if ( $tables > 0 && 'takeaway' !== $type ) {
+		$area    = wp_insert_term( __( 'Main Restaurant', 'dinekit' ), 'dk_area' );
+		$area_id = is_wp_error( $area ) ? 0 : (int) $area['term_id'];
+		for ( $i = 1; $i <= $tables; $i++ ) {
+			$table_id = wp_insert_post(
+				array(
+					'post_type'   => 'dk_table',
+					'post_status' => 'publish',
+					'post_title'  => 'T' . $i,
+					'menu_order'  => $i,
+				)
+			);
+			if ( is_wp_error( $table_id ) ) {
+				continue;
+			}
+			update_post_meta( $table_id, 'dk_seats', 2 );
+			update_post_meta( $table_id, 'dk_min_party', 1 );
+			update_post_meta( $table_id, 'dk_max_party', 2 );
+			update_post_meta( $table_id, 'dk_pos_x', 40 + ( ( $i - 1 ) % 6 ) * 80 );
+			update_post_meta( $table_id, 'dk_pos_y', 40 + intdiv( ( $i - 1 ) % 18, 6 ) * 90 );
+			update_post_meta( $table_id, 'dk_shape', 'round' );
+			if ( $area_id ) {
+				wp_set_object_terms( $table_id, array( $area_id ), 'dk_area' );
+			}
+		}
+		$result['tables'] = $tables;
+	}
+
 	return rest_ensure_response( $result );
 }
 
@@ -694,17 +763,20 @@ function get_state() {
 	}
 
 	require_once DINEKIT_DIR . 'includes/sample.php';
+	require_once DINEKIT_DIR . 'includes/settings.php';
 	$menu_page = \DineKit\Sample\find_menu_page();
 
 	return rest_ensure_response(
 		array(
-			'menus'     => $menus,
-			'sections'  => $sections,
-			'dietary'   => $dietary,
-			'allergens' => $allergens,
-			'items'     => $items,
-			'menuPage'  => $menu_page,
-			'siteName'  => get_bloginfo( 'name' ),
+			'menus'        => $menus,
+			'sections'     => $sections,
+			'dietary'      => $dietary,
+			'allergens'    => $allergens,
+			'items'        => $items,
+			'menuPage'     => $menu_page,
+			'siteName'     => get_bloginfo( 'name' ),
+			'businessType' => \DineKit\Settings\get()['businessType'],
+			'onboarded'    => (bool) get_option( 'dinekit_onboarded' ),
 		)
 	);
 }

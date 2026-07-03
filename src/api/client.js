@@ -48,6 +48,7 @@ export const api = {
 	saveHours: ( hours ) => request( 'POST', 'hours', hours ),
 	getQr: ( url ) => request( 'GET', 'qr?url=' + encodeURIComponent( url ) ),
 	setup: ( name ) => request( 'POST', 'setup', { name } ),
+	runWizard: ( data ) => request( 'POST', 'wizard', data ),
 	createMenuPage: () => request( 'POST', 'menu-page' ),
 	getPreview: ( params ) => request( 'GET', 'preview?' + new URLSearchParams( params ).toString() ),
 	getSettings: () => request( 'GET', 'settings' ),

@@ -15,7 +15,6 @@ import { tokens } from '../theme';
 import SortableSection from './SortableSection';
 import ItemRow from './ItemRow';
 import ItemEditor from './ItemEditor';
-import Onboarding from './Onboarding';
 import LiveMenuBanner from './LiveMenuBanner';
 import MenuTabs from './MenuTabs';
 
@@ -56,7 +55,6 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const [ board, setBoard ] = useState( () => buildBoard( data, 0 ) );
 	const [ activeId, setActiveId ] = useState( null );
 	const [ newSection, setNewSection ] = useState( '' );
-	const [ skipOnboarding, setSkipOnboarding ] = useState( false );
 
 	// The open dish is driven by the route (#/builder/item/:id) so it's
 	// deep-linkable and survives a refresh.
@@ -214,11 +212,6 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const activeItem = activeId ? itemsById[ activeId ] : null;
 	const selectedMenuName = ( data.menus.find( ( m ) => m.id === selectedMenu ) || {} ).name || '';
 	const boardItemCount = Object.values( board.map ).reduce( ( sum, arr ) => sum + arr.length, 0 );
-
-	const isEmpty = data.sections.length === 0 && data.items.length === 0;
-	if ( isEmpty && ! skipOnboarding ) {
-		return <Onboarding onDone={ () => setSkipOnboarding( true ) } />;
-	}
 
 	return (
 		<Box sx={ { maxWidth: 1180, mx: 'auto' } }>

@@ -25,6 +25,7 @@ function defaults() {
 		'accent'           => '#b91c1c',
 		'currency'         => '£',
 		'currencyPosition' => 'before', // before | after.
+		'businessType'     => 'both',   // dinein | takeaway | both — gates features.
 	);
 }
 
@@ -58,6 +59,9 @@ function save( $input ) {
 	}
 	if ( isset( $input['currencyPosition'] ) && in_array( $input['currencyPosition'], array( 'before', 'after' ), true ) ) {
 		$clean['currencyPosition'] = (string) $input['currencyPosition'];
+	}
+	if ( isset( $input['businessType'] ) && in_array( $input['businessType'], array( 'dinein', 'takeaway', 'both' ), true ) ) {
+		$clean['businessType'] = (string) $input['businessType'];
 	}
 
 	update_option( OPTION, $clean );
