@@ -4,7 +4,7 @@ Tags: restaurant menu, qr menu, food menu, allergen, restaurant
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,14 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 6. Opening hours with holiday overrides and a live "open now" status.
 
 == Changelog ==
+
+= 1.1.0 =
+* Commission-free table bookings: drag-and-drop floor plan with joinable tables, a public booking form (block + [dinekit_booking] shortcode) with live availability, waitlist, and covers-per-hour pacing.
+* Booking diary with statuses, email notifications, and printable reservation slips.
+* Set-menu events with per-guest pre-orders via a share link — guests choose their courses and flag allergens; the kitchen gets a consolidated prep sheet you can print.
+* Guest CRM: repeat diners with the allergies they've told you about, carried across every visit.
+* Dynamic dish customizations (removable ingredients + choose-your-options with prices).
+* Integrations area for your own Stripe keys (you keep 100%).
 
 = 1.0.0 =
 * First public release.
