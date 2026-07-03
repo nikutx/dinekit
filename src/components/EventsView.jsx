@@ -21,9 +21,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PeopleIcon from '@mui/icons-material/People';
+import PrintIcon from '@mui/icons-material/Print';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { prettyDate } from '../lib/bookings';
+import { printDoc, esc } from '../lib/print';
 
 export default function EventsView() {
 	const [ events, setEvents ] = useState( [] );
@@ -199,6 +201,45 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 		return '#' + id;
 	};
 
+	const printKitchen = () => {
+		const d = detail;
+		const when = [ d.date && prettyDate( d.date ), d.time ].filter( Boolean ).join( ' · ' );
+		let body = '<h1>' + esc( d.name ) + '</h1>';
+		body += '<p class="dk-sub">' + esc( when ) + ' · ' + d.prep.totalGuests + ' guests</p>';
+		if ( d.prep.items.length ) {
+			body += '<div class="dk-section-title">Prep totals</div>';
+			d.prep.items.forEach( ( it ) => {
+				body += '<div class="dk-row"><span>' + esc( it.title ) + '</span><strong>×' + it.count + '</strong></div>';
+			} );
+		}
+		if ( d.prep.allergens.length ) {
+			body += '<div class="dk-section-title">Allergens</div>';
+			d.prep.allergens.forEach( ( a ) => {
+				body += '<div class="dk-row"><span class="dk-allergen">' + esc( a.name ) + '</span><span>' + esc( a.guests.join( ', ' ) ) + '</span></div>';
+			} );
+		}
+		if ( d.guests.length ) {
+			body += '<div class="dk-section-title">Guest tickets</div><div class="dk-grid">';
+			d.guests.forEach( ( g ) => {
+				const dishes = Object.values( g.selections ).map( ( id ) => itemName( id ) );
+				body += '<div class="dk-ticket"><h3>' + esc( g.name ) + '</h3>';
+				body += '<ul>' + dishes.map( ( x ) => '<li>' + esc( x ) + '</li>' ).join( '' ) + '</ul>';
+				if ( ( g.allergenNames || [] ).length ) {
+					body += '<p class="dk-flag dk-allergen">Allergens: ' + esc( g.allergenNames.join( ', ' ) ) + '</p>';
+				}
+				if ( ( g.dietaryNames || [] ).length ) {
+					body += '<p class="dk-flag">' + esc( g.dietaryNames.join( ', ' ) ) + '</p>';
+				}
+				if ( g.notes ) {
+					body += '<p class="dk-flag">“' + esc( g.notes ) + '”</p>';
+				}
+				body += '</div>';
+			} );
+			body += '</div>';
+		}
+		printDoc( d.name + ' — kitchen sheet', body );
+	};
+
 	return (
 		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5 } }>
 			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
@@ -262,6 +303,16 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 				<RestaurantIcon sx={ { fontSize: 18, color: tokens.ink2 } } />
 				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Kitchen prep sheet</Typography>
 				<Chip icon={ <PeopleIcon sx={ { fontSize: 15 } } /> } label={ `${ detail.prep.totalGuests } ordered` } size="small" sx={ { bgcolor: tokens.soft, fontWeight: 700 } } />
+				<Box sx={ { flex: 1 } } />
+				<Button
+					size="small"
+					startIcon={ <PrintIcon sx={ { fontSize: 16 } } /> }
+					onClick={ printKitchen }
+					disabled={ detail.prep.totalGuests === 0 }
+					sx={ { color: tokens.accent } }
+				>
+					Print kitchen sheet
+				</Button>
 			</Stack>
 
 			{ detail.prep.totalGuests === 0 ? (

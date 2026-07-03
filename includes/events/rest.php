@@ -166,14 +166,28 @@ function guest_response( $post ) {
 	$ids = static function ( $key ) use ( $post ) {
 		return array_values( array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $post->ID, $key, true ) ) ) ) );
 	};
+	$names = static function ( $id_list, $taxonomy ) {
+		$out = array();
+		foreach ( $id_list as $id ) {
+			$term = get_term( $id, $taxonomy );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$out[] = $term->name;
+			}
+		}
+		return $out;
+	};
+	$allergen_ids = $ids( 'dk_guest_allergens' );
+	$dietary_ids  = $ids( 'dk_guest_dietary' );
 	return array(
-		'id'         => (int) $post->ID,
-		'name'       => $post->post_title,
-		'email'      => (string) get_post_meta( $post->ID, 'dk_guest_email', true ),
-		'selections' => is_array( $sel ) ? $sel : array(),
-		'allergens'  => $ids( 'dk_guest_allergens' ),
-		'dietary'    => $ids( 'dk_guest_dietary' ),
-		'notes'      => (string) get_post_meta( $post->ID, 'dk_guest_notes', true ),
+		'id'            => (int) $post->ID,
+		'name'          => $post->post_title,
+		'email'         => (string) get_post_meta( $post->ID, 'dk_guest_email', true ),
+		'selections'    => is_array( $sel ) ? $sel : array(),
+		'allergens'     => $allergen_ids,
+		'dietary'       => $dietary_ids,
+		'allergenNames' => $names( $allergen_ids, 'dk_allergen' ),
+		'dietaryNames'  => $names( $dietary_ids, 'dk_dietary' ),
+		'notes'         => (string) get_post_meta( $post->ID, 'dk_guest_notes', true ),
 	);
 }
 

@@ -26,9 +26,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import JoinFullIcon from '@mui/icons-material/JoinFull';
 import TuneIcon from '@mui/icons-material/Tune';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PrintIcon from '@mui/icons-material/Print';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
+import { printDoc, esc } from '../lib/print';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -60,6 +62,24 @@ export default function BookingsView() {
 	const remove = async ( id ) => {
 		await api.deleteBooking( id );
 		setBookings( ( bs ) => bs.filter( ( b ) => b.id !== id ) );
+	};
+
+	const printDay = () => {
+		const active = bookings.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) );
+		let body = '<h1>Bookings — ' + esc( prettyDate( date ) ) + '</h1>';
+		body += '<p class="dk-sub">' + active.length + ' bookings · ' + covers + ' covers</p><div class="dk-grid">';
+		active.forEach( ( b ) => {
+			body += '<div class="dk-ticket"><h3>' + esc( b.time ) + ' — ' + esc( b.name || 'Guest' ) + '</h3>';
+			body += '<p class="dk-meta">' + b.party + ' guests' + ( b.table ? ' · ' + esc( b.table ) : '' ) +
+				( b.phone ? ' · ' + esc( b.phone ) : '' ) + '</p>';
+			body += '<p class="dk-meta">' + esc( statusMeta( b.status ).label ) + '</p>';
+			if ( b.notes ) {
+				body += '<p class="dk-flag">“' + esc( b.notes ) + '”</p>';
+			}
+			body += '</div>';
+		} );
+		body += '</div>';
+		printDoc( 'Bookings — ' + prettyDate( date ), body );
 	};
 
 	const onCreated = ( booking ) => {
@@ -141,6 +161,13 @@ export default function BookingsView() {
 					label={ `${ covers } cover${ covers === 1 ? '' : 's' }` }
 					sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } }
 				/>
+				<Tooltip title="Print reservation slips">
+					<span>
+						<IconButton size="small" onClick={ printDay } disabled={ bookings.length === 0 } sx={ { color: tokens.muted } }>
+							<PrintIcon fontSize="small" />
+						</IconButton>
+					</span>
+				</Tooltip>
 			</Stack>
 
 			{ loading ? (
