@@ -123,9 +123,8 @@ function guests_of( $event_id ) {
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			'meta_key'       => 'dk_guest_event',
-			'meta_value'     => (int) $event_id,
+			'meta_key'       => 'dk_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value'     => (int) $event_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
 }

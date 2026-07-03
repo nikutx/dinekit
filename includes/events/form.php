@@ -41,21 +41,23 @@ function render( $token ) {
 
 	$closed = ( '' !== $deadline && strtotime( $deadline . ' 23:59:59' ) < (int) current_time( 'timestamp' ) );
 	$cap    = (int) get_post_meta( $event->ID, 'dk_event_capacity', true );
-	if ( $cap > 0 ) {
-		$guests = get_posts(
-			array(
-				'post_type'      => 'dk_guest',
-				'post_status'    => 'publish',
-				'posts_per_page' => 1,
-				'fields'         => 'ids',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-				'meta_key'       => 'dk_guest_event',
-				'meta_value'     => (int) $event->ID,
-				'no_found_rows'  => false,
+	if ( ! $closed && $cap > 0 ) {
+		$taken = count(
+			get_posts(
+				array(
+					'post_type'      => 'dk_guest',
+					'post_status'    => 'publish',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+					'meta_key'       => 'dk_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'meta_value'     => (int) $event->ID, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				)
 			)
 		);
-		// A cheap "is there room" check is done server-side on submit too.
-		unset( $guests );
+		if ( $taken >= $cap ) {
+			$closed = true; // Event is at capacity — a submit is also blocked server-side.
+		}
 	}
 
 	$config = wp_json_encode(

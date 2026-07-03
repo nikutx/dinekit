@@ -163,12 +163,11 @@ function events_page_url() {
 
 	$found = get_posts(
 		array(
-			'post_type'        => 'page',
-			'post_status'      => 'publish',
-			'posts_per_page'   => 1,
-			'no_found_rows'    => true,
-			's'                => '[dinekit_event]',
-			'suppress_filters' => true,
+			'post_type'      => 'page',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'no_found_rows'  => true,
+			's'              => '[dinekit_event]',
 		)
 	);
 	if ( $found ) {
@@ -207,9 +206,8 @@ function event_by_token( $token ) {
 			'post_status'    => 'publish',
 			'posts_per_page' => 1,
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			'meta_key'       => 'dk_event_token',
-			'meta_value'     => sanitize_text_field( $token ),
+			'meta_key'       => 'dk_event_token', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value'     => sanitize_text_field( $token ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
 	return $posts ? $posts[0] : null;

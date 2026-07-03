@@ -69,6 +69,7 @@ function render( $atts = array() ) {
 	$party_options = '';
 	for ( $i = 1; $i <= (int) $cfg['maxParty']; $i++ ) {
 		$party_options .= '<option value="' . esc_attr( (string) $i ) . '"' . ( 2 === $i ? ' selected' : '' ) . '>' .
+			/* translators: %d: number of guests. */
 			esc_html( sprintf( _n( '%d guest', '%d guests', $i, 'dinekit' ), $i ) ) . '</option>';
 	}
 
