@@ -26,8 +26,119 @@ const COUNTER  = 'dinekit_order_counter';
  */
 function init() {
 	add_action( 'init', __NAMESPACE__ . '\\register' );
+	add_action( 'init', __NAMESPACE__ . '\\register_frontend' );
+	add_shortcode( 'dinekit_order', __NAMESPACE__ . '\\order_shortcode' );
 	require_once DINEKIT_DIR . 'includes/ordering/rest.php';
 	Rest\init();
+}
+
+/**
+ * Register the ordering page assets.
+ *
+ * @return void
+ */
+function register_frontend() {
+	wp_register_style( 'dinekit-order', DINEKIT_URL . 'assets/css/order.css', array(), DINEKIT_VERSION );
+	wp_register_script( 'dinekit-order', DINEKIT_URL . 'assets/js/dinekit-order.js', array(), DINEKIT_VERSION, true );
+}
+
+/**
+ * The orderable menu: published items (optionally within a menu) grouped by
+ * section, each with prices + modifiers. Items without a price can't be ordered.
+ *
+ * @param int $menu_id Optional dk_menu term id to limit to.
+ * @return array<int,array<string,mixed>>
+ */
+function orderable_menu( $menu_id = 0 ) {
+	$args = array(
+		'post_type'      => 'dk_menu_item',
+		'post_status'    => 'publish',
+		'posts_per_page' => 500,
+		'orderby'        => 'menu_order',
+		'order'          => 'ASC',
+		'no_found_rows'  => true,
+	);
+	if ( $menu_id ) {
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		$args['tax_query'] = array(
+			array(
+				'taxonomy' => 'dk_menu',
+				'field'    => 'term_id',
+				'terms'    => (int) $menu_id,
+			),
+		);
+	}
+	$query = new \WP_Query( $args );
+
+	$sections    = array();
+	$unsectioned = array();
+	foreach ( $query->posts as $post ) {
+		$prices = get_post_meta( $post->ID, 'dk_prices', true );
+		$prices = is_array( $prices ) ? array_values( $prices ) : array();
+		if ( empty( $prices ) ) {
+			continue;
+		}
+		$mods = get_post_meta( $post->ID, 'dk_modifiers', true );
+		$item = array(
+			'id'        => (int) $post->ID,
+			'title'     => $post->post_title,
+			'desc'      => wp_strip_all_tags( (string) $post->post_content ),
+			'prices'    => $prices,
+			'modifiers' => is_array( $mods ) ? array_values( $mods ) : array(),
+		);
+
+		$terms = get_the_terms( $post, 'dk_section' );
+		if ( is_array( $terms ) && $terms ) {
+			$sec = $terms[0];
+			if ( ! isset( $sections[ $sec->term_id ] ) ) {
+				$sections[ $sec->term_id ] = array(
+					'id'    => (int) $sec->term_id,
+					'name'  => $sec->name,
+					'order' => (int) get_term_meta( $sec->term_id, 'dk_order', true ),
+					'items' => array(),
+				);
+			}
+			$sections[ $sec->term_id ]['items'][] = $item;
+		} else {
+			$unsectioned[] = $item;
+		}
+	}
+
+	$list = array_values( $sections );
+	usort(
+		$list,
+		static function ( $a, $b ) {
+			return $a['order'] <=> $b['order'];
+		}
+	);
+	if ( $unsectioned ) {
+		$list[] = array(
+			'id'    => 0,
+			'name'  => __( 'More', 'dinekit' ),
+			'order' => 9999,
+			'items' => $unsectioned,
+		);
+	}
+	return $list;
+}
+
+/**
+ * [dinekit_order] shortcode.
+ *
+ * @param array<string,string>|string $atts Attributes.
+ * @return string
+ */
+function order_shortcode( $atts ) {
+	require_once DINEKIT_DIR . 'includes/ordering/form.php';
+	$atts = shortcode_atts(
+		array(
+			'menu'    => 0,
+			'heading' => __( 'Order online', 'dinekit' ),
+		),
+		$atts,
+		'dinekit_order'
+	);
+	return Form\render( (int) $atts['menu'], (string) $atts['heading'] );
 }
 
 /**
