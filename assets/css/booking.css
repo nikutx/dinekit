@@ -155,3 +155,73 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* ---- Event pre-order extras ---- */
+.dinekit-event__when {
+	margin: 0 0 12px;
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--dkb-accent-dark);
+}
+.dinekit-event__course {
+	border: 1px solid var(--dkb-border);
+	border-radius: 12px;
+	padding: 12px 14px;
+	margin: 0 0 12px;
+}
+.dinekit-event__course legend {
+	font-size: 13px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--dkb-muted);
+	padding: 0 6px;
+}
+.dinekit-event__opt {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 4px;
+	font-size: 15px;
+	cursor: pointer;
+}
+.dinekit-event__opt input {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--dkb-accent);
+}
+.dinekit-event__group {
+	margin: 0 0 14px;
+}
+.dinekit-event__group-label {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--dkb-muted);
+	margin-bottom: 8px;
+}
+.dinekit-event__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.dinekit-event__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid var(--dkb-border);
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	user-select: none;
+}
+.dinekit-event__chip input {
+	accent-color: var(--dkb-accent);
+}
+.dinekit-event__chip:has( input:checked ) {
+	border-color: var(--dkb-accent);
+	background: #eff6ff;
+	color: var(--dkb-accent-dark);
+}

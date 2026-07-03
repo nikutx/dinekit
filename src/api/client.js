@@ -89,6 +89,14 @@ export const api = {
 	deleteBooking: ( id ) => request( 'DELETE', `bookings/${ id }` ),
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
+
+	// Events + guest pre-orders.
+	getEvents: () => request( 'GET', 'events' ),
+	createEvent: ( data ) => request( 'POST', 'events', data ),
+	getEvent: ( id ) => request( 'GET', `events/${ id }` ),
+	updateEvent: ( id, data ) => request( 'PATCH', `events/${ id }`, data ),
+	deleteEvent: ( id ) => request( 'DELETE', `events/${ id }` ),
+	deleteGuest: ( eventId, guestId ) => request( 'DELETE', `events/${ eventId }/guests/${ guestId }` ),
 	getPages: async () => {
 		const res = await fetch( cfg.restRoot + 'wp/v2/pages?per_page=100&status=publish&_fields=id,link,title', {
 			credentials: 'same-origin',

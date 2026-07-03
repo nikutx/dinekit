@@ -77,6 +77,9 @@ final class Plugin {
 		if ( $this->load( 'bookings/register.php' ) ) {
 			Bookings\init();
 		}
+		if ( $this->load( 'events/events.php' ) ) {
+			Events\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();
