@@ -874,6 +874,11 @@ function public_check( $request ) {
 	$combos    = Availability\available_combos( $date, $time, $party );
 	$available = ! empty( $free ) || ! empty( $combos );
 
+	// Kitchen pacing: even if tables are free, the hour may be at its covers cap.
+	if ( $available && ! Availability\within_hour_capacity( $date, $time, $party, (int) $cfg['covers_per_hour'] ) ) {
+		$available = false;
+	}
+
 	return rest_ensure_response(
 		array(
 			'available' => $available,
@@ -927,6 +932,11 @@ function public_book( $request ) {
 	}
 	if ( '' === $name || ! is_email( $email ) ) {
 		return new \WP_Error( 'dinekit_booking_who', __( 'Please enter your name and a valid email address.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+
+	// Kitchen pacing: reject if the hour is already at its covers cap.
+	if ( ! Availability\within_hour_capacity( $date, $time, $party, (int) $cfg['covers_per_hour'] ) ) {
+		return new \WP_Error( 'dinekit_booking_full', __( 'We’re fully booked at that time. Please try another time.', 'dinekit' ), array( 'status' => 409 ) );
 	}
 
 	// Assign a free single table, else a free combination.

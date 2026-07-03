@@ -218,6 +218,44 @@ function occupied_ids( $date, $time, $exclude_id = 0 ) {
 }
 
 /**
+ * Total covers already booked within the same clock-hour as $time.
+ *
+ * @param string $date       Y-m-d.
+ * @param string $time       H:i.
+ * @param int    $exclude_id Booking id to ignore (editing).
+ * @return int
+ */
+function covers_in_hour( $date, $time, $exclude_id = 0 ) {
+	$hour   = (int) floor( to_minutes( $time ) / 60 );
+	$covers = 0;
+	foreach ( bookings_on( $date, $exclude_id ) as $booking ) {
+		if ( (int) floor( to_minutes( $booking['time'] ) / 60 ) === $hour ) {
+			$covers += (int) $booking['party'];
+		}
+	}
+	return $covers;
+}
+
+/**
+ * Would adding this party keep the hour within the covers cap? A cap of 0 means
+ * no limit. Kitchen pacing — independent of whether tables are free.
+ *
+ * @param string $date       Y-m-d.
+ * @param string $time       H:i.
+ * @param int    $party      Party size.
+ * @param int    $cap        Max covers per hour (0 = unlimited).
+ * @param int    $exclude_id Booking id to ignore.
+ * @return bool
+ */
+function within_hour_capacity( $date, $time, $party, $cap, $exclude_id = 0 ) {
+	$cap = (int) $cap;
+	if ( $cap <= 0 ) {
+		return true;
+	}
+	return covers_in_hour( $date, $time, $exclude_id ) + (int) $party <= $cap;
+}
+
+/**
  * Single tables free for a party at a date/time.
  *
  * @param string $date       Y-m-d.

@@ -549,6 +549,7 @@ function BookingSettings() {
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mt: 1.5 } }>
 				<TextField label="Opens" type="time" size="small" value={ cfg.open_time } onChange={ ( e ) => patch( { open_time: e.target.value } ) } sx={ { width: 130 } } />
 				<TextField label="Last booking" type="time" size="small" value={ cfg.close_time } onChange={ ( e ) => patch( { close_time: e.target.value } ) } sx={ { width: 130 } } />
+				{ num( 'Covers / hour', 'covers_per_hour', 0, 1000, '0 = no limit' ) }
 				{ num( 'Deposit over (guests)', 'deposit_over', 0, 100, '0 = never' ) }
 				{ num( 'Deposit / guest', 'deposit_amount', 0, 100000 ) }
 			</Stack>

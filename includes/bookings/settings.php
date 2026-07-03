@@ -32,6 +32,7 @@ function defaults() {
 		'close_time'     => '22:00',
 		'deposit_over'   => 0,     // Party >= this needs a deposit (0 = off).
 		'deposit_amount' => 0,     // Per guest; display only until Stripe (B10).
+		'covers_per_hour' => 0,    // Max covers booked within a clock-hour (0 = unlimited).
 		'intro'          => '',    // Optional blurb shown above the form.
 		'emails_enabled' => true,  // Send diner + staff notification emails.
 		'notify_email'   => '',    // Staff recipient (empty = site admin email).
@@ -73,12 +74,13 @@ function save( $data ) {
 	}
 
 	$ints = array(
-		'max_party'      => array( 1, 100 ),
-		'min_notice'     => array( 0, 720 ),
-		'max_days_ahead' => array( 1, 730 ),
-		'slot_interval'  => array( 15, 240 ),
-		'deposit_over'   => array( 0, 100 ),
-		'deposit_amount' => array( 0, 100000 ),
+		'max_party'       => array( 1, 100 ),
+		'min_notice'      => array( 0, 720 ),
+		'max_days_ahead'  => array( 1, 730 ),
+		'slot_interval'   => array( 15, 240 ),
+		'deposit_over'    => array( 0, 100 ),
+		'deposit_amount'  => array( 0, 100000 ),
+		'covers_per_hour' => array( 0, 1000 ),
 	);
 	foreach ( $ints as $key => $range ) {
 		if ( isset( $data[ $key ] ) ) {
