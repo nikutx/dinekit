@@ -195,6 +195,16 @@ function register_routes() {
 		)
 	);
 
+	register_rest_route(
+		$ns,
+		'/guests',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\list_guests',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+
 	// --- Public (diner-facing) endpoints ---
 	// Intentionally public: a diner requesting a table is unauthenticated.
 	// Abuse is handled in the handlers (honeypot, rate limit, strict validation).
@@ -790,6 +800,150 @@ function update_booking( $request ) {
 function delete_booking( $request ) {
 	wp_delete_post( (int) $request['id'], true );
 	return rest_ensure_response( array( 'deleted' => true ) );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Guest CRM (admin)                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Resolve a comma-separated list of allergen/dietary term ids to their names.
+ *
+ * @param string $csv      Comma ids.
+ * @param string $taxonomy Taxonomy.
+ * @return string[]
+ */
+function term_names( $csv, $taxonomy ) {
+	$names = array();
+	foreach ( array_filter( array_map( 'intval', explode( ',', (string) $csv ) ) ) as $id ) {
+		$term = get_term( $id, $taxonomy );
+		if ( $term && ! is_wp_error( $term ) ) {
+			$names[] = $term->name;
+		}
+	}
+	return $names;
+}
+
+/**
+ * GET /guests — a directory of diners aggregated from bookings + event
+ * pre-orders (keyed by email, or name when no email), with visit counts and
+ * their accumulated allergies/dietary needs.
+ *
+ * @return \WP_REST_Response
+ */
+function list_guests() {
+	$map = array();
+	$key = static function ( $email, $name ) {
+		$email = strtolower( trim( (string) $email ) );
+		return '' !== $email ? 'e:' . $email : 'n:' . strtolower( trim( (string) $name ) );
+	};
+	$blank = static function ( $name, $email ) {
+		return array(
+			'name'      => $name,
+			'email'     => $email,
+			'phone'     => '',
+			'visits'    => 0,
+			'cancelled' => 0,
+			'dates'     => array(),
+			'allergens' => array(),
+			'dietary'   => array(),
+		);
+	};
+
+	// Bookings.
+	$bookings = get_posts(
+		array(
+			'post_type'      => 'dk_booking',
+			'post_status'    => 'publish',
+			'posts_per_page' => 2000,
+			'no_found_rows'  => true,
+		)
+	);
+	foreach ( $bookings as $post ) {
+		$email = (string) get_post_meta( $post->ID, 'dk_email', true );
+		$name  = (string) get_post_meta( $post->ID, 'dk_name', true );
+		if ( '' === trim( $email ) && '' === trim( $name ) ) {
+			continue;
+		}
+		$k = $key( $email, $name );
+		if ( ! isset( $map[ $k ] ) ) {
+			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
+		}
+		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
+		if ( in_array( $status, array( 'cancelled', 'no_show' ), true ) ) {
+			++$map[ $k ]['cancelled'];
+		} else {
+			++$map[ $k ]['visits'];
+			$date = (string) get_post_meta( $post->ID, 'dk_date', true );
+			if ( '' !== $date ) {
+				$map[ $k ]['dates'][] = $date;
+			}
+		}
+		if ( '' !== $name ) {
+			$map[ $k ]['name'] = $name;
+		}
+		$phone = (string) get_post_meta( $post->ID, 'dk_phone', true );
+		if ( '' !== $phone ) {
+			$map[ $k ]['phone'] = $phone;
+		}
+	}
+
+	// Event guests — merge their allergen/dietary flags.
+	$guests = get_posts(
+		array(
+			'post_type'      => 'dk_guest',
+			'post_status'    => 'publish',
+			'posts_per_page' => 2000,
+			'no_found_rows'  => true,
+		)
+	);
+	foreach ( $guests as $g ) {
+		$email = (string) get_post_meta( $g->ID, 'dk_guest_email', true );
+		$name  = $g->post_title;
+		$k     = $key( $email, $name );
+		if ( ! isset( $map[ $k ] ) ) {
+			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
+		}
+		foreach ( term_names( get_post_meta( $g->ID, 'dk_guest_allergens', true ), 'dk_allergen' ) as $a ) {
+			$map[ $k ]['allergens'][ $a ] = true;
+		}
+		foreach ( term_names( get_post_meta( $g->ID, 'dk_guest_dietary', true ), 'dk_dietary' ) as $d ) {
+			$map[ $k ]['dietary'][ $d ] = true;
+		}
+	}
+
+	$today = current_time( 'Y-m-d' );
+	$out   = array();
+	foreach ( $map as $p ) {
+		sort( $p['dates'] );
+		$last = '';
+		$next = '';
+		foreach ( $p['dates'] as $d ) {
+			if ( $d < $today ) {
+				$last = $d;
+			} elseif ( '' === $next ) {
+				$next = $d;
+			}
+		}
+		$out[] = array(
+			'name'      => $p['name'],
+			'email'     => $p['email'],
+			'phone'     => $p['phone'],
+			'visits'    => $p['visits'],
+			'cancelled' => $p['cancelled'],
+			'lastVisit' => $last,
+			'nextVisit' => $next,
+			'allergens' => array_keys( $p['allergens'] ),
+			'dietary'   => array_keys( $p['dietary'] ),
+		);
+	}
+	usort(
+		$out,
+		static function ( $a, $b ) {
+			return $b['visits'] <=> $a['visits'];
+		}
+	);
+	return rest_ensure_response( $out );
 }
 
 /* -------------------------------------------------------------------------- */

@@ -89,6 +89,7 @@ export const api = {
 	deleteBooking: ( id ) => request( 'DELETE', `bookings/${ id }` ),
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
+	getGuests: () => request( 'GET', 'guests' ),
 
 	// Events + guest pre-orders.
 	getEvents: () => request( 'GET', 'events' ),
