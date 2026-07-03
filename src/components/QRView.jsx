@@ -8,12 +8,14 @@ import {
 	Button,
 	CircularProgress,
 	Alert,
-	Link,
 } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import DownloadIcon from '@mui/icons-material/Download';
 import { tokens } from '../theme';
 import { api } from '../api/client';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import Card from './ui/Card';
 
 const UTM = 'utm_source=qr';
 const withUtm = ( url ) => ( ! url ? url : url + ( url.includes( '?' ) ? '&' : '?' ) + UTM );
@@ -96,14 +98,11 @@ export default function QRView() {
 	}
 
 	return (
-		<Box sx={ { maxWidth: 900, mx: 'auto' } }>
-			<Typography variant="h5" sx={ { mb: 0.5 } }>
-				QR Code
-			</Typography>
-			<Typography sx={ { color: tokens.muted, mb: 3 } }>
-				Put a QR code on your tables. Diners point their phone camera at it and your menu opens
-				instantly — no app, no typing.
-			</Typography>
+		<Page width={ 860 }>
+			<PageHeader
+				title="QR Code"
+				subtitle="Put a QR code on your tables. Diners point their phone camera at it and your menu opens instantly — no app, no typing."
+			/>
 
 			{ error && <Alert severity="error" sx={ { mb: 2 } }>{ error }</Alert> }
 			{ ! pages.length && (
@@ -114,27 +113,37 @@ export default function QRView() {
 			) }
 
 			<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 4 } alignItems="flex-start">
-				{ /* Preview */ }
-				<Box
+				{ /* Live A6 table-card mockup — what actually lands on the table. */ }
+				<Card
 					sx={ {
-						flex: '0 0 220px',
-						bgcolor: tokens.surface,
-						border: `1px solid ${ tokens.border }`,
-						borderRadius: 3,
-						p: 2,
+						width: '100%',
+						maxWidth: 300,
+						flexShrink: 0,
+						aspectRatio: '3 / 4',
+						boxShadow: tokens.shadowMd,
+						display: 'flex',
+						flexDirection: 'column',
+						alignItems: 'center',
+						justifyContent: 'center',
 						textAlign: 'center',
+						p: 3,
 					} }
 				>
+					<Typography sx={ { fontWeight: 650, fontSize: 16, color: tokens.ink } }>
+						{ heading || ( pages.find( ( p ) => p.link === selected ) || {} ).title?.rendered || 'Our Menu' }
+					</Typography>
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 0.5, mb: 2.5 } }>
+						Scan for our menu
+					</Typography>
 					{ svg ? (
 						<Box
-							sx={ { width: 188, mx: 'auto', '& svg': { width: '100%', height: 'auto', display: 'block' } } }
+							sx={ { width: 160, mx: 'auto', '& svg': { width: '100%', height: 'auto', display: 'block' } } }
 							dangerouslySetInnerHTML={ { __html: svg } }
 						/>
 					) : (
 						<Typography sx={ { color: tokens.muted2, py: 6 } }>No preview</Typography>
 					) }
-					<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 1 } }>Live preview</Typography>
-				</Box>
+				</Card>
 
 				{ /* Controls */ }
 				<Box sx={ { flex: 1, width: '100%' } }>
@@ -184,14 +193,13 @@ export default function QRView() {
 					</Button>
 
 					<Box sx={ { mt: 2 } }>
-						<Link
-							component="button"
-							type="button"
+						<Button
+							size="small"
 							onClick={ () => setShowAdvanced( ! showAdvanced ) }
-							sx={ { fontSize: 13, color: tokens.muted } }
+							sx={ { fontSize: 13, color: tokens.muted, px: 0.5 } }
 						>
 							{ showAdvanced ? 'Hide' : 'More options' }
-						</Link>
+						</Button>
 						{ showAdvanced && (
 							<Stack spacing={ 0.5 } sx={ { mt: 1 } }>
 								<Button size="small" startIcon={ <DownloadIcon /> } onClick={ downloadSvg } disabled={ ! svg } sx={ { justifyContent: 'flex-start', color: tokens.muted } }>
@@ -205,7 +213,7 @@ export default function QRView() {
 					</Box>
 				</Box>
 			</Stack>
-		</Box>
+		</Page>
 	);
 }
 

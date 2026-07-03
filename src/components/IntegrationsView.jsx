@@ -22,9 +22,20 @@ import LockIcon from '@mui/icons-material/Lock';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { tokens } from '../theme';
 import { api } from '../api/client';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import Card from './ui/Card';
 
 const REPO = 'https://github.com/nikutx/dinekit';
 const SUPPORT_URL = 'https://weblevelup.co.uk/dinekit';
+
+// Decorative tints cycled across the coming-soon cards (categorical, not status).
+const SOON_TINTS = [
+	{ fg: tokens.violet, bg: tokens.violetSoft },
+	{ fg: tokens.sky, bg: tokens.skySoft },
+	{ fg: tokens.amber, bg: tokens.amberSoft },
+	{ fg: tokens.accent, bg: tokens.accentSoft },
+];
 
 // Accounting / CRM integrations on the roadmap — bring-your-own-account, later.
 const SOON = [
@@ -96,19 +107,18 @@ export default function IntegrationsView() {
 	const secretSet = mode === 'live' ? data.stripe.liveSecretSet : data.stripe.testSecretSet;
 
 	return (
-		<Box sx={ { maxWidth: 780, mx: 'auto' } }>
-			<Typography variant="h5">Integrations</Typography>
-			<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5, mb: 3 } }>
-				Connect the tools you already use. You bring your own accounts and keys — DineKit takes
-				no cut and never sits between you and your money.
-			</Typography>
+		<Page>
+			<PageHeader
+				title="Integrations"
+				subtitle="Connect the tools you already use. You bring your own accounts and keys — DineKit takes no cut and never sits between you and your money."
+			/>
 
 			{ /* Stripe */ }
-			<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5 } }>
+			<Card>
 				<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 0.5 } }>
 					<CreditCardIcon sx={ { color: tokens.accent } } />
 					<Box sx={ { flex: 1 } }>
-						<Typography sx={ { fontWeight: 800, color: tokens.ink } }>Stripe</Typography>
+						<Typography sx={ { fontWeight: 650, fontSize: 15, color: tokens.ink } }>Stripe</Typography>
 						<Typography sx={ { fontSize: 13, color: tokens.muted } }>
 							Take booking deposits & event prepayments — straight into your own Stripe account,
 							0% commission.
@@ -117,7 +127,7 @@ export default function IntegrationsView() {
 					<Chip
 						label="You keep 100%"
 						size="small"
-						sx={ { bgcolor: tokens.greenSoft, color: tokens.green, fontWeight: 700 } }
+						sx={ { bgcolor: tokens.greenSoft, color: tokens.green, fontWeight: 600 } }
 					/>
 				</Stack>
 
@@ -180,7 +190,7 @@ export default function IntegrationsView() {
 						Where are my keys? <OpenInNewIcon sx={ { fontSize: 14 } } />
 					</Link>
 				</Stack>
-			</Box>
+			</Card>
 
 			{ /* Coming soon: accounting & CRM */ }
 			<Typography variant="subtitle2" sx={ { color: tokens.ink2, mt: 4, mb: 1.5 } }>
@@ -190,34 +200,48 @@ export default function IntegrationsView() {
 				</Typography>
 			</Typography>
 			<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 } }>
-				{ SOON.map( ( item ) => (
-					<Box
-						key={ item.key }
-						sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2 } }
-					>
-						<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 0.5 } }>
-							<ReceiptLongIcon sx={ { color: tokens.muted2, fontSize: 20 } } />
-							<Typography sx={ { fontWeight: 700, color: tokens.ink, flex: 1 } }>{ item.name }</Typography>
-							<Chip label="Coming soon" size="small" sx={ { bgcolor: tokens.soft, color: tokens.muted, fontWeight: 700 } } />
-						</Stack>
-						<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1.5 } }>{ item.desc }</Typography>
-						<Button
-							size="small"
-							variant="outlined"
-							startIcon={ <HowToVoteIcon /> }
-							endIcon={ <OpenInNewIcon sx={ { fontSize: 14 } } /> }
-							href={ `${ REPO }/discussions` }
-							target="_blank"
-							rel="noopener"
-						>
-							Vote on GitHub
-						</Button>
-					</Box>
-				) ) }
+				{ SOON.map( ( item, i ) => {
+					const tint = SOON_TINTS[ i % SOON_TINTS.length ];
+					return (
+						<Card key={ item.key } sx={ { p: 2 } }>
+							<Stack direction="row" alignItems="center" spacing={ 1.25 } sx={ { mb: 0.75 } }>
+								<Box
+									sx={ {
+										width: 36,
+										height: 36,
+										borderRadius: '8px',
+										bgcolor: tint.bg,
+										color: tint.fg,
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										flexShrink: 0,
+									} }
+								>
+									<ReceiptLongIcon sx={ { fontSize: 20 } } />
+								</Box>
+								<Typography sx={ { fontWeight: 650, fontSize: 15, color: tokens.ink, flex: 1 } }>{ item.name }</Typography>
+								<Chip label="Coming soon" size="small" sx={ { bgcolor: tokens.soft, color: tokens.muted, fontWeight: 600 } } />
+							</Stack>
+							<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1.5 } }>{ item.desc }</Typography>
+							<Button
+								size="small"
+								variant="outlined"
+								startIcon={ <HowToVoteIcon /> }
+								endIcon={ <OpenInNewIcon sx={ { fontSize: 14 } } /> }
+								href={ `${ REPO }/discussions` }
+								target="_blank"
+								rel="noopener"
+							>
+								Vote on GitHub
+							</Button>
+						</Card>
+					);
+				} ) }
 			</Box>
 
 			{ /* Support */ }
-			<Box sx={ { bgcolor: tokens.ink, color: '#fff', borderRadius: 3, p: 2.5, mt: 4 } }>
+			<Box sx={ { bgcolor: tokens.ink, color: '#fff', borderRadius: '12px', p: 2.5, mt: 4 } }>
 				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 2 } alignItems={ { sm: 'center' } }>
 					<SupportAgentIcon sx={ { fontSize: 32, color: tokens.accent } } />
 					<Box sx={ { flex: 1 } }>
@@ -244,6 +268,6 @@ export default function IntegrationsView() {
 				DineKit never phones home. Keys stay on your site; support and voting open in your browser
 				only when you click.
 			</Typography>
-		</Box>
+		</Page>
 	);
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Stack, Typography, Button } from '@mui/material';
+import { Stack, Typography, Button } from '@mui/material';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -8,6 +8,7 @@ import { tokens } from '../theme';
 import { api } from '../api/client';
 import { useToast } from './Toast';
 import { copyToClipboard } from '../lib/clipboard';
+import Card from './ui/Card';
 
 // Always-visible bridge between the admin and the live site: shows where the
 // menu is published (or offers to publish it) so users never wonder "how do I
@@ -38,7 +39,7 @@ export default function LiveMenuBanner( { menuPage } ) {
 
 	if ( ! page || ! page.url ) {
 		return (
-			<Box sx={ { ...wrapSx, borderStyle: 'dashed' } }>
+			<Card feature sx={ { ...wrapSx, borderStyle: 'dashed', borderColor: tokens.border2 } }>
 				<Stack direction="row" spacing={ 1.5 } alignItems="center" justifyContent="space-between" flexWrap="wrap">
 					<Typography sx={ { fontSize: 14, color: tokens.ink2 } }>
 						Your menu isn’t on your website yet. Create a menu page in one click.
@@ -47,13 +48,13 @@ export default function LiveMenuBanner( { menuPage } ) {
 						{ busy ? 'Creating…' : 'Create menu page' }
 					</Button>
 				</Stack>
-			</Box>
+			</Card>
 		);
 	}
 
 	return (
 		<>
-			<Box sx={ wrapSx }>
+			<Card feature sx={ wrapSx }>
 				<Stack direction="row" spacing={ 1.5 } alignItems="center" justifyContent="space-between" flexWrap="wrap">
 					<Stack direction="row" spacing={ 1 } alignItems="center">
 						<CheckCircleIcon sx={ { color: tokens.green, fontSize: 20 } } />
@@ -70,15 +71,13 @@ export default function LiveMenuBanner( { menuPage } ) {
 						</Button>
 					</Stack>
 				</Stack>
-			</Box>
+			</Card>
 		</>
 	);
 }
 
+// Compact padding — the banner is a slim strip, not a full content card.
 const wrapSx = {
-	bgcolor: tokens.surface,
-	border: `1px solid ${ tokens.border }`,
-	borderRadius: 3,
 	px: 2,
 	py: 1.25,
 	mb: 2.5,

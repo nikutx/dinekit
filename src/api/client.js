@@ -35,6 +35,20 @@ async function request( method, path, body ) {
 export const api = {
 	config: cfg,
 	getState: () => request( 'GET', 'state' ),
+	getDashboard: () => request( 'GET', 'dashboard' ),
+	getReports: ( { from, to } = {} ) => {
+		const q = new URLSearchParams();
+		if ( from ) {
+			q.set( 'from', from );
+		}
+		if ( to ) {
+			q.set( 'to', to );
+		}
+		const s = q.toString();
+		return request( 'GET', 'reports' + ( s ? '?' + s : '' ) );
+	},
+	getServiceSheet: ( date ) => request( 'GET', 'reports/service-sheet?date=' + encodeURIComponent( date ) ),
+	saveGuestProfile: ( data ) => request( 'POST', 'guests/profile', data ),
 	createItem: ( data ) => request( 'POST', 'items', data ),
 	updateItem: ( id, data ) => request( 'PATCH', `items/${ id }`, data ),
 	deleteItem: ( id ) => request( 'DELETE', `items/${ id }` ),

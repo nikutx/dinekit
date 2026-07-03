@@ -56,6 +56,16 @@ function enqueue( $hook ) {
 	// The item editor uses the WP media library for photos.
 	wp_enqueue_media();
 
+	// Inter (variable) — the admin app's typeface. Bundled with the plugin,
+	// never fetched from a CDN.
+	wp_register_style( 'dinekit-inter', false, array(), DINEKIT_VERSION );
+	wp_enqueue_style( 'dinekit-inter' );
+	wp_add_inline_style(
+		'dinekit-inter',
+		'@font-face{font-family:"InterVariable";src:url(' . esc_url( DINEKIT_URL . 'assets/fonts/inter-var.woff2' ) . ') format("woff2");font-weight:100 900;font-style:normal;font-display:swap}' .
+		'#dinekit-root{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"cv11","ss01"}'
+	);
+
 	if ( is_dev() ) {
 		require_once __DIR__ . '/assets-dev.php';
 		\DineKit\Admin\AssetsDev\enqueue_vite( dev_origin() );

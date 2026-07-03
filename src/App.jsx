@@ -11,6 +11,8 @@ import ExtensionIcon from '@mui/icons-material/Extension';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard';
+import InsightsIcon from '@mui/icons-material/Insights';
 import { tokens } from './theme';
 import { useDineKit } from './data/useDineKit';
 import { useRoute } from './lib/useRoute';
@@ -27,18 +29,26 @@ import IntegrationsView from './components/IntegrationsView';
 import EventsView from './components/EventsView';
 import GuestsView from './components/GuestsView';
 import OrdersView from './components/OrdersView';
+import DashboardView from './components/DashboardView';
+import ReportsView from './components/ReportsView';
 import Wizard from './components/Wizard';
 
+// Grouped so the sidebar reads like a product, not a feature dump.
 const NAV = [
+	{ key: 'home', label: 'Home', icon: <SpaceDashboardIcon fontSize="small" /> },
+	{ key: 'reports', label: 'Reports', icon: <InsightsIcon fontSize="small" /> },
+	{ group: 'Front of house' },
+	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
+	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
+	{ key: 'orders', label: 'Orders', icon: <ReceiptLongIcon fontSize="small" /> },
+	{ key: 'events', label: 'Events', icon: <CelebrationIcon fontSize="small" /> },
+	{ key: 'guests', label: 'Guests', icon: <PeopleAltIcon fontSize="small" /> },
+	{ group: 'Menu' },
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
 	{ key: 'qr', label: 'QR Code', icon: <QrCode2Icon fontSize="small" /> },
-	{ key: 'orders', label: 'Orders', icon: <ReceiptLongIcon fontSize="small" /> },
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
-	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
-	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
-	{ key: 'events', label: 'Events', icon: <CelebrationIcon fontSize="small" /> },
-	{ key: 'guests', label: 'Guests', icon: <PeopleAltIcon fontSize="small" /> },
+	{ group: 'Setup' },
 	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
@@ -73,7 +83,7 @@ export default function App() {
 	}
 
 	const nav = visibleNav( store.data && store.data.businessType );
-	const activeView = nav.some( ( n ) => n.key === view ) ? view : 'builder';
+	const activeView = nav.some( ( n ) => n.key === view ) ? view : 'home';
 
 	return (
 		<Box sx={ { display: 'flex', minHeight: 'calc(100vh - 32px)', bgcolor: tokens.bg } }>
@@ -82,7 +92,9 @@ export default function App() {
 			<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>
 				<Topbar
 					saveStatus={ store.saveStatus }
-					title={ ( NAV.find( ( n ) => n.key === view ) || {} ).label }
+					title={ ( NAV.find( ( n ) => n.key === activeView ) || {} ).label }
+					navigate={ navigate }
+					businessType={ store.data && store.data.businessType }
 				/>
 
 				<Box sx={ { flex: 1, p: 4, overflow: 'auto' } }>
@@ -100,23 +112,25 @@ export default function App() {
 
 					{ ! store.loading && store.data && (
 						<>
-							{ view === 'builder' && (
+							{ activeView === 'home' && <DashboardView navigate={ navigate } /> }
+							{ activeView === 'reports' && <ReportsView businessType={ store.data.businessType } /> }
+							{ activeView === 'builder' && (
 								<MenuBuilder
 									store={ store }
 									openItemId={ itemId }
 									onOpenItem={ ( id ) => navigate( 'builder', id ) }
 								/>
 							) }
-							{ view === 'design' && <DesignView /> }
-							{ view === 'hours' && <HoursEditor /> }
-							{ view === 'qr' && <QRView /> }
-							{ view === 'orders' && <OrdersView /> }
-							{ view === 'bookings' && <BookingsView /> }
-							{ view === 'floor' && <FloorPlan /> }
-							{ view === 'events' && <EventsView /> }
-							{ view === 'guests' && <GuestsView /> }
-							{ view === 'integrations' && <IntegrationsView /> }
-							{ view === 'settings' && <SettingsView /> }
+							{ activeView === 'design' && <DesignView /> }
+							{ activeView === 'hours' && <HoursEditor /> }
+							{ activeView === 'qr' && <QRView /> }
+							{ activeView === 'orders' && <OrdersView /> }
+							{ activeView === 'bookings' && <BookingsView /> }
+							{ activeView === 'floor' && <FloorPlan /> }
+							{ activeView === 'events' && <EventsView /> }
+							{ activeView === 'guests' && <GuestsView /> }
+							{ activeView === 'integrations' && <IntegrationsView /> }
+							{ activeView === 'settings' && <SettingsView /> }
 						</>
 					) }
 				</Box>

@@ -27,10 +27,16 @@ import JoinFullIcon from '@mui/icons-material/JoinFull';
 import TuneIcon from '@mui/icons-material/Tune';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PrintIcon from '@mui/icons-material/Print';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
 import { printDoc, esc } from '../lib/print';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import Card from './ui/Card';
+import EmptyState from './ui/EmptyState';
+import { ListSkeleton } from './ui/Skeletons';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -82,6 +88,68 @@ export default function BookingsView() {
 		printDoc( 'Bookings — ' + prettyDate( date ), body );
 	};
 
+	// Pre-shift service sheet — the FOH/kitchen briefing for the day: a timed
+	// run sheet with allergies and VIPs flagged, plus a prep-by-hour summary.
+	const printServiceSheet = async () => {
+		const s = await api.getServiceSheet( date );
+		let body = '<h1>Service sheet — ' + esc( prettyDate( date ) ) + '</h1>';
+		body += '<p class="dk-sub">' + s.bookings + ' booking' + ( s.bookings === 1 ? '' : 's' ) +
+			' · ' + s.covers + ' covers</p>';
+
+		if ( s.allergenAlert.length ) {
+			body += '<div class="dk-section-title">⚠ Allergen alerts</div>';
+			body += '<p class="dk-allergen" style="font-size:15px">' +
+				s.allergenAlert.map( esc ).join( ' · ' ) + '</p>';
+		}
+
+		body += '<div class="dk-section-title">Run sheet</div>';
+		if ( ! s.rows.length ) {
+			body += '<p class="dk-sub">No bookings for this day.</p>';
+		}
+		s.rows.forEach( ( r ) => {
+			const flags = [];
+			if ( r.vip ) {
+				flags.push( '★ VIP' );
+			}
+			( r.tags || [] ).forEach( ( t ) => flags.push( t ) );
+			body += '<div class="dk-ticket"><h3>' + esc( r.time ) + ' — ' + esc( r.name || 'Guest' ) +
+				' <span style="font-weight:400;color:#64748b">(' + r.party + 'p)</span></h3>';
+			body += '<p class="dk-meta">' + ( r.table ? esc( r.table ) : 'Table TBC' ) +
+				( r.phone ? ' · ' + esc( r.phone ) : '' ) + '</p>';
+			if ( flags.length ) {
+				body += '<p class="dk-flag"><strong>' + flags.map( esc ).join( ' · ' ) + '</strong></p>';
+			}
+			if ( r.allergens ) {
+				body += '<p class="dk-flag dk-allergen">Allergies: ' + esc( r.allergens ) + '</p>';
+			}
+			if ( r.guestNote ) {
+				body += '<p class="dk-flag">Note: ' + esc( r.guestNote ) + '</p>';
+			}
+			if ( r.notes ) {
+				body += '<p class="dk-flag">“' + esc( r.notes ) + '”</p>';
+			}
+			body += '</div>';
+		} );
+
+		if ( s.prep.length ) {
+			body += '<div class="dk-section-title">Covers by hour</div>';
+			s.prep.forEach( ( p ) => {
+				body += '<div class="dk-row"><span>' + esc( p.hour ) + '</span><strong>' +
+					p.covers + ' covers</strong></div>';
+			} );
+		}
+
+		if ( s.events.length ) {
+			body += '<div class="dk-section-title">Events today</div>';
+			s.events.forEach( ( e ) => {
+				body += '<div class="dk-row"><span>' + esc( e.name ) + '</span><strong>' +
+					esc( e.time || '' ) + '</strong></div>';
+			} );
+		}
+
+		printDoc( 'Service sheet — ' + prettyDate( date ), body );
+	};
+
 	const onCreated = ( booking ) => {
 		setAdding( false );
 		if ( booking.date === date ) {
@@ -94,28 +162,26 @@ export default function BookingsView() {
 	};
 
 	return (
-		<Box sx={ { maxWidth: 900, mx: 'auto' } }>
-			<Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={ { mb: 2 } }>
-				<Box>
-					<Typography variant="h5">Bookings</Typography>
-					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Your booking diary — take a reservation and see who&apos;s coming in.
-					</Typography>
-				</Box>
-				<Stack direction="row" spacing={ 1 }>
-					<Tooltip title="Booking settings & the public form">
-						<IconButton
-							onClick={ () => setSettingsOpen( ( v ) => ! v ) }
-							sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, color: settingsOpen ? tokens.accent : tokens.muted } }
-						>
-							<TuneIcon />
-						</IconButton>
-					</Tooltip>
-					<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( ( v ) => ! v ) }>
-						New booking
-					</Button>
-				</Stack>
-			</Stack>
+		<Page width={ 900 }>
+			<PageHeader
+				title="Bookings"
+				subtitle="Your booking diary — take a reservation and see who's coming in."
+				actions={
+					<>
+						<Tooltip title="Booking settings & the public form">
+							<IconButton
+								onClick={ () => setSettingsOpen( ( v ) => ! v ) }
+								sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, color: settingsOpen ? tokens.accent : tokens.muted } }
+							>
+								<TuneIcon />
+							</IconButton>
+						</Tooltip>
+						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( ( v ) => ! v ) }>
+							New booking
+						</Button>
+					</>
+				}
+			/>
 
 			<Collapse in={ settingsOpen } unmountOnExit>
 				<BookingSettings />
@@ -125,42 +191,57 @@ export default function BookingsView() {
 				<NewBooking initialDate={ date } onCreated={ onCreated } onCancel={ () => setAdding( false ) } />
 			</Collapse>
 
-			{ /* Day navigator */ }
-			<Stack
-				direction="row"
-				alignItems="center"
-				spacing={ 1 }
-				sx={ {
-					bgcolor: tokens.surface,
-					border: `1px solid ${ tokens.border }`,
-					borderRadius: 3,
-					px: 1.5,
-					py: 1,
-					mb: 2,
-				} }
-			>
-				<IconButton size="small" onClick={ () => setDate( addDays( date, -1 ) ) }>
-					<ChevronLeftIcon />
-				</IconButton>
-				<TextField
-					type="date"
-					value={ date }
-					onChange={ ( e ) => setDate( e.target.value || isoDate() ) }
-					sx={ { width: 160 } }
-				/>
-				<IconButton size="small" onClick={ () => setDate( addDays( date, 1 ) ) }>
-					<ChevronRightIcon />
-				</IconButton>
-				<Button size="small" onClick={ () => setDate( isoDate() ) } sx={ { color: tokens.accent } }>
+			{ /* Day navigator — one cohesive toolbar: segmented date stepper + jump-to-today */ }
+			<Card sx={ { px: 1.5, py: 1, mb: 2 } }>
+			<Stack direction="row" alignItems="center" spacing={ 1 } flexWrap="wrap" useFlexGap>
+				<Stack
+					direction="row"
+					alignItems="center"
+					sx={ { bgcolor: tokens.soft, borderRadius: '9px', p: '3px', gap: '2px' } }
+				>
+					<IconButton size="small" onClick={ () => setDate( addDays( date, -1 ) ) } sx={ { borderRadius: '7px', color: tokens.muted } }>
+						<ChevronLeftIcon fontSize="small" />
+					</IconButton>
+					<TextField
+						type="date"
+						value={ date }
+						onChange={ ( e ) => setDate( e.target.value || isoDate() ) }
+						sx={ {
+							width: 148,
+							'& .MuiOutlinedInput-root': { boxShadow: tokens.shadowSm },
+							'& fieldset': { border: 'none' },
+							'& input': { py: 0.5, fontSize: 13, fontWeight: 550 },
+						} }
+					/>
+					<IconButton size="small" onClick={ () => setDate( addDays( date, 1 ) ) } sx={ { borderRadius: '7px', color: tokens.muted } }>
+						<ChevronRightIcon fontSize="small" />
+					</IconButton>
+				</Stack>
+				<Button size="small" variant="outlined" onClick={ () => setDate( isoDate() ) } sx={ { minHeight: 30 } }>
 					Today
 				</Button>
 				<Box sx={ { flex: 1 } } />
-				<Typography sx={ { fontWeight: 700, color: tokens.ink } }>{ prettyDate( date ) }</Typography>
+				<Typography sx={ { fontWeight: 650, fontSize: 14, color: tokens.ink } }>{ prettyDate( date ) }</Typography>
 				<Chip
-					icon={ <EventSeatIcon sx={ { fontSize: 16 } } /> }
+					icon={ <EventSeatIcon sx={ { fontSize: 14 } } /> }
 					label={ `${ covers } cover${ covers === 1 ? '' : 's' }` }
-					sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } }
+					size="small"
+					sx={ { height: 22, fontSize: 12, bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600, '& .MuiChip-icon': { color: tokens.accent } } }
 				/>
+				<Tooltip title="Pre-shift service sheet — run sheet with allergies & VIPs">
+					<span>
+						<Button
+							size="small"
+							variant="outlined"
+							startIcon={ <AssignmentIcon fontSize="small" /> }
+							onClick={ printServiceSheet }
+							disabled={ bookings.length === 0 }
+							sx={ { textTransform: 'none' } }
+						>
+							Service sheet
+						</Button>
+					</span>
+				</Tooltip>
 				<Tooltip title="Print reservation slips">
 					<span>
 						<IconButton size="small" onClick={ printDay } disabled={ bookings.length === 0 } sx={ { color: tokens.muted } }>
@@ -169,39 +250,58 @@ export default function BookingsView() {
 					</span>
 				</Tooltip>
 			</Stack>
+			</Card>
 
 			{ loading ? (
-				<Box sx={ { display: 'flex', justifyContent: 'center', mt: 6 } }>
-					<CircularProgress />
-				</Box>
+				<ListSkeleton rows={ 5 } />
 			) : bookings.length === 0 ? (
-				<Box
-					sx={ {
-						border: `1px dashed ${ tokens.border2 }`,
-						borderRadius: 3,
-						p: 5,
-						textAlign: 'center',
-						color: tokens.muted,
-					} }
-				>
-					<Typography sx={ { fontWeight: 700, color: tokens.ink2 } }>No bookings for this day</Typography>
-					<Typography sx={ { fontSize: 14, mt: 0.5 } }>
-						Click <strong>New booking</strong> to add one.
-					</Typography>
-				</Box>
+				<EmptyState
+					icon={ <EventSeatIcon /> }
+					title="No bookings for this day"
+					description="Take one over the phone or let guests book from your site — either way it lands in this diary."
+					action={
+						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( true ) }>
+							New booking
+						</Button>
+					}
+				/>
 			) : (
-				<Stack spacing={ 1 }>
-					{ bookings.map( ( b ) => (
-						<BookingRow
-							key={ b.id }
-							booking={ b }
-							onStatus={ ( s ) => setStatus( b.id, s ) }
-							onDelete={ () => remove( b.id ) }
-						/>
-					) ) }
+				<Stack spacing={ 3 }>
+					{ [
+						{ key: 'lunch', label: 'Lunch', rows: bookings.filter( ( b ) => ( b.time || '' ) < '16:00' ) },
+						{ key: 'dinner', label: 'Dinner', rows: bookings.filter( ( b ) => ( b.time || '' ) >= '16:00' ) },
+					]
+						.filter( ( g ) => g.rows.length > 0 )
+						.map( ( g ) => {
+							const gCovers = g.rows
+								.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) )
+								.reduce( ( s, b ) => s + ( b.party || 0 ), 0 );
+							return (
+								<Box key={ g.key }>
+									<Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={ { mb: 1, px: 0.5 } }>
+										<Typography sx={ { fontSize: 11, fontWeight: 650, letterSpacing: '0.08em', textTransform: 'uppercase', color: tokens.muted } }>
+											{ g.label }
+										</Typography>
+										<Typography sx={ { fontSize: 12, color: tokens.muted, fontVariantNumeric: 'tabular-nums' } }>
+											{ gCovers } cover{ gCovers === 1 ? '' : 's' }
+										</Typography>
+									</Stack>
+									<Stack spacing={ 1 }>
+										{ g.rows.map( ( b ) => (
+											<BookingRow
+												key={ b.id }
+												booking={ b }
+												onStatus={ ( s ) => setStatus( b.id, s ) }
+												onDelete={ () => remove( b.id ) }
+											/>
+										) ) }
+									</Stack>
+								</Box>
+							);
+						} ) }
 				</Stack>
 			) }
-		</Box>
+		</Page>
 	);
 }
 
@@ -210,25 +310,27 @@ function BookingRow( { booking, onStatus, onDelete } ) {
 	return (
 		<Stack
 			direction="row"
-			spacing={ 2 }
+			spacing={ 1.75 }
 			alignItems="center"
 			sx={ {
 				bgcolor: tokens.surface,
 				border: `1px solid ${ tokens.border }`,
-				borderLeft: `3px solid ${ meta.fg }`,
-				borderRadius: 2,
-				px: 2,
+				borderRadius: '12px',
+				pl: 1.25,
+				pr: 2,
 				py: 1.25,
 			} }
 		>
-			<Typography sx={ { fontWeight: 800, fontSize: 18, width: 58, color: tokens.ink } }>
+			{ /* Status rail */ }
+			<Box sx={ { width: 3, borderRadius: 999, alignSelf: 'stretch', bgcolor: meta.fg, flexShrink: 0 } } />
+			<Typography sx={ { fontWeight: 650, fontSize: 15, width: 52, color: tokens.ink, fontVariantNumeric: 'tabular-nums' } }>
 				{ booking.time }
 			</Typography>
 			<Box sx={ { flex: 1, minWidth: 0 } }>
-				<Typography sx={ { fontWeight: 700, color: tokens.ink } } noWrap>
+				<Typography sx={ { fontWeight: 600, fontSize: 14, color: tokens.ink } } noWrap>
 					{ booking.name || 'Guest' }
 				</Typography>
-				<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted } } noWrap>
 					{ booking.party } { booking.party === 1 ? 'guest' : 'guests' }
 					{ booking.table ? ` · ${ booking.table }` : ' · no table' }
 					{ booking.phone ? ` · ${ booking.phone }` : '' }
@@ -236,7 +338,7 @@ function BookingRow( { booking, onStatus, onDelete } ) {
 			</Box>
 			{ booking.notes && (
 				<Tooltip title={ booking.notes }>
-					<Chip label="Notes" size="small" sx={ { bgcolor: tokens.soft, color: tokens.muted } } />
+					<Chip label="Notes" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 600, bgcolor: tokens.soft, color: tokens.muted } } />
 				</Tooltip>
 			) }
 			<Select
@@ -245,10 +347,11 @@ function BookingRow( { booking, onStatus, onDelete } ) {
 				size="small"
 				sx={ {
 					minWidth: 132,
-					fontWeight: 700,
+					fontWeight: 600,
 					fontSize: 13,
 					color: meta.fg,
 					bgcolor: meta.bg,
+					borderRadius: '8px',
 					'& fieldset': { border: 'none' },
 				} }
 			>

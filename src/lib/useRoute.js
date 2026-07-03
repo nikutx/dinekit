@@ -3,13 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 // Lightweight hash router so the admin app is deep-linkable and survives a
 // refresh. URLs look like admin.php?page=dinekit#/design or
 // #/builder/item/8 (a specific dish open in the editor).
-const VALID_VIEWS = [ 'builder', 'design', 'qr', 'orders', 'hours', 'bookings', 'floor', 'events', 'guests', 'integrations', 'settings' ];
+const VALID_VIEWS = [ 'home', 'reports', 'builder', 'design', 'qr', 'orders', 'hours', 'bookings', 'floor', 'events', 'guests', 'integrations', 'settings' ];
 
 function parse() {
 	const raw = window.location.hash.replace( /^#\/?/, '' );
 	const [ view, sub, subId ] = raw.split( '/' );
 	return {
-		view: VALID_VIEWS.includes( view ) ? view : 'builder',
+		view: VALID_VIEWS.includes( view ) ? view : 'home',
 		itemId: 'item' === sub && subId ? parseInt( subId, 10 ) || null : null,
 	};
 }
@@ -26,7 +26,7 @@ export function useRoute() {
 			window.history.replaceState(
 				null,
 				'',
-				window.location.pathname + window.location.search + '#/builder'
+				window.location.pathname + window.location.search + '#/home'
 			);
 		}
 		return () => window.removeEventListener( 'hashchange', onChange );

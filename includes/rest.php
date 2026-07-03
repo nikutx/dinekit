@@ -61,6 +61,46 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/dashboard',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_dashboard',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/reports',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_reports',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/reports/service-sheet',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_service_sheet',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/guests/profile',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\save_guest_profile',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/items',
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
@@ -394,7 +434,7 @@ function get_preview( $request ) {
 	$truthy = static function ( $v ) {
 		return null === $v || in_array( (string) $v, array( '1', 'true', 'yes', 'on' ), true );
 	};
-	$html = \DineKit\Render\menu(
+	$html   = \DineKit\Render\menu(
 		array(
 			'layout'         => (string) $request->get_param( 'layout' ),
 			'columns'        => (int) $request->get_param( 'columns' ),
@@ -779,6 +819,73 @@ function get_state() {
 			'onboarded'    => (bool) get_option( 'dinekit_onboarded' ),
 		)
 	);
+}
+
+/**
+ * GET /dashboard — the home overview aggregate.
+ *
+ * @return \WP_REST_Response
+ */
+function get_dashboard() {
+	require_once DINEKIT_DIR . 'includes/dashboard.php';
+	return rest_ensure_response( \DineKit\Dashboard\data() );
+}
+
+/**
+ * GET /reports?from&to — analytics aggregate over a date range. Defaults to the
+ * last 30 days when no range is supplied.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_reports( $request ) {
+	require_once DINEKIT_DIR . 'includes/reports.php';
+	$today = current_time( 'Y-m-d' );
+	$from  = sanitize_text_field( (string) $request->get_param( 'from' ) );
+	$to    = sanitize_text_field( (string) $request->get_param( 'to' ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ) {
+		$from = gmdate( 'Y-m-d', (int) current_time( 'timestamp' ) - 29 * DAY_IN_SECONDS );
+	}
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ) {
+		$to = $today;
+	}
+	if ( $from > $to ) {
+		list( $from, $to ) = array( $to, $from );
+	}
+	return rest_ensure_response( \DineKit\Reports\range_data( $from, $to ) );
+}
+
+/**
+ * GET /reports/service-sheet?date — the pre-shift briefing for one day.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_service_sheet( $request ) {
+	require_once DINEKIT_DIR . 'includes/reports.php';
+	$date = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+		$date = current_time( 'Y-m-d' );
+	}
+	return rest_ensure_response( \DineKit\Reports\service_sheet( $date ) );
+}
+
+/**
+ * POST /guests/profile — save a diner's VIP flag, tags, notes and allergies.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function save_guest_profile( $request ) {
+	require_once DINEKIT_DIR . 'includes/guests.php';
+	$body  = (array) $request->get_json_params();
+	$email = sanitize_email( (string) ( $body['email'] ?? '' ) );
+	$name  = sanitize_text_field( (string) ( $body['name'] ?? '' ) );
+	if ( '' === trim( $email ) && '' === trim( $name ) ) {
+		return new \WP_Error( 'dinekit_guest_id', __( 'A guest email or name is required.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	$profile = \DineKit\Guests\save_profile( $email, $name, $body );
+	return rest_ensure_response( $profile );
 }
 
 /**

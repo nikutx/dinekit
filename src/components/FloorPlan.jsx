@@ -8,7 +8,6 @@ import {
 	TextField,
 	Chip,
 	MenuItem,
-	CircularProgress,
 	Tooltip,
 	Divider,
 } from '@mui/material';
@@ -24,6 +23,10 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { tokens } from '../theme';
 import { api } from '../api/client';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import EmptyState from './ui/EmptyState';
+import { ListSkeleton } from './ui/Skeletons';
 
 // Canvas geometry.
 const CANVAS_H = 560;
@@ -232,37 +235,35 @@ export default function FloorPlan() {
 
 	if ( loading ) {
 		return (
-			<Box sx={ { display: 'flex', justifyContent: 'center', mt: 8 } }>
-				<CircularProgress />
-			</Box>
+			<Page>
+				<PageHeader title="Floor Plan" />
+				<ListSkeleton rows={ 4 } />
+			</Page>
 		);
 	}
 
 	const noZones = zones.length === 0;
 
 	return (
-		<Box sx={ { maxWidth: 1120, mx: 'auto' } }>
-			<Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={ { mb: 1 } }>
-				<Box>
-					<Typography variant="h5">Floor Plan</Typography>
-					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Arrange your real tables, then join tables that can be pushed together for bigger
-						parties. Availability is worked out from this.
-					</Typography>
-				</Box>
-				<Stack direction="row" spacing={ 1 }>
-					<Chip
-						icon={ <TableRestaurantIcon sx={ { fontSize: 16 } } /> }
-						label={ `${ tables.length } table${ tables.length === 1 ? '' : 's' }` }
-						sx={ { bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 700 } }
-					/>
-					<Chip
-						icon={ <EventSeatIcon sx={ { fontSize: 16 } } /> }
-						label={ `${ totalSeats } covers` }
-						sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } }
-					/>
-				</Stack>
-			</Stack>
+		<Page>
+			<PageHeader
+				title="Floor Plan"
+				subtitle="Arrange your real tables, then join tables that can be pushed together for bigger parties. Availability is worked out from this."
+				actions={
+					<>
+						<Chip
+							icon={ <TableRestaurantIcon sx={ { fontSize: 16 } } /> }
+							label={ `${ tables.length } table${ tables.length === 1 ? '' : 's' }` }
+							sx={ { bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 600 } }
+						/>
+						<Chip
+							icon={ <EventSeatIcon sx={ { fontSize: 16 } } /> }
+							label={ `${ totalSeats } covers` }
+							sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600 } }
+						/>
+					</>
+				}
+			/>
 
 			{ /* Zone tabs + management */ }
 			<Stack direction="row" alignItems="center" gap={ 1 } flexWrap="wrap" sx={ { mt: 2, mb: 1.5 } }>
@@ -277,9 +278,16 @@ export default function FloorPlan() {
 							deleteIcon={ z.id !== 0 ? <CloseIcon /> : undefined }
 							variant={ active ? 'filled' : 'outlined' }
 							sx={ {
-								fontWeight: 700,
-								bgcolor: active ? tokens.accent : 'transparent',
-								color: active ? '#fff' : tokens.ink2,
+								fontWeight: 600,
+								borderRadius: 999,
+								px: 0.5,
+								...( active
+									? {
+										background: `linear-gradient(180deg, #5a52ea 0%, ${ tokens.accent } 100%)`,
+										color: '#fff',
+										boxShadow: '0 1px 2.5px rgba(79,70,229,.35)',
+									}
+									: { bgcolor: tokens.surface, color: tokens.ink2, borderColor: tokens.border2 } ),
 								'& .MuiChip-deleteIcon': { color: active ? 'rgba(255,255,255,0.7)' : tokens.muted2 },
 							} }
 						/>
@@ -300,12 +308,11 @@ export default function FloorPlan() {
 			</Stack>
 
 			{ noZones ? (
-				<Box sx={ { border: `1px dashed ${ tokens.border2 }`, borderRadius: 3, p: 6, textAlign: 'center', color: tokens.muted } }>
-					<Typography sx={ { fontWeight: 700, color: tokens.ink2 } }>Add a zone to start</Typography>
-					<Typography sx={ { fontSize: 14, mt: 0.5 } }>
-						A zone is a room or area — Main Restaurant, Terrace, Bar. Then drop your tables in.
-					</Typography>
-				</Box>
+				<EmptyState
+					icon={ <TableRestaurantIcon /> }
+					title="Add a zone to start"
+					description="A zone is a room or area — Main Restaurant, Terrace, Bar. Then drop your tables in."
+				/>
 			) : (
 				<Stack direction="row" spacing={ 2 } alignItems="flex-start">
 					<Box sx={ { flex: 1, minWidth: 0 } }>
@@ -349,13 +356,16 @@ export default function FloorPlan() {
 							sx={ {
 								position: 'relative',
 								height: CANVAS_H,
-								borderRadius: 3,
+								borderRadius: '12px',
 								border: `1px solid ${ joinMode ? tokens.accent : tokens.border }`,
-								bgcolor: tokens.surface,
-								backgroundImage: `radial-gradient(${ tokens.border } 1px, transparent 1px)`,
-								backgroundSize: '20px 20px',
+								boxShadow: joinMode ? `0 0 0 3px ${ tokens.accentSoft }` : `inset 0 1px 3px rgba(24,24,27,.03)`,
+								bgcolor: '#fbfbfd',
+								backgroundImage: `radial-gradient(${ tokens.border2 } 1px, transparent 1px)`,
+								backgroundSize: '22px 22px',
+								backgroundPosition: '11px 11px',
 								overflow: 'hidden',
 								touchAction: 'none',
+								transition: 'border-color .2s ease, box-shadow .2s ease',
 							} }
 						>
 							{ zoneTables.length === 0 && (
@@ -383,9 +393,13 @@ export default function FloorPlan() {
 											height: s.h,
 											transform: `rotate(${ t.rotation || 0 }deg)`,
 											borderRadius: s.radius,
-											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : tokens.soft,
-											border: `2px ${ isPicked ? 'dashed' : 'solid' } ${ isPicked || isSel ? tokens.accent : tokens.border2 }`,
-											boxShadow: isSel ? `0 0 0 3px ${ tokens.accentSoft }` : 'none',
+											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : tokens.surface,
+											border: `${ isPicked ? '2px dashed' : isSel ? '2px solid' : '1.5px solid' } ${ isPicked || isSel ? tokens.accent : tokens.border2 }`,
+											boxShadow: isPicked
+												? '0 4px 12px rgba(79,70,229,.35)'
+												: isSel
+													? `0 0 0 3px ${ tokens.accentSoft }, ${ tokens.shadowSm }`
+													: tokens.shadowSm,
 											cursor: joinMode ? 'pointer' : 'grab',
 											display: 'flex',
 											flexDirection: 'column',
@@ -393,17 +407,35 @@ export default function FloorPlan() {
 											justifyContent: 'center',
 											lineHeight: 1.1,
 											userSelect: 'none',
+											transition: 'box-shadow .15s ease, background-color .15s ease',
+											'&:hover': { boxShadow: isPicked ? '0 4px 12px rgba(79,70,229,.35)' : tokens.shadowMd },
 											'&:active': { cursor: joinMode ? 'pointer' : 'grabbing' },
 										} }
 									>
 										<Box sx={ { transform: `rotate(${ -( t.rotation || 0 ) }deg)`, textAlign: 'center' } }>
-											<Typography sx={ { fontSize: 12, fontWeight: 800, color: isPicked ? '#fff' : tokens.ink } }>{ t.name }</Typography>
-											<Typography sx={ { fontSize: 10, fontWeight: 700, color: isPicked ? 'rgba(255,255,255,0.85)' : isSel ? tokens.accentDark : tokens.muted } }>
+											<Typography sx={ { fontSize: 12, fontWeight: 650, color: isPicked ? '#fff' : tokens.ink } }>{ t.name }</Typography>
+											<Typography sx={ { fontSize: 10, fontWeight: 550, color: isPicked ? 'rgba(255,255,255,0.85)' : isSel ? tokens.accentDark : tokens.muted } }>
 												{ t.seats } seats
 											</Typography>
 										</Box>
 										{ inCombo && ! joinMode && (
-											<LinkIcon sx={ { position: 'absolute', top: 2, right: 2, fontSize: 12, color: tokens.accent } } />
+											<Box
+												sx={ {
+													position: 'absolute',
+													top: -5,
+													right: -5,
+													width: 16,
+													height: 16,
+													borderRadius: '50%',
+													bgcolor: tokens.accent,
+													border: '1.5px solid #fff',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+												} }
+											>
+												<LinkIcon sx={ { fontSize: 9, color: '#fff' } } />
+											</Box>
 										) }
 									</Box>
 								);
@@ -428,7 +460,7 @@ export default function FloorPlan() {
 												direction="row"
 												spacing={ 1.5 }
 												alignItems="center"
-												sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 2, p: 1.25 } }
+												sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '12px', p: 1.25 } }
 											>
 												<Stack spacing={ 0 } sx={ { pr: 0.5 } }>
 													<IconButton size="small" onClick={ () => moveCombo( i, -1 ) } disabled={ i === 0 } sx={ { p: 0.1 } }>
@@ -492,7 +524,7 @@ export default function FloorPlan() {
 				min/max covers, and the order decides which join is offered first (put your best fit at the
 				top). A booked join blocks all its tables.
 			</Typography>
-		</Box>
+		</Page>
 	);
 }
 
@@ -509,9 +541,9 @@ function TableProps( { table, areas, onChange, onDelete, onClose } ) {
 		/>
 	);
 	return (
-		<Box sx={ { width: 264, flexShrink: 0, bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2 } }>
+		<Box sx={ { width: 264, flexShrink: 0, bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '12px', p: 2, boxShadow: tokens.shadowMd } }>
 			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 1.5 } }>
-				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Table</Typography>
+				<Typography sx={ { color: tokens.ink, fontWeight: 650, fontSize: 14 } }>Table settings</Typography>
 				<IconButton size="small" onClick={ onClose } sx={ { color: tokens.muted2 } }>
 					<CloseIcon fontSize="small" />
 				</IconButton>

@@ -331,7 +331,10 @@ function apply_combo_fields( $id, $request ) {
 			)
 		);
 	}
-	foreach ( array( 'min' => 'dk_combo_min', 'max' => 'dk_combo_max' ) as $param => $meta ) {
+	foreach ( array(
+		'min' => 'dk_combo_min',
+		'max' => 'dk_combo_max',
+	) as $param => $meta ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $meta, absint( $request->get_param( $param ) ) );
 		}
@@ -429,8 +432,8 @@ function create_area( $request ) {
  * @return \WP_REST_Response|\WP_Error
  */
 function update_area( $request ) {
-	$id   = (int) $request['id'];
-	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
+	$id     = (int) $request['id'];
+	$name   = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$result = wp_update_term( $id, 'dk_area', array( 'name' => $name ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -585,8 +588,8 @@ function delete_table( $request ) {
  */
 function get_availability( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
-	$date  = sanitize_text_field( (string) $request->get_param( 'date' ) );
-	$time  = sanitize_text_field( (string) $request->get_param( 'time' ) );
+	$date   = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$time   = sanitize_text_field( (string) $request->get_param( 'time' ) );
 	$party  = absint( $request->get_param( 'party' ) );
 	$free   = Availability\available_tables( $date, $time, $party );
 	$combos = Availability\available_combos( $date, $time, $party );
@@ -749,8 +752,8 @@ function create_booking( $request ) {
  */
 function update_booking( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
-	$id  = (int) $request['id'];
-	$map = array(
+	$id         = (int) $request['id'];
+	$map        = array(
 		'date'    => 'dk_date',
 		'time'    => 'dk_time',
 		'party'   => 'dk_party',
@@ -832,8 +835,8 @@ function term_names( $csv, $taxonomy ) {
  * @return \WP_REST_Response
  */
 function list_guests() {
-	$map = array();
-	$key = static function ( $email, $name ) {
+	$map   = array();
+	$key   = static function ( $email, $name ) {
 		$email = strtolower( trim( (string) $email ) );
 		return '' !== $email ? 'e:' . $email : 'n:' . strtolower( trim( (string) $name ) );
 	};
@@ -912,6 +915,7 @@ function list_guests() {
 		}
 	}
 
+	require_once DINEKIT_DIR . 'includes/guests.php';
 	$today = current_time( 'Y-m-d' );
 	$out   = array();
 	foreach ( $map as $p ) {
@@ -925,16 +929,21 @@ function list_guests() {
 				$next = $d;
 			}
 		}
-		$out[] = array(
-			'name'      => $p['name'],
-			'email'     => $p['email'],
-			'phone'     => $p['phone'],
-			'visits'    => $p['visits'],
-			'cancelled' => $p['cancelled'],
-			'lastVisit' => $last,
-			'nextVisit' => $next,
-			'allergens' => array_keys( $p['allergens'] ),
-			'dietary'   => array_keys( $p['dietary'] ),
+		$profile = \DineKit\Guests\get_profile( $p['email'], $p['name'] );
+		$out[]   = array(
+			'name'          => $p['name'],
+			'email'         => $p['email'],
+			'phone'         => $p['phone'],
+			'visits'        => $p['visits'],
+			'cancelled'     => $p['cancelled'],
+			'lastVisit'     => $last,
+			'nextVisit'     => $next,
+			'allergens'     => array_keys( $p['allergens'] ),
+			'dietary'       => array_keys( $p['dietary'] ),
+			'vip'           => $profile['vip'],
+			'tags'          => $profile['tags'],
+			'notes'         => $profile['notes'],
+			'noteAllergens' => $profile['allergens'],
 		);
 	}
 	usort(
@@ -1021,7 +1030,12 @@ function public_check( $request ) {
 
 	$reason = validate_when( $date, $time, $party, $cfg );
 	if ( '' !== $reason ) {
-		return rest_ensure_response( array( 'available' => false, 'reason' => $reason ) );
+		return rest_ensure_response(
+			array(
+				'available' => false,
+				'reason'    => $reason,
+			)
+		);
 	}
 
 	$free      = Availability\available_tables( $date, $time, $party );
@@ -1063,7 +1077,13 @@ function public_book( $request ) {
 
 	// Honeypot: a filled hidden field means a bot — look successful, create nothing.
 	if ( '' !== trim( (string) $request->get_param( 'hp' ) ) ) {
-		return rest_ensure_response( array( 'ok' => true, 'status' => 'pending', 'message' => __( 'Thanks!', 'dinekit' ) ) );
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'status'  => 'pending',
+				'message' => __( 'Thanks!', 'dinekit' ),
+			)
+		);
 	}
 
 	// Per-IP rate limit.

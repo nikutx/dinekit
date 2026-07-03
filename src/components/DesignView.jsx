@@ -15,6 +15,9 @@ import { tokens } from '../theme';
 import { api } from '../api/client';
 import { useToast } from './Toast';
 import { copyToClipboard } from '../lib/clipboard';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import Card from './ui/Card';
 
 const LAYOUTS = [
 	{ value: 'list', label: 'Classic list' },
@@ -100,26 +103,15 @@ export default function DesignView() {
 	};
 
 	return (
-		<Box sx={ { maxWidth: 1320, mx: 'auto' } }>
-			<Typography variant="h5" sx={ { mb: 0.5 } }>
-				Design & Preview
-			</Typography>
-			<Typography sx={ { color: tokens.muted, mb: 3 } }>
-				Choose how your menu looks, preview it exactly as diners will see it, then copy the
-				shortcode to drop it onto any page.
-			</Typography>
+		<Page width={ 1320 }>
+			<PageHeader
+				title="Design & Preview"
+				subtitle="Choose how your menu looks, preview it exactly as diners will see it, then copy the shortcode to drop it onto any page."
+			/>
 
 			{ /* Compact toolbar (keeps the preview below full-width so column
 			     counts render truthfully). */ }
-			<Box
-				sx={ {
-					bgcolor: tokens.surface,
-					border: `1px solid ${ tokens.border }`,
-					borderRadius: 3,
-					p: 2,
-					mb: 2.5,
-				} }
-			>
+			<Card sx={ { p: 2, mb: 2.5 } }>
 				<Stack direction="row" spacing={ 3 } rowGap={ 2 } alignItems="flex-end" flexWrap="wrap">
 					<Box>
 						<Typography sx={ labelSx }>Layout</Typography>
@@ -166,27 +158,65 @@ export default function DesignView() {
 						</Stack>
 					</Box>
 				</Stack>
-			</Box>
+			</Card>
 
-			{ /* Full-width preview */ }
+			{ /* Full-width preview, framed as a little browser window */ }
 			<Typography sx={ labelSx }>Live preview</Typography>
 			<Box
 				sx={ {
 					border: `1px solid ${ tokens.border }`,
-					borderRadius: 3,
+					borderRadius: '12px',
 					overflow: 'hidden',
 					bgcolor: '#fff',
-					position: 'relative',
 				} }
 			>
-				{ loading && (
-					<Box sx={ { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.6)', zIndex: 1 } }>
-						<CircularProgress size={ 28 } />
+				{ /* Browser chrome bar */ }
+				<Box
+					sx={ {
+						height: 36,
+						bgcolor: tokens.soft,
+						borderBottom: `1px solid ${ tokens.border }`,
+						display: 'flex',
+						alignItems: 'center',
+						px: 1.5,
+						position: 'relative',
+					} }
+				>
+					<Stack direction="row" spacing={ 0.75 }>
+						{ [ '#f87171', '#fbbf24', '#34d399' ].map( ( c ) => (
+							<Box key={ c } sx={ { width: 8, height: 8, borderRadius: '50%', bgcolor: c } } />
+						) ) }
+					</Stack>
+					<Box
+						sx={ {
+							position: 'absolute',
+							left: '50%',
+							transform: 'translateX(-50%)',
+							bgcolor: tokens.surface,
+							border: `1px solid ${ tokens.border }`,
+							borderRadius: 999,
+							px: 1.5,
+							py: 0.25,
+							fontSize: 11.5,
+							color: tokens.muted,
+							whiteSpace: 'nowrap',
+							userSelect: 'none',
+						} }
+					>
+						yoursite.com/menu
 					</Box>
-				) }
-				<Box component="iframe" title="Menu preview" srcDoc={ srcDoc } sx={ { width: '100%', height: 720, border: 0, display: 'block' } } />
+				</Box>
+
+				<Box sx={ { position: 'relative' } }>
+					{ loading && (
+						<Box sx={ { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.6)', zIndex: 1 } }>
+							<CircularProgress size={ 28 } />
+						</Box>
+					) }
+					<Box component="iframe" title="Menu preview" srcDoc={ srcDoc } sx={ { width: '100%', height: 720, border: 0, display: 'block' } } />
+				</Box>
 			</Box>
-		</Box>
+		</Page>
 	);
 }
 

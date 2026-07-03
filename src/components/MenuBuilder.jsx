@@ -298,7 +298,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					p: 2,
 					bgcolor: tokens.surface,
 					border: `1px dashed ${ tokens.border2 }`,
-					borderRadius: 3,
+					borderRadius: '12px',
 				} }
 			>
 				<TextField

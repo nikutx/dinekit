@@ -8,7 +8,6 @@ import {
 	TextField,
 	Chip,
 	MenuItem,
-	CircularProgress,
 	Tooltip,
 	Divider,
 	Switch,
@@ -16,7 +15,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import EventIcon from '@mui/icons-material/Event';
+import CelebrationIcon from '@mui/icons-material/Celebration';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -26,6 +25,11 @@ import { tokens } from '../theme';
 import { api } from '../api/client';
 import { prettyDate } from '../lib/bookings';
 import { printDoc, esc } from '../lib/print';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import EmptyState from './ui/EmptyState';
+import Card from './ui/Card';
+import { ListSkeleton } from './ui/Skeletons';
 
 export default function EventsView() {
 	const [ events, setEvents ] = useState( [] );
@@ -98,34 +102,31 @@ export default function EventsView() {
 
 	if ( loading ) {
 		return (
-			<Box sx={ { display: 'flex', justifyContent: 'center', mt: 8 } }>
-				<CircularProgress />
-			</Box>
+			<Page>
+				<ListSkeleton rows={ 5 } />
+			</Page>
 		);
 	}
 
 	return (
-		<Box sx={ { maxWidth: 1120, mx: 'auto' } }>
-			<Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={ { mb: 2 } }>
-				<Box>
-					<Typography variant="h5">Events</Typography>
-					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Set-menu events with per-guest pre-orders — guests pick their courses and flag
-						allergens from a share link. The kitchen gets one tidy prep sheet.
-					</Typography>
-				</Box>
-				<Button variant="contained" startIcon={ <AddIcon /> } onClick={ createEvent }>
-					New event
-				</Button>
-			</Stack>
+		<Page>
+			<PageHeader
+				title="Events"
+				subtitle="Set-menu events with per-guest pre-orders — guests pick their courses and flag allergens from a share link. The kitchen gets one tidy prep sheet."
+				actions={
+					<Button variant="contained" startIcon={ <AddIcon /> } onClick={ createEvent }>
+						New event
+					</Button>
+				}
+			/>
 
 			{ events.length === 0 ? (
-				<Box sx={ { border: `1px dashed ${ tokens.border2 }`, borderRadius: 3, p: 6, textAlign: 'center', color: tokens.muted } }>
-					<Typography sx={ { fontWeight: 700, color: tokens.ink2 } }>No events yet</Typography>
-					<Typography sx={ { fontSize: 14, mt: 0.5 } }>
-						Create an event, link one of your menus as the set menu, then share the link with guests.
-					</Typography>
-				</Box>
+				<EmptyState
+					icon={ <CelebrationIcon /> }
+					title="No events yet"
+					description="Create an event, link one of your menus as the set menu, then share the link with guests."
+					tint={ { fg: tokens.amber, bg: tokens.amberSoft } }
+				/>
 			) : (
 				<Stack direction="row" spacing={ 2 } alignItems="flex-start">
 					{ /* List */ }
@@ -133,35 +134,40 @@ export default function EventsView() {
 						{ events.map( ( ev ) => {
 							const active = ev.id === selectedId;
 							return (
-								<Box
+								<Card
 									key={ ev.id }
+									hover
 									onClick={ () => select( ev.id ) }
 									sx={ {
-										bgcolor: active ? tokens.accentSoft : tokens.surface,
-										border: `1px solid ${ active ? tokens.accent : tokens.border }`,
-										borderRadius: 2,
 										p: 1.5,
-										cursor: 'pointer',
+										...( active && {
+											borderColor: tokens.accent,
+											bgcolor: tokens.accentSoft,
+											'&:hover': { borderColor: tokens.accent },
+										} ),
 									} }
 								>
-									<Typography sx={ { fontWeight: 700, color: tokens.ink, fontSize: 14 } } noWrap>{ ev.name }</Typography>
-									<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mt: 0.5 } }>
-										<Typography sx={ { fontSize: 12, color: tokens.muted } }>
-											{ ev.date ? prettyDate( ev.date ) : 'No date' }
-										</Typography>
-										<Chip
-											label={ ev.status === 'published' ? 'Live' : 'Draft' }
-											size="small"
-											sx={ {
-												height: 18, fontSize: 10,
-												bgcolor: ev.status === 'published' ? tokens.greenSoft : tokens.soft,
-												color: ev.status === 'published' ? tokens.green : tokens.muted,
-											} }
-										/>
-										<Box sx={ { flex: 1 } } />
-										<Typography sx={ { fontSize: 12, color: tokens.muted2 } }>{ ev.guestCount }👤</Typography>
+									<Stack direction="row" spacing={ 1.25 } alignItems="center">
+										<DateBadge date={ ev.date } active={ active } />
+										<Box sx={ { flex: 1, minWidth: 0 } }>
+											<Typography sx={ { fontWeight: 650, color: tokens.ink, fontSize: 14 } } noWrap>{ ev.name }</Typography>
+											<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mt: 0.25 } }>
+												<Chip
+													label={ ev.status === 'published' ? 'Live' : 'Draft' }
+													size="small"
+													sx={ {
+														height: 18, fontSize: 10, fontWeight: 600,
+														bgcolor: ev.status === 'published' ? tokens.greenSoft : tokens.soft,
+														color: ev.status === 'published' ? tokens.green : tokens.muted,
+													} }
+												/>
+												<Typography sx={ { fontSize: 12, color: tokens.muted } } noWrap>
+													{ ev.guestCount } { ev.guestCount === 1 ? 'guest' : 'guests' }
+												</Typography>
+											</Stack>
+										</Box>
 									</Stack>
-								</Box>
+								</Card>
 							);
 						} ) }
 					</Stack>
@@ -169,7 +175,7 @@ export default function EventsView() {
 					{ /* Detail */ }
 					<Box sx={ { flex: 1, minWidth: 0 } }>
 						{ ! detail ? (
-							<Box sx={ { display: 'flex', justifyContent: 'center', mt: 6 } }><CircularProgress size={ 24 } /></Box>
+							<ListSkeleton rows={ 4 } />
 						) : (
 							<EventDetail
 								detail={ detail }
@@ -185,6 +191,40 @@ export default function EventsView() {
 			) }
 
 			<Snackbar open={ copied } autoHideDuration={ 1800 } onClose={ () => setCopied( false ) } message="Share link copied" anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } } />
+		</Page>
+	);
+}
+
+const MONTHS = [ 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC' ];
+
+// Calendar date badge — abbreviated month over day-of-month ('2026-07-14' →
+// JUL / 14). Shows an em dash when the event has no date yet.
+function DateBadge( { date, active } ) {
+	const month = date ? MONTHS[ Number( String( date ).slice( 5, 7 ) ) - 1 ] : null;
+	const dayNum = date ? Number( String( date ).slice( 8, 10 ) ) : null;
+	return (
+		<Box
+			sx={ {
+				width: 44,
+				flexShrink: 0,
+				borderRadius: '10px',
+				bgcolor: active ? tokens.surface : tokens.accentSoft,
+				py: 0.75,
+				textAlign: 'center',
+			} }
+		>
+			{ month && dayNum ? (
+				<>
+					<Typography sx={ { fontSize: 10, fontWeight: 650, color: tokens.accent, letterSpacing: '0.06em', lineHeight: 1.2, textTransform: 'uppercase' } }>
+						{ month }
+					</Typography>
+					<Typography sx={ { fontSize: 18, fontWeight: 650, color: tokens.ink, lineHeight: 1.15 } }>
+						{ dayNum }
+					</Typography>
+				</>
+			) : (
+				<Typography sx={ { fontSize: 18, fontWeight: 650, color: tokens.muted2, lineHeight: 2 } }>—</Typography>
+			) }
 		</Box>
 	);
 }
@@ -241,7 +281,7 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 	};
 
 	return (
-		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5 } }>
+		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '12px', p: 2.5 } }>
 			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
 				<TextField
 					value={ detail.name }
@@ -302,7 +342,7 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 			<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 1.5 } }>
 				<RestaurantIcon sx={ { fontSize: 18, color: tokens.ink2 } } />
 				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Kitchen prep sheet</Typography>
-				<Chip icon={ <PeopleIcon sx={ { fontSize: 15 } } /> } label={ `${ detail.prep.totalGuests } ordered` } size="small" sx={ { bgcolor: tokens.soft, fontWeight: 700 } } />
+				<Chip icon={ <PeopleIcon sx={ { fontSize: 15 } } /> } label={ `${ detail.prep.totalGuests } ordered` } size="small" sx={ { bgcolor: tokens.soft, fontWeight: 600 } } />
 				<Box sx={ { flex: 1 } } />
 				<Button
 					size="small"
@@ -364,7 +404,7 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 									</Typography>
 								</Box>
 								{ g.allergens.length > 0 && (
-									<Chip label={ `${ g.allergens.length } allergen${ g.allergens.length === 1 ? '' : 's' }` } size="small" sx={ { bgcolor: tokens.amberSoft, color: tokens.amber, fontWeight: 700 } } />
+									<Chip label={ `${ g.allergens.length } allergen${ g.allergens.length === 1 ? '' : 's' }` } size="small" sx={ { bgcolor: tokens.amberSoft, color: tokens.amber, fontWeight: 600 } } />
 								) }
 								<IconButton size="small" onClick={ () => onRemoveGuest( g.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
 							</Stack>

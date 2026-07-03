@@ -26,6 +26,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { printDoc, esc } from '../lib/print';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import EmptyState from './ui/EmptyState';
+import Card from './ui/Card';
+import { ListSkeleton } from './ui/Skeletons';
 
 const O_STATUS = [
 	{ key: 'new', label: 'New', fg: tokens.accentDark, bg: tokens.accentSoft },
@@ -98,34 +103,41 @@ export default function OrdersView() {
 	};
 
 	if ( loading ) {
-		return <Box sx={ { display: 'flex', justifyContent: 'center', mt: 8 } }><CircularProgress /></Box>;
+		return (
+			<Page>
+				<PageHeader
+					title="Orders"
+					subtitle="Commission-free takeaway orders from your own site — you keep 100%."
+				/>
+				<ListSkeleton rows={ 5 } />
+			</Page>
+		);
 	}
 
 	return (
-		<Box sx={ { maxWidth: 900, mx: 'auto' } }>
-			<Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={ { mb: 2 } }>
-				<Box>
-					<Typography variant="h5">Orders</Typography>
-					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Commission-free takeaway orders from your own site — you keep 100%.
-					</Typography>
-				</Box>
-				<Stack direction="row" spacing={ 1 } alignItems="center">
-					<Chip
-						icon={ <ReceiptLongIcon sx={ { fontSize: 16 } } /> }
-						label={ `${ activeCount } active` }
-						sx={ { bgcolor: activeCount ? tokens.accentSoft : tokens.soft, color: activeCount ? tokens.accentDark : tokens.muted, fontWeight: 700 } }
-					/>
-					<Tooltip title="Ordering settings & the public page">
-						<IconButton
-							onClick={ () => setSettingsOpen( ( v ) => ! v ) }
-							sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, color: settingsOpen ? tokens.accent : tokens.muted } }
-						>
-							<TuneIcon />
-						</IconButton>
-					</Tooltip>
-				</Stack>
-			</Stack>
+		<Page>
+			<PageHeader
+				title="Orders"
+				subtitle="Commission-free takeaway orders from your own site — you keep 100%."
+				actions={
+					<>
+						<Chip
+							icon={ <ReceiptLongIcon sx={ { fontSize: 14 } } /> }
+							label={ `${ activeCount } active` }
+							size="small"
+							sx={ { height: 22, fontSize: 12, bgcolor: activeCount ? tokens.accentSoft : tokens.soft, color: activeCount ? tokens.accentDark : tokens.muted, fontWeight: 600 } }
+						/>
+						<Tooltip title="Ordering settings & the public page">
+							<IconButton
+								onClick={ () => setSettingsOpen( ( v ) => ! v ) }
+								sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, color: settingsOpen ? tokens.accent : tokens.muted } }
+							>
+								<TuneIcon />
+							</IconButton>
+						</Tooltip>
+					</>
+				}
+			/>
 
 			<Collapse in={ settingsOpen } unmountOnExit>
 				<OrderSettings />
@@ -138,30 +150,45 @@ export default function OrdersView() {
 			</ToggleButtonGroup>
 
 			{ filtered.length === 0 ? (
-				<Box sx={ { border: `1px dashed ${ tokens.border2 }`, borderRadius: 3, p: 5, textAlign: 'center', color: tokens.muted } }>
-					<Typography sx={ { fontWeight: 700, color: tokens.ink2 } }>No orders here</Typography>
-					<Typography sx={ { fontSize: 14, mt: 0.5 } }>Orders placed on your site land here in real time.</Typography>
-				</Box>
+				<EmptyState
+					icon={ <ReceiptLongIcon /> }
+					title="No orders here"
+					description="Orders placed on your site land here in real time."
+				/>
 			) : (
 				<Stack spacing={ 1.5 }>
 					{ filtered.map( ( o ) => {
 						const m = meta( o.status );
 						return (
-							<Box key={ o.id } sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderLeft: `3px solid ${ m.fg }`, borderRadius: 2, p: 2 } }>
+							<Card key={ o.id } hover sx={ { p: 2 } }>
 								<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 1 } }>
-									<Typography sx={ { fontWeight: 800, fontSize: 16 } }>#{ o.number }</Typography>
-									<Typography sx={ { fontSize: 13, color: tokens.muted } }>
+									<Typography sx={ { fontWeight: 650, fontSize: 15, fontVariantNumeric: 'tabular-nums' } }>#{ o.number }</Typography>
+									<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
 										{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.when === 'asap' ? 'ASAP' : o.when }
 									</Typography>
 									<Box sx={ { flex: 1 } } />
-									<Typography sx={ { fontWeight: 800 } }>{ money( o.total ) }</Typography>
+									<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
 									<Select
 										value={ o.status }
 										onChange={ ( e ) => setStatus( o.id, e.target.value ) }
 										size="small"
-										sx={ { minWidth: 130, fontWeight: 700, fontSize: 13, color: m.fg, bgcolor: m.bg, '& fieldset': { border: 'none' } } }
+										renderValue={ ( v ) => {
+											const sm = meta( v );
+											return (
+												<Stack direction="row" spacing={ 0.75 } alignItems="center" component="span">
+													<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: sm.fg, flexShrink: 0 } } />
+													{ sm.label }
+												</Stack>
+											);
+										} }
+										sx={ { minWidth: 130, fontWeight: 600, fontSize: 13, color: m.fg, bgcolor: m.bg, borderRadius: '8px', '& fieldset': { border: 'none' } } }
 									>
-										{ O_STATUS.map( ( s ) => <MenuItem key={ s.key } value={ s.key } sx={ { fontSize: 13, fontWeight: 600 } }>{ s.label }</MenuItem> ) }
+										{ O_STATUS.map( ( s ) => (
+											<MenuItem key={ s.key } value={ s.key } sx={ { fontSize: 13, fontWeight: 600 } }>
+												<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: s.fg, display: 'inline-block', mr: 1, flexShrink: 0 } } />
+												{ s.label }
+											</MenuItem>
+										) ) }
 									</Select>
 									<Tooltip title="Print ticket">
 										<IconButton size="small" onClick={ () => printTicket( o ) } sx={ { color: tokens.muted } }><PrintIcon fontSize="small" /></IconButton>
@@ -170,28 +197,22 @@ export default function OrdersView() {
 										<IconButton size="small" onClick={ () => remove( o.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
 									</Tooltip>
 								</Stack>
-								<Stack spacing={ 0.25 } sx={ { pl: 0.5 } }>
-									{ o.items.map( ( li, i ) => (
-										<Box key={ i }>
-											<Typography sx={ { fontSize: 14 } }>
-												<strong>{ li.qty }×</strong> { li.title }
-												{ li.priceLabel ? <span style={ { color: tokens.muted } }> ({ li.priceLabel })</span> : null }
-											</Typography>
-											{ ( li.chosen.length > 0 || ( li.removed || [] ).length > 0 ) && (
-												<Typography sx={ { fontSize: 12, color: tokens.muted, pl: 2 } }>
-													{ li.chosen.map( ( c ) => c.label ).concat( ( li.removed || [] ).map( ( r ) => `no ${ r }` ) ).join( ' · ' ) }
-												</Typography>
-											) }
-										</Box>
-									) ) }
-									{ o.notes && <Typography sx={ { fontSize: 13, color: tokens.ink2, mt: 0.5, fontStyle: 'italic' } }>“{ o.notes }”</Typography> }
-								</Stack>
-							</Box>
+								<Typography sx={ { fontSize: 12.5, color: tokens.muted, lineHeight: 1.6 } }>
+									{ o.items.map( ( li ) => {
+										const extra = [ li.priceLabel ]
+											.concat( li.chosen.map( ( c ) => c.label ) )
+											.concat( ( li.removed || [] ).map( ( r ) => `no ${ r }` ) )
+											.filter( Boolean );
+										return `${ li.qty }× ${ li.title }${ extra.length ? ` (${ extra.join( ', ' ) })` : '' }`;
+									} ).join( '  ·  ' ) }
+								</Typography>
+								{ o.notes && <Typography sx={ { fontSize: 12.5, color: tokens.ink2, mt: 0.5, fontStyle: 'italic' } }>“{ o.notes }”</Typography> }
+							</Card>
 						);
 					} ) }
 				</Stack>
 			) }
-		</Box>
+		</Page>
 	);
 }
 
@@ -279,7 +300,7 @@ function OrderSettings() {
 					onClick={ copyShortcode }
 					onDelete={ copyShortcode }
 					deleteIcon={ <ContentCopyIcon /> }
-					sx={ { fontFamily: 'monospace', fontWeight: 700, bgcolor: tokens.soft } }
+					sx={ { fontFamily: 'monospace', fontWeight: 600, bgcolor: tokens.soft } }
 				/>
 			</Stack>
 			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>

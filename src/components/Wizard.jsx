@@ -18,10 +18,52 @@ import { tokens } from '../theme';
 import { api } from '../api/client';
 
 const TYPES = [
-	{ key: 'dinein', label: 'Dine-in', desc: 'Tables & bookings', icon: RestaurantIcon },
-	{ key: 'takeaway', label: 'Takeaway', desc: 'Order & collect', icon: TakeoutDiningIcon },
-	{ key: 'both', label: 'Both', desc: 'Dine-in + takeaway', icon: StorefrontIcon },
+	{ key: 'dinein', label: 'Dine-in', desc: 'Tables & bookings', icon: RestaurantIcon, fg: tokens.accent, bg: tokens.accentSoft },
+	{ key: 'takeaway', label: 'Takeaway', desc: 'Order & collect', icon: TakeoutDiningIcon, fg: tokens.violet, bg: tokens.violetSoft },
+	{ key: 'both', label: 'Both', desc: 'Dine-in + takeaway', icon: StorefrontIcon, fg: tokens.sky, bg: tokens.skySoft },
 ];
+
+// Brand mark — matches the sidebar logo.
+function Mark( { size = 44 } ) {
+	return (
+		<Box
+			sx={ {
+				width: size,
+				height: size,
+				borderRadius: '12px',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				mx: 'auto',
+				mb: 2,
+				background: `linear-gradient(135deg, #6366f1 0%, ${ tokens.accentDark } 100%)`,
+				boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), 0 4px 14px rgba(79,70,229,.35)',
+			} }
+		>
+			<RestaurantIcon sx={ { fontSize: size * 0.5, color: '#fff' } } />
+		</Box>
+	);
+}
+
+// Step progress dots.
+function Dots( { count, active } ) {
+	return (
+		<Stack direction="row" spacing={ 0.75 } justifyContent="center" sx={ { mb: 3 } }>
+			{ Array.from( { length: count } ).map( ( _, i ) => (
+				<Box
+					key={ i }
+					sx={ {
+						height: 6,
+						borderRadius: 999,
+						width: i === active ? 22 : 6,
+						bgcolor: i === active ? tokens.accent : i < active ? `${ tokens.accent }66` : tokens.border2,
+						transition: 'all .25s ease',
+					} }
+				/>
+			) ) }
+		</Stack>
+	);
+}
 
 export default function Wizard( { onDone } ) {
 	const [ step, setStep ] = useState( 0 );
@@ -83,7 +125,22 @@ export default function Wizard( { onDone } ) {
 	if ( done ) {
 		return (
 			<Box sx={ panelSx }>
-				<CheckCircleIcon sx={ { fontSize: 44, color: tokens.green, mb: 1 } } />
+				<Box
+					sx={ {
+						width: 64,
+						height: 64,
+						borderRadius: '50%',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						mx: 'auto',
+						mb: 2,
+						background: `radial-gradient(circle at 50% 35%, ${ tokens.greenSoft } 0%, #ffffff 90%)`,
+						border: `1px solid ${ tokens.border }`,
+					} }
+				>
+					<CheckCircleIcon sx={ { fontSize: 34, color: tokens.green } } />
+				</Box>
 				<Typography variant="h5" sx={ { mb: 1 } }>You’re all set!</Typography>
 				<Typography sx={ { color: tokens.muted, mb: 3, maxWidth: 460 } }>
 					{ done.tables ? `${ done.tables } tables and ` : '' }
@@ -103,15 +160,13 @@ export default function Wizard( { onDone } ) {
 
 	return (
 		<Box sx={ panelSx }>
-			<Typography sx={ { fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: tokens.muted2, mb: 1 } }>
-				Step { step + 1 } of { steps.length }
-			</Typography>
+			<Dots count={ steps.length } active={ step } />
 
 			{ error && <Alert severity="error" sx={ { mb: 2, width: '100%', maxWidth: 460 } }>{ error }</Alert> }
 
 			{ 'welcome' === current && (
 				<>
-					<RestaurantIcon sx={ { fontSize: 44, color: tokens.accent, mb: 1 } } />
+					<Mark />
 					<Typography variant="h5" sx={ { mb: 1 } }>Welcome to DineKit</Typography>
 					<Typography sx={ { color: tokens.muted, mb: 3, maxWidth: 460 } }>
 						Let’s set you up in a minute. What’s your place called?
@@ -143,17 +198,33 @@ export default function Wizard( { onDone } ) {
 									onClick={ () => setType( t.key ) }
 									sx={ {
 										flex: 1,
-										p: 2,
-										borderRadius: 3,
+										p: 2.25,
+										borderRadius: '12px',
 										cursor: 'pointer',
 										textAlign: 'center',
 										border: `2px solid ${ on ? tokens.accent : tokens.border }`,
-										bgcolor: on ? tokens.accentSoft : tokens.surface,
-										transition: 'all 0.12s',
+										bgcolor: tokens.surface,
+										boxShadow: on ? `0 0 0 3px ${ tokens.accentSoft }` : 'none',
+										transition: 'all 0.15s ease',
+										'&:hover': { borderColor: on ? tokens.accent : tokens.border2, boxShadow: on ? `0 0 0 3px ${ tokens.accentSoft }` : tokens.shadowMd, transform: 'translateY(-1px)' },
 									} }
 								>
-									<Icon sx={ { fontSize: 30, color: on ? tokens.accentDark : tokens.muted2 } } />
-									<Typography sx={ { fontWeight: 800, mt: 0.5, color: on ? tokens.accentDark : tokens.ink } }>{ t.label }</Typography>
+									<Box
+										sx={ {
+											width: 44,
+											height: 44,
+											borderRadius: '10px',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center',
+											mx: 'auto',
+											mb: 1,
+											bgcolor: t.bg,
+										} }
+									>
+										<Icon sx={ { fontSize: 24, color: t.fg } } />
+									</Box>
+									<Typography sx={ { fontWeight: 650, color: on ? tokens.accentDark : tokens.ink } }>{ t.label }</Typography>
 									<Typography sx={ { fontSize: 12, color: tokens.muted } }>{ t.desc }</Typography>
 								</Box>
 							);
@@ -197,12 +268,15 @@ export default function Wizard( { onDone } ) {
 									key={ String( o.k ) }
 									onClick={ () => setSeedSample( o.k ) }
 									sx={ {
-										flex: 1, p: 2, borderRadius: 3, cursor: 'pointer', textAlign: 'center',
+										flex: 1, p: 2.25, borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
 										border: `2px solid ${ on ? tokens.accent : tokens.border }`,
-										bgcolor: on ? tokens.accentSoft : tokens.surface,
+										bgcolor: tokens.surface,
+										boxShadow: on ? `0 0 0 3px ${ tokens.accentSoft }` : 'none',
+										transition: 'all 0.15s ease',
+										'&:hover': { borderColor: on ? tokens.accent : tokens.border2 },
 									} }
 								>
-									<Typography sx={ { fontWeight: 800, color: on ? tokens.accentDark : tokens.ink } }>{ o.t }</Typography>
+									<Typography sx={ { fontWeight: 650, color: on ? tokens.accentDark : tokens.ink } }>{ o.t }</Typography>
 									<Typography sx={ { fontSize: 12, color: tokens.muted } }>{ o.d }</Typography>
 								</Box>
 							);
@@ -232,14 +306,15 @@ export default function Wizard( { onDone } ) {
 const panelSx = {
 	bgcolor: tokens.surface,
 	border: `1px solid ${ tokens.border }`,
-	borderRadius: 4,
+	borderRadius: '16px',
 	p: { xs: 4, sm: 6 },
 	textAlign: 'center',
 	display: 'flex',
 	flexDirection: 'column',
 	alignItems: 'center',
-	maxWidth: 680,
+	maxWidth: 660,
 	mx: 'auto',
-	mt: 4,
-	boxShadow: '0 12px 32px rgba(15,23,42,0.06)',
+	mt: 5,
+	boxShadow: tokens.shadow,
+	background: `linear-gradient(180deg, #fdfdff 0%, #ffffff 30%)`,
 };

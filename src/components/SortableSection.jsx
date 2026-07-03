@@ -35,7 +35,7 @@ export default function SortableSection( {
 			sx={ {
 				bgcolor: tokens.surface,
 				border: `1px solid ${ isOver ? tokens.accent : tokens.border }`,
-				borderRadius: 3,
+				borderRadius: '12px',
 				overflow: 'hidden',
 				transition: 'border-color 0.15s ease-in-out',
 				opacity: muted ? 0.92 : 1,
@@ -64,7 +64,7 @@ export default function SortableSection( {
 				) }
 
 				{ muted ? (
-					<Typography sx={ { flex: 1, fontWeight: 700, color: tokens.muted, fontSize: 14 } }>
+					<Typography sx={ { flex: 1, fontWeight: 650, color: tokens.muted, fontSize: 14 } }>
 						{ section.name }
 					</Typography>
 				) : (
@@ -72,17 +72,17 @@ export default function SortableSection( {
 						value={ name }
 						onChange={ ( e ) => setName( e.target.value ) }
 						onBlur={ () => name.trim() && name !== section.name && onRename( name.trim() ) }
-						sx={ { flex: 1, fontWeight: 800, fontSize: 16, color: tokens.ink } }
+						sx={ { flex: 1, fontWeight: 650, fontSize: 15, color: tokens.ink } }
 					/>
 				) }
 
-				<Typography className="dk-microlabel" sx={ { color: tokens.muted, fontSize: 12, fontWeight: 700 } }>
+				<Typography className="dk-microlabel" sx={ { color: tokens.muted, fontSize: 12.5 } }>
 					{ itemIds.length } { itemIds.length === 1 ? 'item' : 'items' }
 				</Typography>
 
 				{ ! muted && onDuplicateSection && (
 					<Tooltip title="Duplicate section with its dishes">
-						<IconButton size="small" onClick={ onDuplicateSection } sx={ { color: tokens.muted2 } }>
+						<IconButton size="small" onClick={ onDuplicateSection } sx={ { color: tokens.muted } }>
 							<ContentCopyIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
@@ -90,7 +90,7 @@ export default function SortableSection( {
 
 				{ ! muted && (
 					<Tooltip title="Delete section (items are kept, just unsectioned)">
-						<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted2 } }>
+						<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted } }>
 							<DeleteOutlineIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
