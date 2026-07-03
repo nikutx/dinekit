@@ -88,6 +88,9 @@
 .dinekit-booking__availability.is-no {
 	color: var(--dkb-red);
 }
+.dinekit-booking__availability.is-wait {
+	color: #d97706;
+}
 .dinekit-booking__note {
 	margin: 4px 0 12px;
 	padding: 8px 12px;

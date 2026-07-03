@@ -538,6 +538,12 @@ function BookingSettings() {
 						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Auto-confirm</Typography>
 					</Tooltip>
 				</Stack>
+				<Stack direction="row" alignItems="center" spacing={ 1 }>
+					<Switch checked={ cfg.allow_waitlist } onChange={ ( e ) => patch( { allow_waitlist: e.target.checked } ) } />
+					<Tooltip title="When a slot is full, let diners join the waitlist (penciled in) instead of being turned away.">
+						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Waitlist when full</Typography>
+					</Tooltip>
+				</Stack>
 			</Stack>
 
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>

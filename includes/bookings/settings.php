@@ -24,6 +24,7 @@ function defaults() {
 	return array(
 		'online_enabled' => true,
 		'auto_confirm'   => false, // false = requests (pending); true = instant confirm.
+		'allow_waitlist' => true,  // Offer a waitlist / penciled-in slot when full.
 		'max_party'      => 8,
 		'min_notice'     => 2,     // Hours of lead time required.
 		'max_days_ahead' => 90,
@@ -61,7 +62,7 @@ function get() {
 function save( $data ) {
 	$current = get();
 
-	$bools = array( 'online_enabled', 'auto_confirm', 'emails_enabled' );
+	$bools = array( 'online_enabled', 'auto_confirm', 'emails_enabled', 'allow_waitlist' );
 	foreach ( $bools as $key ) {
 		if ( isset( $data[ $key ] ) ) {
 			$current[ $key ] = (bool) $data[ $key ];
@@ -129,6 +130,7 @@ function public_config() {
 	return array(
 		'onlineEnabled' => (bool) $s['online_enabled'],
 		'autoConfirm'   => (bool) $s['auto_confirm'],
+		'allowWaitlist' => (bool) $s['allow_waitlist'],
 		'maxParty'      => (int) $s['max_party'],
 		'minNotice'     => (int) $s['min_notice'],
 		'maxDaysAhead'  => (int) $s['max_days_ahead'],

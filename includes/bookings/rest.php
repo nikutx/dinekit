@@ -883,6 +883,8 @@ function public_check( $request ) {
 		array(
 			'available' => $available,
 			'deposit'   => \DineKit\Bookings\Settings\needs_deposit( $party ),
+			// Full, but the guest can still be penciled in on the waitlist.
+			'waitlist'  => ! $available && ! empty( $cfg['allow_waitlist'] ),
 		)
 	);
 }
@@ -934,24 +936,32 @@ function public_book( $request ) {
 		return new \WP_Error( 'dinekit_booking_who', __( 'Please enter your name and a valid email address.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 
-	// Kitchen pacing: reject if the hour is already at its covers cap.
-	if ( ! Availability\within_hour_capacity( $date, $time, $party, (int) $cfg['covers_per_hour'] ) ) {
-		return new \WP_Error( 'dinekit_booking_full', __( 'We’re fully booked at that time. Please try another time.', 'dinekit' ), array( 'status' => 409 ) );
+	// Is the slot full — over the covers cap, or no table/combo fits? If so and
+	// a waitlist is allowed, pencil the guest in (provisional, no table) rather
+	// than turning them away.
+	$over_capacity = ! Availability\within_hour_capacity( $date, $time, $party, (int) $cfg['covers_per_hour'] );
+	$table_id      = 0;
+	$combo_id      = 0;
+	if ( ! $over_capacity ) {
+		$free     = Availability\available_tables( $date, $time, $party );
+		$table_id = $free ? (int) $free[0]['id'] : 0;
+		if ( ! $table_id ) {
+			$combos   = Availability\available_combos( $date, $time, $party );
+			$combo_id = $combos ? (int) $combos[0]['id'] : 0;
+		}
 	}
 
-	// Assign a free single table, else a free combination.
-	$free     = Availability\available_tables( $date, $time, $party );
-	$table_id = $free ? (int) $free[0]['id'] : 0;
-	$combo_id = 0;
-	if ( ! $table_id ) {
-		$combos   = Availability\available_combos( $date, $time, $party );
-		$combo_id = $combos ? (int) $combos[0]['id'] : 0;
+	$full       = $over_capacity || ( ! $table_id && ! $combo_id );
+	$waitlisted = false;
+	if ( $full ) {
+		if ( empty( $cfg['allow_waitlist'] ) ) {
+			return new \WP_Error( 'dinekit_booking_full', __( 'Sorry, we’re fully booked at that time. Please try another time.', 'dinekit' ), array( 'status' => 409 ) );
+		}
+		$waitlisted = true;
+		$status     = 'provisional';
+	} else {
+		$status = ! empty( $cfg['auto_confirm'] ) ? 'confirmed' : 'pending';
 	}
-	if ( ! $table_id && ! $combo_id ) {
-		return new \WP_Error( 'dinekit_booking_full', __( 'Sorry, we have no tables at that time. Please try another time.', 'dinekit' ), array( 'status' => 409 ) );
-	}
-
-	$status  = ! empty( $cfg['auto_confirm'] ) ? 'confirmed' : 'pending';
 	$post_id = wp_insert_post(
 		array(
 			'post_type'   => 'dk_booking',
@@ -982,16 +992,21 @@ function public_book( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id );
 
-	$message = 'confirmed' === $status
-		? __( 'Your table is booked — see you then!', 'dinekit' )
-		: __( 'Thanks! Your booking request has been sent — we’ll confirm shortly.', 'dinekit' );
+	if ( $waitlisted ) {
+		$message = __( 'You’re on the waitlist — we’ll be in touch if a table frees up.', 'dinekit' );
+	} elseif ( 'confirmed' === $status ) {
+		$message = __( 'Your table is booked — see you then!', 'dinekit' );
+	} else {
+		$message = __( 'Thanks! Your booking request has been sent — we’ll confirm shortly.', 'dinekit' );
+	}
 
 	return rest_ensure_response(
 		array(
-			'ok'      => true,
-			'status'  => $status,
-			'deposit' => \DineKit\Bookings\Settings\needs_deposit( $party ),
-			'message' => $message,
+			'ok'       => true,
+			'status'   => $status,
+			'waitlist' => $waitlisted,
+			'deposit'  => \DineKit\Bookings\Settings\needs_deposit( $party ),
+			'message'  => $message,
 		)
 	);
 }

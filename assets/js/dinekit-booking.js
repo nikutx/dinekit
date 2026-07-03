@@ -38,6 +38,7 @@
 		var availEl = root.querySelector( '.dinekit-booking__availability' );
 		var resultEl = root.querySelector( '.dinekit-booking__result' );
 		var submitEl = form.querySelector( '.dinekit-booking__submit' );
+		var origSubmit = submitEl.textContent;
 
 		var today = localDate( new Date() );
 		dateEl.min = today;
@@ -69,7 +70,7 @@
 
 		function say( elm, msg, cls ) {
 			elm.textContent = msg;
-			elm.className = elm.className.replace( /\bis-(ok|no)\b/g, '' ).trim();
+			elm.className = elm.className.replace( /\bis-(ok|no|wait)\b/g, '' ).trim();
 			if ( cls ) {
 				elm.classList.add( cls );
 			}
@@ -95,8 +96,13 @@
 								msg += ' · ' + t.deposit;
 							}
 							say( availEl, '✓ ' + msg, 'is-ok' );
+							submitEl.textContent = origSubmit;
+						} else if ( d.waitlist ) {
+							say( availEl, '★ ' + t.waitlistOffer, 'is-wait' );
+							submitEl.textContent = t.joinWaitlist;
 						} else {
 							say( availEl, '✗ ' + t.notAvailable, 'is-no' );
+							submitEl.textContent = origSubmit;
 						}
 					} )
 					.catch( function () {} );
@@ -138,7 +144,7 @@
 					submitEl.disabled = false;
 					submitEl.classList.remove( 'is-loading' );
 					if ( res.ok && res.d && res.d.ok ) {
-						var title = res.d.status === 'confirmed' ? t.tableBooked : t.requestSent;
+						var title = res.d.waitlist ? t.waitlisted : ( res.d.status === 'confirmed' ? t.tableBooked : t.requestSent );
 						var wrap = document.createElement( 'div' );
 						wrap.className = 'dinekit-booking__success';
 						var h = document.createElement( 'p' );

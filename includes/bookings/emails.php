@@ -145,17 +145,22 @@ function new_booking( $id, $notify_staff = true ) {
 
 	// Diner.
 	if ( is_email( $d['email'] ) ) {
-		$confirmed = 'confirmed' === $d['status'];
-		$lead      = $confirmed
+		if ( 'provisional' === $d['status'] ) {
 			/* translators: %s: guest name. */
-			? sprintf( __( 'Hi %s, your table is booked — see you then!', 'dinekit' ), $d['name'] )
+			$lead    = sprintf( __( 'Hi %s, you’re on our waitlist — we’ll be in touch if a table frees up.', 'dinekit' ), $d['name'] );
+			/* translators: %s: site name. */
+			$subject = sprintf( __( 'You’re on the waitlist at %s', 'dinekit' ), $site );
+		} elseif ( 'confirmed' === $d['status'] ) {
 			/* translators: %s: guest name. */
-			: sprintf( __( 'Hi %s, thanks for your booking request — we’ll confirm shortly.', 'dinekit' ), $d['name'] );
-		$subject = $confirmed
+			$lead    = sprintf( __( 'Hi %s, your table is booked — see you then!', 'dinekit' ), $d['name'] );
 			/* translators: %s: site name. */
-			? sprintf( __( 'Your booking at %s', 'dinekit' ), $site )
+			$subject = sprintf( __( 'Your booking at %s', 'dinekit' ), $site );
+		} else {
+			/* translators: %s: guest name. */
+			$lead    = sprintf( __( 'Hi %s, thanks for your booking request — we’ll confirm shortly.', 'dinekit' ), $d['name'] );
 			/* translators: %s: site name. */
-			: sprintf( __( 'Your booking request at %s', 'dinekit' ), $site );
+			$subject = sprintf( __( 'Your booking request at %s', 'dinekit' ), $site );
+		}
 		send( $d['email'], $subject, render( $lead, $d, __( 'Need to change it? Just reply to this email.', 'dinekit' ) ) );
 	}
 
