@@ -80,15 +80,21 @@ function all_tables() {
 		$areas = get_the_terms( $post, 'dk_area' );
 		$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
 
+		$shape = (string) get_post_meta( $post->ID, 'dk_shape', true );
+
 		$tables[] = array(
-			'id'     => (int) $post->ID,
-			'name'   => $post->post_title,
-			'seats'  => $seats ? $seats : 2,
-			'min'    => $min ? $min : 1,
-			'max'    => $max ? $max : ( $seats ? $seats : 2 ),
-			'areaId' => $area ? (int) $area->term_id : 0,
-			'area'   => $area ? $area->name : '',
-			'order'  => (int) $post->menu_order,
+			'id'       => (int) $post->ID,
+			'name'     => $post->post_title,
+			'seats'    => $seats ? $seats : 2,
+			'min'      => $min ? $min : 1,
+			'max'      => $max ? $max : ( $seats ? $seats : 2 ),
+			'areaId'   => $area ? (int) $area->term_id : 0,
+			'area'     => $area ? $area->name : '',
+			'order'    => (int) $post->menu_order,
+			'x'        => (int) get_post_meta( $post->ID, 'dk_pos_x', true ),
+			'y'        => (int) get_post_meta( $post->ID, 'dk_pos_y', true ),
+			'rotation' => (int) get_post_meta( $post->ID, 'dk_rotation', true ),
+			'shape'    => $shape ? $shape : 'round',
 		);
 	}
 	return $tables;

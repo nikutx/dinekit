@@ -72,11 +72,14 @@ function register() {
 		)
 	);
 
-	// --- Table meta: capacity + party size limits ---
+	// --- Table meta: capacity, party size limits + floor-plan geometry ---
 	$table_meta = array(
 		'dk_seats'     => array( 'default' => 2, 'desc' => __( 'Number of seats at the table.', 'dinekit' ) ),
 		'dk_min_party' => array( 'default' => 1, 'desc' => __( 'Smallest party this table takes.', 'dinekit' ) ),
 		'dk_max_party' => array( 'default' => 2, 'desc' => __( 'Largest party this table takes.', 'dinekit' ) ),
+		'dk_pos_x'     => array( 'default' => 40, 'desc' => __( 'Floor-plan X position (px).', 'dinekit' ) ),
+		'dk_pos_y'     => array( 'default' => 40, 'desc' => __( 'Floor-plan Y position (px).', 'dinekit' ) ),
+		'dk_rotation'  => array( 'default' => 0, 'desc' => __( 'Rotation on the floor plan (degrees).', 'dinekit' ) ),
 	);
 	foreach ( $table_meta as $key => $conf ) {
 		register_post_meta(
@@ -93,6 +96,21 @@ function register() {
 			)
 		);
 	}
+
+	// Table shape on the floor plan.
+	register_post_meta(
+		'dk_table',
+		'dk_shape',
+		array(
+			'type'              => 'string',
+			'description'       => __( 'Table shape: round, square, rect or bar.', 'dinekit' ),
+			'single'            => true,
+			'default'           => 'round',
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'sanitize_key',
+			'auth_callback'     => __NAMESPACE__ . '\\can_manage',
+		)
+	);
 
 	// --- Bookings ---
 	register_post_type(

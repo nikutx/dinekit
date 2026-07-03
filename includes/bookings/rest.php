@@ -256,15 +256,20 @@ function table_response( $id ) {
 	$seats = (int) get_post_meta( $id, 'dk_seats', true );
 	$areas = get_the_terms( $post, 'dk_area' );
 	$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
+	$shape = (string) get_post_meta( $id, 'dk_shape', true );
 	return array(
-		'id'     => (int) $id,
-		'name'   => $post->post_title,
-		'seats'  => $seats ? $seats : 2,
-		'min'    => (int) get_post_meta( $id, 'dk_min_party', true ) ?: 1,
-		'max'    => (int) get_post_meta( $id, 'dk_max_party', true ) ?: ( $seats ? $seats : 2 ),
-		'areaId' => $area ? (int) $area->term_id : 0,
-		'area'   => $area ? $area->name : '',
-		'order'  => (int) $post->menu_order,
+		'id'       => (int) $id,
+		'name'     => $post->post_title,
+		'seats'    => $seats ? $seats : 2,
+		'min'      => (int) get_post_meta( $id, 'dk_min_party', true ) ?: 1,
+		'max'      => (int) get_post_meta( $id, 'dk_max_party', true ) ?: ( $seats ? $seats : 2 ),
+		'areaId'   => $area ? (int) $area->term_id : 0,
+		'area'     => $area ? $area->name : '',
+		'order'    => (int) $post->menu_order,
+		'x'        => (int) get_post_meta( $id, 'dk_pos_x', true ),
+		'y'        => (int) get_post_meta( $id, 'dk_pos_y', true ),
+		'rotation' => (int) get_post_meta( $id, 'dk_rotation', true ),
+		'shape'    => $shape ? $shape : 'round',
 	);
 }
 
@@ -284,10 +289,21 @@ function apply_table_fields( $id, $request ) {
 			)
 		);
 	}
-	foreach ( array( 'seats' => 'dk_seats', 'min' => 'dk_min_party', 'max' => 'dk_max_party' ) as $param => $meta ) {
+	$int_fields = array(
+		'seats'    => 'dk_seats',
+		'min'      => 'dk_min_party',
+		'max'      => 'dk_max_party',
+		'x'        => 'dk_pos_x',
+		'y'        => 'dk_pos_y',
+		'rotation' => 'dk_rotation',
+	);
+	foreach ( $int_fields as $param => $meta ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $meta, absint( $request->get_param( $param ) ) );
 		}
+	}
+	if ( null !== $request->get_param( 'shape' ) ) {
+		update_post_meta( $id, 'dk_shape', sanitize_key( (string) $request->get_param( 'shape' ) ) );
 	}
 	if ( null !== $request->get_param( 'area' ) ) {
 		$area = (int) $request->get_param( 'area' );
