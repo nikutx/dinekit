@@ -14,6 +14,9 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { prettyDate } from '../lib/bookings';
+import Page from './ui/Page';
+import PageHeader from './ui/PageHeader';
+import EmptyState from './ui/EmptyState';
 
 export default function GuestsView() {
 	const [ guests, setGuests ] = useState( [] );
@@ -47,22 +50,19 @@ export default function GuestsView() {
 	}
 
 	return (
-		<Box sx={ { maxWidth: 960, mx: 'auto' } }>
-			<Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={ { mb: 2 } }>
-				<Box>
-					<Typography variant="h5">Guests</Typography>
-					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Everyone who has booked or pre-ordered — with the allergies they’ve told you about,
-						carried across every visit.
-					</Typography>
-				</Box>
-				<Stack direction="row" spacing={ 1 }>
-					<Chip icon={ <PeopleIcon sx={ { fontSize: 16 } } /> } label={ `${ guests.length } guests` } sx={ { bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 700 } } />
-					{ withAllergies > 0 && (
-						<Chip icon={ <WarningAmberIcon sx={ { fontSize: 16 } } /> } label={ `${ withAllergies } with allergies` } sx={ { bgcolor: tokens.amberSoft, color: tokens.amber, fontWeight: 700 } } />
-					) }
-				</Stack>
-			</Stack>
+		<Page>
+			<PageHeader
+				title="Guests"
+				subtitle="Everyone who has booked or pre-ordered — with the allergies they’ve told you about, carried across every visit."
+				actions={
+					<>
+						<Chip icon={ <PeopleIcon sx={ { fontSize: 16 } } /> } label={ `${ guests.length } guests` } sx={ { bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 600 } } />
+						{ withAllergies > 0 && (
+							<Chip icon={ <WarningAmberIcon sx={ { fontSize: 16 } } /> } label={ `${ withAllergies } with allergies` } sx={ { bgcolor: tokens.amberSoft, color: tokens.amber, fontWeight: 600 } } />
+						) }
+					</>
+				}
+			/>
 
 			<TextField
 				placeholder="Search by name or email…"
@@ -75,12 +75,11 @@ export default function GuestsView() {
 			/>
 
 			{ filtered.length === 0 ? (
-				<Box sx={ { border: `1px dashed ${ tokens.border2 }`, borderRadius: 3, p: 5, textAlign: 'center', color: tokens.muted } }>
-					<Typography sx={ { fontWeight: 700, color: tokens.ink2 } }>{ guests.length ? 'No matches' : 'No guests yet' }</Typography>
-					<Typography sx={ { fontSize: 14, mt: 0.5 } }>
-						{ guests.length ? 'Try a different search.' : 'Guests appear here as bookings and event pre-orders come in.' }
-					</Typography>
-				</Box>
+				<EmptyState
+					icon={ <PeopleIcon /> }
+					title={ guests.length ? 'No matches' : 'No guests yet' }
+					description={ guests.length ? 'Try a different search.' : 'Guests appear here as bookings and event pre-orders come in.' }
+				/>
 			) : (
 				<Stack spacing={ 1 }>
 					{ filtered.map( ( g ) => (
@@ -128,6 +127,6 @@ export default function GuestsView() {
 					) ) }
 				</Stack>
 			) }
-		</Box>
+		</Page>
 	);
 }
