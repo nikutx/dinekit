@@ -55,7 +55,7 @@ function register_page() {
 	add_menu_page(
 		__( 'DineKit', 'dinekit' ),
 		__( 'DineKit', 'dinekit' ),
-		'edit_posts',
+		'edit_others_posts',
 		'dinekit',
 		__NAMESPACE__ . '\\render',
 		'dashicons-food',

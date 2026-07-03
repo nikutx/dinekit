@@ -553,7 +553,9 @@ function schema_jsonld( $groups, $args ) {
 		'hasMenuSection' => $sections,
 	);
 
+	// JSON_HEX_TAG hex-escapes < and > so no menu/term value can break out of
+	// the <script> element (e.g. a literal </script> in a dish name).
 	return '<script type="application/ld+json">' .
-		wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) .
+		wp_json_encode( $data, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE ) .
 		'</script>';
 }

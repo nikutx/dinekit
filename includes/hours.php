@@ -326,6 +326,8 @@ function schema_jsonld( $data ) {
 		'name'                         => $data['name'] ? $data['name'] : get_bloginfo( 'name' ),
 		'openingHoursSpecification'    => $spec,
 	);
+	// JSON_HEX_TAG hex-escapes < and > so no stored value can break out of the
+	// <script> element.
 	return '<script type="application/ld+json">' .
-		wp_json_encode( $node, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>';
+		wp_json_encode( $node, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE ) . '</script>';
 }

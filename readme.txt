@@ -39,6 +39,14 @@ Yes. Menu output is self-contained with its own scoped styles, and works on both
 = How do diners see the menu? =
 Add the DineKit Menu block (or the [dinekit_menu] shortcode) to any page. You can also print a QR code for your tables that opens the menu on a phone.
 
+== Development ==
+
+DineKit is open source (GPLv2+). The complete human-readable source — including the React admin application and the build tooling used to generate the bundled `dist/main.js` — is publicly available and maintained at:
+
+https://github.com/nikutx/dinekit
+
+To build the admin app from source: `npm install` then `npm run build` (Vite). See the repository README for the full development setup.
+
 == Screenshots ==
 
 1. Your menu on any website — sections, prices, dietary labels and UK allergen icons, with a printable allergen matrix.

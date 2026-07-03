@@ -81,7 +81,7 @@ function register_routes() {
 			array(
 				'methods'             => \WP_REST_Server::DELETABLE,
 				'callback'            => __NAMESPACE__ . '\\delete_item',
-				'permission_callback' => __NAMESPACE__ . '\\can_edit_item',
+				'permission_callback' => __NAMESPACE__ . '\\can_delete_item',
 			),
 		)
 	);
@@ -447,16 +447,21 @@ function save_hours( $request ) {
 }
 
 /**
- * General permission: menu editors.
+ * General permission for the menu-management surface.
+ *
+ * The menu is a single, restaurant-wide dataset (not per-author content), so
+ * managing it — including seeing every item's draft/private state via /state —
+ * is an editor-level task. edit_others_posts keeps authors/contributors out of
+ * other people's items while still letting site editors run the menu.
  *
  * @return bool
  */
 function can_edit() {
-	return current_user_can( 'edit_posts' );
+	return current_user_can( 'edit_others_posts' );
 }
 
 /**
- * Per-item permission.
+ * Per-item edit permission (PATCH, duplicate).
  *
  * @param \WP_REST_Request $request Request.
  * @return bool
@@ -466,6 +471,20 @@ function can_edit_item( $request ) {
 	return $post_id > 0
 		&& 'dk_menu_item' === get_post_type( $post_id )
 		&& current_user_can( 'edit_post', $post_id );
+}
+
+/**
+ * Per-item delete permission (DELETE). Checks the delete_post meta-cap, not
+ * edit_post, so trashing is gated by the correct capability.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return bool
+ */
+function can_delete_item( $request ) {
+	$post_id = (int) $request['id'];
+	return $post_id > 0
+		&& 'dk_menu_item' === get_post_type( $post_id )
+		&& current_user_can( 'delete_post', $post_id );
 }
 
 /**
@@ -710,10 +729,14 @@ function apply_item_fields( $post_id, $request ) {
 function create_item( $request ) {
 	$title = sanitize_text_field( (string) $request->get_param( 'title' ) );
 
+	// Only publish if the user can publish; otherwise the item is created as a
+	// draft so no one can push content live without the publish capability.
+	$status = current_user_can( 'publish_posts' ) ? 'publish' : 'draft';
+
 	$post_id = wp_insert_post(
 		array(
 			'post_type'   => 'dk_menu_item',
-			'post_status' => 'publish',
+			'post_status' => $status,
 			'post_title'  => '' !== $title ? $title : __( 'New item', 'dinekit' ),
 			'menu_order'  => (int) $request->get_param( 'order' ),
 		),
