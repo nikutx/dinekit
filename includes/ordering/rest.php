@@ -275,6 +275,9 @@ function place_order( $request ) {
 	update_post_meta( $post_id, 'dk_order_payment', 'on_collection' );
 	update_post_meta( $post_id, 'dk_order_source', 'online' );
 
+	require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+	\DineKit\Ordering\Emails\new_order( $post_id );
+
 	return rest_ensure_response(
 		array(
 			'ok'      => true,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Box,
 	Stack,
@@ -12,10 +12,17 @@ import {
 	Tooltip,
 	ToggleButton,
 	ToggleButtonGroup,
+	Switch,
+	TextField,
+	Collapse,
+	Divider,
+	Snackbar,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PrintIcon from '@mui/icons-material/Print';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import TuneIcon from '@mui/icons-material/Tune';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { printDoc, esc } from '../lib/print';
@@ -34,6 +41,7 @@ export default function OrdersView() {
 	const [ loading, setLoading ] = useState( true );
 	const [ tab, setTab ] = useState( 'active' );
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
+	const [ settingsOpen, setSettingsOpen ] = useState( false );
 
 	useEffect( () => {
 		Promise.all( [ api.getOrders(), api.getSettings() ] )
@@ -102,12 +110,26 @@ export default function OrdersView() {
 						Commission-free takeaway orders from your own site — you keep 100%.
 					</Typography>
 				</Box>
-				<Chip
-					icon={ <ReceiptLongIcon sx={ { fontSize: 16 } } /> }
-					label={ `${ activeCount } active` }
-					sx={ { bgcolor: activeCount ? tokens.accentSoft : tokens.soft, color: activeCount ? tokens.accentDark : tokens.muted, fontWeight: 700 } }
-				/>
+				<Stack direction="row" spacing={ 1 } alignItems="center">
+					<Chip
+						icon={ <ReceiptLongIcon sx={ { fontSize: 16 } } /> }
+						label={ `${ activeCount } active` }
+						sx={ { bgcolor: activeCount ? tokens.accentSoft : tokens.soft, color: activeCount ? tokens.accentDark : tokens.muted, fontWeight: 700 } }
+					/>
+					<Tooltip title="Ordering settings & the public page">
+						<IconButton
+							onClick={ () => setSettingsOpen( ( v ) => ! v ) }
+							sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, color: settingsOpen ? tokens.accent : tokens.muted } }
+						>
+							<TuneIcon />
+						</IconButton>
+					</Tooltip>
+				</Stack>
 			</Stack>
+
+			<Collapse in={ settingsOpen } unmountOnExit>
+				<OrderSettings />
+			</Collapse>
 
 			<ToggleButtonGroup size="small" exclusive value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 2 } }>
 				<ToggleButton value="active">Active</ToggleButton>
@@ -169,6 +191,101 @@ export default function OrdersView() {
 					} ) }
 				</Stack>
 			) }
+		</Box>
+	);
+}
+
+function OrderSettings() {
+	const [ cfg, setCfg ] = useState( null );
+	const [ saveState, setSaveState ] = useState( 'idle' );
+	const [ copied, setCopied ] = useState( false );
+	const debounce = useRef( null );
+
+	useEffect( () => {
+		api.getOrderSettings().then( setCfg );
+	}, [] );
+
+	const patch = ( p ) => {
+		const next = { ...cfg, ...p };
+		setCfg( next );
+		clearTimeout( debounce.current );
+		setSaveState( 'saving' );
+		debounce.current = setTimeout( () => {
+			api.saveOrderSettings( next ).then( () => setSaveState( 'saved' ) ).catch( () => setSaveState( 'error' ) );
+		}, 500 );
+	};
+
+	if ( ! cfg ) {
+		return <Box sx={ { display: 'flex', justifyContent: 'center', py: 3 } }><CircularProgress size={ 22 } /></Box>;
+	}
+
+	const copyShortcode = () => {
+		if ( navigator.clipboard ) {
+			navigator.clipboard.writeText( '[dinekit_order]' ).then( () => setCopied( true ) );
+		}
+	};
+
+	return (
+		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5, mb: 2 } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
+				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Ordering settings</Typography>
+				<Typography sx={ { fontSize: 12, color: tokens.muted, minWidth: 50 } }>
+					{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
+				</Typography>
+			</Stack>
+
+			<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
+				<Stack direction="row" alignItems="center" spacing={ 1 }>
+					<Switch checked={ cfg.enabled } onChange={ ( e ) => patch( { enabled: e.target.checked } ) } />
+					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Accept online orders</Typography>
+				</Stack>
+				<Stack direction="row" alignItems="center" spacing={ 1 }>
+					<Switch checked={ cfg.emails_enabled } onChange={ ( e ) => patch( { emails_enabled: e.target.checked } ) } />
+					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Email notifications</Typography>
+				</Stack>
+			</Stack>
+
+			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
+				<TextField
+					label="Prep time (min)" type="number" size="small"
+					value={ cfg.prep_mins }
+					onChange={ ( e ) => patch( { prep_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) }
+					helperText="Earliest collection"
+					sx={ { width: 150 } }
+				/>
+				<TextField
+					label="Min order" type="number" size="small"
+					value={ cfg.min_order }
+					onChange={ ( e ) => patch( { min_order: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) }
+					helperText="0 = none"
+					sx={ { width: 130 } }
+				/>
+				<TextField
+					label="Kitchen email" type="email" size="small"
+					placeholder="Defaults to site admin"
+					value={ cfg.notify_email }
+					onChange={ ( e ) => patch( { notify_email: e.target.value } ) }
+					sx={ { width: 240 } }
+				/>
+			</Stack>
+
+			<Divider sx={ { my: 2 } } />
+			<Stack direction="row" alignItems="center" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
+				<Typography sx={ { fontSize: 13, color: tokens.muted } }>
+					Add the ordering page anywhere with this shortcode:
+				</Typography>
+				<Chip
+					label="[dinekit_order]"
+					onClick={ copyShortcode }
+					onDelete={ copyShortcode }
+					deleteIcon={ <ContentCopyIcon /> }
+					sx={ { fontFamily: 'monospace', fontWeight: 700, bgcolor: tokens.soft } }
+				/>
+			</Stack>
+			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
+				Card payment (your own Stripe, 0% commission) plugs in from Integrations — coming soon.
+			</Typography>
+			<Snackbar open={ copied } autoHideDuration={ 1800 } onClose={ () => setCopied( false ) } message="Shortcode copied" anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } } />
 		</Box>
 	);
 }

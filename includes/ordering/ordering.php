@@ -225,9 +225,11 @@ function register() {
  */
 function get_settings() {
 	$defaults = array(
-		'enabled'   => true,
-		'prep_mins' => 30,   // Minimum lead time before collection.
-		'min_order' => 0,    // Minimum order value (0 = none).
+		'enabled'        => true,
+		'prep_mins'      => 30,   // Minimum lead time before collection.
+		'min_order'      => 0,    // Minimum order value (0 = none).
+		'emails_enabled' => true, // Send customer + kitchen order emails.
+		'notify_email'   => '',   // Kitchen recipient (empty = site admin).
 	);
 	$stored = get_option( SETTINGS, array() );
 	return is_array( $stored ) ? array_merge( $defaults, $stored ) : $defaults;
@@ -249,6 +251,13 @@ function save_settings( $data ) {
 	}
 	if ( isset( $data['min_order'] ) ) {
 		$current['min_order'] = max( 0, (float) $data['min_order'] );
+	}
+	if ( isset( $data['emails_enabled'] ) ) {
+		$current['emails_enabled'] = (bool) $data['emails_enabled'];
+	}
+	if ( isset( $data['notify_email'] ) ) {
+		$email                   = sanitize_email( (string) $data['notify_email'] );
+		$current['notify_email'] = is_email( $email ) ? $email : '';
 	}
 	update_option( SETTINGS, $current );
 	return $current;
