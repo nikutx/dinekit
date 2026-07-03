@@ -31,9 +31,11 @@ delete_option( 'dinekit_onboarded' );
 delete_option( 'dinekit_booking_settings' );
 delete_option( 'dinekit_integrations' );
 delete_option( 'dinekit_events_page' );
+delete_option( 'dinekit_order_settings' );
+delete_option( 'dinekit_order_counter' );
 
-// Delete all DineKit posts (menu items + bookings/floor + events/guests).
-foreach ( array( 'dk_menu_item', 'dk_table', 'dk_booking', 'dk_table_combo', 'dk_event', 'dk_guest' ) as $dinekit_pt ) {
+// Delete all DineKit posts (menu items + bookings/floor + events/guests + orders).
+foreach ( array( 'dk_menu_item', 'dk_table', 'dk_booking', 'dk_table_combo', 'dk_event', 'dk_guest', 'dk_order' ) as $dinekit_pt ) {
 	$dinekit_posts = get_posts(
 		array(
 			'post_type'     => $dinekit_pt,

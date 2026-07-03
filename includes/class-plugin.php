@@ -80,6 +80,9 @@ final class Plugin {
 		if ( $this->load( 'events/events.php' ) ) {
 			Events\init();
 		}
+		if ( $this->load( 'ordering/ordering.php' ) ) {
+			Ordering\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();

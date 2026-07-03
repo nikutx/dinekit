@@ -92,6 +92,13 @@ export const api = {
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getGuests: () => request( 'GET', 'guests' ),
 
+	// Ordering (admin board).
+	getOrders: () => request( 'GET', 'orders' ),
+	updateOrder: ( id, data ) => request( 'PATCH', `orders/${ id }`, data ),
+	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
+	getOrderSettings: () => request( 'GET', 'orders/settings' ),
+	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),
+
 	// Events + guest pre-orders.
 	getEvents: () => request( 'GET', 'events' ),
 	createEvent: ( data ) => request( 'POST', 'events', data ),

@@ -10,6 +10,7 @@ import GridViewIcon from '@mui/icons-material/GridView';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { tokens } from './theme';
 import { useDineKit } from './data/useDineKit';
 import { useRoute } from './lib/useRoute';
@@ -25,12 +26,14 @@ import FloorPlan from './components/FloorPlan';
 import IntegrationsView from './components/IntegrationsView';
 import EventsView from './components/EventsView';
 import GuestsView from './components/GuestsView';
+import OrdersView from './components/OrdersView';
 import Wizard from './components/Wizard';
 
 const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
 	{ key: 'qr', label: 'QR Code', icon: <QrCode2Icon fontSize="small" /> },
+	{ key: 'orders', label: 'Orders', icon: <ReceiptLongIcon fontSize="small" /> },
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
 	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
 	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
@@ -40,14 +43,20 @@ const NAV = [
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
-// Views that only make sense for a venue with tables. Hidden for takeaway-only.
-const DINEIN_ONLY = [ 'bookings', 'floor' ];
+// Feature gating by business type.
+const DINEIN_ONLY = [ 'bookings', 'floor' ]; // hidden for takeaway-only.
+const ORDERING_ONLY = [ 'orders' ];          // hidden for dine-in-only.
 
 function visibleNav( businessType ) {
-	if ( 'takeaway' === businessType ) {
-		return NAV.filter( ( n ) => ! DINEIN_ONLY.includes( n.key ) );
-	}
-	return NAV;
+	return NAV.filter( ( n ) => {
+		if ( 'takeaway' === businessType && DINEIN_ONLY.includes( n.key ) ) {
+			return false;
+		}
+		if ( 'dinein' === businessType && ORDERING_ONLY.includes( n.key ) ) {
+			return false;
+		}
+		return true;
+	} );
 }
 
 export default function App() {
@@ -101,6 +110,7 @@ export default function App() {
 							{ view === 'design' && <DesignView /> }
 							{ view === 'hours' && <HoursEditor /> }
 							{ view === 'qr' && <QRView /> }
+							{ view === 'orders' && <OrdersView /> }
 							{ view === 'bookings' && <BookingsView /> }
 							{ view === 'floor' && <FloorPlan /> }
 							{ view === 'events' && <EventsView /> }
