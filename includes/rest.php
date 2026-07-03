@@ -192,6 +192,23 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/integrations',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\get_integrations',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\save_integrations',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/preview',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -333,6 +350,27 @@ function get_settings() {
 function save_settings( $request ) {
 	require_once DINEKIT_DIR . 'includes/settings.php';
 	return rest_ensure_response( \DineKit\Settings\save( (array) $request->get_json_params() ) );
+}
+
+/**
+ * GET /integrations — bring-your-own-keys settings (secrets masked).
+ *
+ * @return \WP_REST_Response
+ */
+function get_integrations() {
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	return rest_ensure_response( \DineKit\Integrations\get_public() );
+}
+
+/**
+ * POST /integrations — save integration keys.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function save_integrations( $request ) {
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	return rest_ensure_response( \DineKit\Integrations\save( (array) $request->get_json_params() ) );
 }
 
 /**

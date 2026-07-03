@@ -7,6 +7,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsIcon from '@mui/icons-material/Settings';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import GridViewIcon from '@mui/icons-material/GridView';
+import ExtensionIcon from '@mui/icons-material/Extension';
 import { tokens } from './theme';
 import { useDineKit } from './data/useDineKit';
 import { useRoute } from './lib/useRoute';
@@ -19,6 +20,7 @@ import DesignView from './components/DesignView';
 import SettingsView from './components/SettingsView';
 import BookingsView from './components/BookingsView';
 import FloorPlan from './components/FloorPlan';
+import IntegrationsView from './components/IntegrationsView';
 
 const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
@@ -27,6 +29,7 @@ const NAV = [
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
 	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
 	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
+	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
@@ -71,6 +74,7 @@ export default function App() {
 							{ view === 'qr' && <QRView /> }
 							{ view === 'bookings' && <BookingsView /> }
 							{ view === 'floor' && <FloorPlan /> }
+							{ view === 'integrations' && <IntegrationsView /> }
 							{ view === 'settings' && <SettingsView /> }
 						</>
 					) }
