@@ -725,6 +725,9 @@ function create_booking( $request ) {
 	update_post_meta( $post_id, 'dk_status', $status );
 	update_post_meta( $post_id, 'dk_source', 'admin' );
 
+	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
+	\DineKit\Bookings\Emails\new_booking( $post_id, false );
+
 	return rest_ensure_response( booking_response( $post_id ) );
 }
 
@@ -749,6 +752,9 @@ function update_booking( $request ) {
 		'notes'   => 'dk_notes',
 		'status'  => 'dk_status',
 	);
+	$old_status = (string) get_post_meta( $id, 'dk_status', true );
+	$new_status = $old_status;
+
 	foreach ( $map as $param => $meta ) {
 		$value = $request->get_param( $param );
 		if ( null === $value ) {
@@ -760,10 +766,18 @@ function update_booking( $request ) {
 			update_post_meta( $id, $meta, sanitize_email( (string) $value ) );
 		} elseif ( 'status' === $param && array_key_exists( (string) $value, Bookings\statuses() ) ) {
 			update_post_meta( $id, $meta, (string) $value );
+			$new_status = (string) $value;
 		} elseif ( ! in_array( $param, array( 'status' ), true ) ) {
 			update_post_meta( $id, $meta, sanitize_text_field( (string) $value ) );
 		}
 	}
+
+	// Email the diner when a booking is freshly confirmed or cancelled.
+	if ( $new_status !== $old_status && in_array( $new_status, array( 'confirmed', 'cancelled' ), true ) ) {
+		require_once DINEKIT_DIR . 'includes/bookings/emails.php';
+		\DineKit\Bookings\Emails\status_changed( $id, $new_status );
+	}
+
 	return rest_ensure_response( booking_response( $id ) );
 }
 
@@ -954,6 +968,9 @@ function public_book( $request ) {
 	if ( \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
 		update_post_meta( $post_id, 'dk_deposit_required', 1 );
 	}
+
+	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
+	\DineKit\Bookings\Emails\new_booking( $post_id );
 
 	$message = 'confirmed' === $status
 		? __( 'Your table is booked — see you then!', 'dinekit' )

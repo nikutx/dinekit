@@ -33,6 +33,8 @@ function defaults() {
 		'deposit_over'   => 0,     // Party >= this needs a deposit (0 = off).
 		'deposit_amount' => 0,     // Per guest; display only until Stripe (B10).
 		'intro'          => '',    // Optional blurb shown above the form.
+		'emails_enabled' => true,  // Send diner + staff notification emails.
+		'notify_email'   => '',    // Staff recipient (empty = site admin email).
 	);
 }
 
@@ -58,11 +60,16 @@ function get() {
 function save( $data ) {
 	$current = get();
 
-	$bools = array( 'online_enabled', 'auto_confirm' );
+	$bools = array( 'online_enabled', 'auto_confirm', 'emails_enabled' );
 	foreach ( $bools as $key ) {
 		if ( isset( $data[ $key ] ) ) {
 			$current[ $key ] = (bool) $data[ $key ];
 		}
+	}
+
+	if ( isset( $data['notify_email'] ) ) {
+		$email = sanitize_email( (string) $data['notify_email'] );
+		$current['notify_email'] = is_email( $email ) ? $email : '';
 	}
 
 	$ints = array(

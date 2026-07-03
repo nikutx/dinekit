@@ -553,6 +553,22 @@ function BookingSettings() {
 				{ num( 'Deposit / guest', 'deposit_amount', 0, 100000 ) }
 			</Stack>
 
+			<Stack direction="row" spacing={ 2 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 2 } }>
+				<Stack direction="row" alignItems="center" spacing={ 1 }>
+					<Switch checked={ cfg.emails_enabled } onChange={ ( e ) => patch( { emails_enabled: e.target.checked } ) } />
+					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Email notifications</Typography>
+				</Stack>
+				<TextField
+					label="Notify email (staff)"
+					type="email"
+					size="small"
+					placeholder="Defaults to site admin"
+					value={ cfg.notify_email }
+					onChange={ ( e ) => patch( { notify_email: e.target.value } ) }
+					sx={ { width: 260 } }
+				/>
+			</Stack>
+
 			<Divider sx={ { my: 2 } } />
 			<Stack direction="row" alignItems="center" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
 				<Typography sx={ { fontSize: 13, color: tokens.muted } }>
