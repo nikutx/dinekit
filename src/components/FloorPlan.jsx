@@ -18,6 +18,10 @@ import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import Rotate90DegreesCwIcon from '@mui/icons-material/Rotate90DegreesCw';
 import CloseIcon from '@mui/icons-material/Close';
+import JoinFullIcon from '@mui/icons-material/JoinFull';
+import LinkIcon from '@mui/icons-material/Link';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 
@@ -35,7 +39,7 @@ const SHAPES = {
 };
 const dims = ( shape ) => SHAPES[ shape ] || SHAPES.round;
 
-// Debounce persistence per table so dragging/typing doesn't hammer the API.
+// Debounce persistence per key so dragging/typing doesn't hammer the API.
 function useDebouncedSaver() {
 	const timers = useRef( {} );
 	return ( key, fn, delay = 400 ) => {
@@ -47,11 +51,14 @@ function useDebouncedSaver() {
 export default function FloorPlan() {
 	const [ areas, setAreas ] = useState( [] );
 	const [ tables, setTables ] = useState( [] );
+	const [ combos, setCombos ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ newArea, setNewArea ] = useState( '' );
-	const [ zone, setZone ] = useState( 0 ); // active area id (0 = Unzoned)
+	const [ zone, setZone ] = useState( 0 );
 	const [ selectedId, setSelectedId ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
+	const [ joinMode, setJoinMode ] = useState( false );
+	const [ joinSel, setJoinSel ] = useState( [] ); // table ids selected to join
 
 	const canvasRef = useRef( null );
 	const drag = useRef( null );
@@ -62,6 +69,7 @@ export default function FloorPlan() {
 			.then( ( data ) => {
 				setAreas( data.areas || [] );
 				setTables( data.tables || [] );
+				setCombos( data.combos || [] );
 				if ( ( data.areas || [] ).length ) {
 					setZone( data.areas[ 0 ].id );
 				}
@@ -71,8 +79,9 @@ export default function FloorPlan() {
 
 	const totalSeats = useMemo( () => tables.reduce( ( s, t ) => s + ( t.seats || 0 ), 0 ), [ tables ] );
 	const unzonedCount = useMemo( () => tables.filter( ( t ) => ! ( t.areaId || 0 ) ).length, [ tables ] );
+	const byId = useMemo( () => Object.fromEntries( tables.map( ( t ) => [ t.id, t ] ) ), [ tables ] );
+	const joinedIds = useMemo( () => new Set( combos.flatMap( ( c ) => c.tables ) ), [ combos ] );
 
-	// Tabs: every area, plus an "Unzoned" tab only when it holds tables.
 	const zones = useMemo( () => {
 		const list = areas.map( ( a ) => ( { id: a.id, name: a.name } ) );
 		if ( unzonedCount > 0 ) {
@@ -112,7 +121,6 @@ export default function FloorPlan() {
 	/* ---- tables ---- */
 	const addTable = async () => {
 		const n = tables.length + 1;
-		// Stagger new tables so they don't stack.
 		const x = 40 + ( ( n - 1 ) % 6 ) * 80;
 		const y = 40 + Math.floor( ( ( n - 1 ) % 18 ) / 6 ) * 90;
 		const table = await api.createTable( {
@@ -140,11 +148,53 @@ export default function FloorPlan() {
 	const removeTable = async ( id ) => {
 		await api.deleteTable( id );
 		setTables( ( t ) => t.filter( ( x ) => x.id !== id ) );
+		// Drop any combo that referenced it (server keeps the combo but it's now invalid); refresh locally.
+		setCombos( ( cs ) => cs.filter( ( c ) => ! c.tables.includes( id ) ) );
 		setSelectedId( null );
+	};
+
+	/* ---- join / combos ---- */
+	const toggleJoinPick = ( id ) => {
+		setJoinSel( ( sel ) => ( sel.includes( id ) ? sel.filter( ( x ) => x !== id ) : [ ...sel, id ] ) );
+	};
+	const createCombo = async () => {
+		if ( joinSel.length < 2 ) {
+			return;
+		}
+		const seats = joinSel.reduce( ( s, id ) => s + ( byId[ id ]?.seats || 0 ), 0 );
+		const combo = await api.createCombo( { tables: joinSel, min: 2, max: seats || joinSel.length * 2, priority: combos.length } );
+		setCombos( ( cs ) => [ ...cs, combo ] );
+		setJoinMode( false );
+		setJoinSel( [] );
+	};
+	const patchCombo = ( id, patch ) => {
+		setCombos( ( cs ) => cs.map( ( c ) => ( c.id === id ? { ...c, ...patch } : c ) ) );
+		saveLater( 'combo-' + id, () => api.updateCombo( id, patch ) );
+	};
+	const removeCombo = async ( id ) => {
+		await api.deleteCombo( id );
+		setCombos( ( cs ) => cs.filter( ( c ) => c.id !== id ) );
+	};
+	const moveCombo = ( index, dir ) => {
+		const to = index + dir;
+		if ( to < 0 || to >= combos.length ) {
+			return;
+		}
+		const next = combos.slice();
+		[ next[ index ], next[ to ] ] = [ next[ to ], next[ index ] ];
+		setCombos( next );
+		next.forEach( ( c, i ) => {
+			if ( c.priority !== i ) {
+				api.updateCombo( c.id, { priority: i } );
+			}
+		} );
 	};
 
 	/* ---- drag ---- */
 	const onPointerDown = ( e, table ) => {
+		if ( joinMode ) {
+			return;
+		}
 		e.preventDefault();
 		setSelectedId( table.id );
 		const rect = canvasRef.current.getBoundingClientRect();
@@ -196,8 +246,8 @@ export default function FloorPlan() {
 				<Box>
 					<Typography variant="h5">Floor Plan</Typography>
 					<Typography sx={ { color: tokens.muted, fontSize: 14, mt: 0.5 } }>
-						Arrange your real tables. Drag them into place and set how many each seats —
-						availability is worked out from this.
+						Arrange your real tables, then join tables that can be pushed together for bigger
+						parties. Availability is worked out from this.
 					</Typography>
 				</Box>
 				<Stack direction="row" spacing={ 1 }>
@@ -258,15 +308,40 @@ export default function FloorPlan() {
 				</Box>
 			) : (
 				<Stack direction="row" spacing={ 2 } alignItems="flex-start">
-					{ /* Canvas */ }
 					<Box sx={ { flex: 1, minWidth: 0 } }>
 						<Stack direction="row" justifyContent="space-between" alignItems="center" sx={ { mb: 1 } }>
 							<Typography sx={ { fontSize: 13, color: tokens.muted } }>
-								{ zoneTables.length } table{ zoneTables.length === 1 ? '' : 's' } in this zone · drag to arrange
+								{ joinMode
+									? 'Click tables to join them together'
+									: `${ zoneTables.length } table${ zoneTables.length === 1 ? '' : 's' } in this zone · drag to arrange` }
 							</Typography>
-							<Button size="small" variant="outlined" startIcon={ <AddIcon /> } onClick={ addTable }>
-								Add table
-							</Button>
+							<Stack direction="row" spacing={ 1 }>
+								{ joinMode ? (
+									<>
+										<Button size="small" variant="contained" onClick={ createCombo } disabled={ joinSel.length < 2 }>
+											Join { joinSel.length || '' } tables
+										</Button>
+										<Button size="small" onClick={ () => { setJoinMode( false ); setJoinSel( [] ); } } sx={ { color: tokens.muted } }>
+											Cancel
+										</Button>
+									</>
+								) : (
+									<>
+										<Button
+											size="small"
+											startIcon={ <JoinFullIcon /> }
+											onClick={ () => { setJoinMode( true ); setSelectedId( null ); setJoinSel( [] ); } }
+											disabled={ zoneTables.length < 2 }
+											sx={ { color: tokens.accent } }
+										>
+											Join tables
+										</Button>
+										<Button size="small" variant="outlined" startIcon={ <AddIcon /> } onClick={ addTable }>
+											Add table
+										</Button>
+									</>
+								) }
+							</Stack>
 						</Stack>
 						<Box
 							ref={ canvasRef }
@@ -275,7 +350,7 @@ export default function FloorPlan() {
 								position: 'relative',
 								height: CANVAS_H,
 								borderRadius: 3,
-								border: `1px solid ${ tokens.border }`,
+								border: `1px solid ${ joinMode ? tokens.accent : tokens.border }`,
 								bgcolor: tokens.surface,
 								backgroundImage: `radial-gradient(${ tokens.border } 1px, transparent 1px)`,
 								backgroundSize: '20px 20px',
@@ -290,13 +365,16 @@ export default function FloorPlan() {
 							) }
 							{ zoneTables.map( ( t ) => {
 								const s = dims( t.shape );
-								const isSel = t.id === selectedId;
+								const isSel = ! joinMode && t.id === selectedId;
+								const isPicked = joinMode && joinSel.includes( t.id );
+								const inCombo = joinedIds.has( t.id );
 								return (
 									<Box
 										key={ t.id }
 										onPointerDown={ ( e ) => onPointerDown( e, t ) }
 										onPointerMove={ onPointerMove }
 										onPointerUp={ onPointerUp }
+										onClick={ () => { if ( joinMode ) { toggleJoinPick( t.id ); } } }
 										sx={ {
 											position: 'absolute',
 											left: t.x,
@@ -305,34 +383,98 @@ export default function FloorPlan() {
 											height: s.h,
 											transform: `rotate(${ t.rotation || 0 }deg)`,
 											borderRadius: s.radius,
-											bgcolor: isSel ? tokens.accentSoft : tokens.soft,
-											border: `2px solid ${ isSel ? tokens.accent : tokens.border2 }`,
+											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : tokens.soft,
+											border: `2px ${ isPicked ? 'dashed' : 'solid' } ${ isPicked || isSel ? tokens.accent : tokens.border2 }`,
 											boxShadow: isSel ? `0 0 0 3px ${ tokens.accentSoft }` : 'none',
-											cursor: 'grab',
+											cursor: joinMode ? 'pointer' : 'grab',
 											display: 'flex',
 											flexDirection: 'column',
 											alignItems: 'center',
 											justifyContent: 'center',
 											lineHeight: 1.1,
 											userSelect: 'none',
-											'&:active': { cursor: 'grabbing' },
+											'&:active': { cursor: joinMode ? 'pointer' : 'grabbing' },
 										} }
 									>
-										{ /* Counter-rotate the label so text stays upright */ }
 										<Box sx={ { transform: `rotate(${ -( t.rotation || 0 ) }deg)`, textAlign: 'center' } }>
-											<Typography sx={ { fontSize: 12, fontWeight: 800, color: tokens.ink } }>{ t.name }</Typography>
-											<Typography sx={ { fontSize: 10, fontWeight: 700, color: isSel ? tokens.accentDark : tokens.muted } }>
+											<Typography sx={ { fontSize: 12, fontWeight: 800, color: isPicked ? '#fff' : tokens.ink } }>{ t.name }</Typography>
+											<Typography sx={ { fontSize: 10, fontWeight: 700, color: isPicked ? 'rgba(255,255,255,0.85)' : isSel ? tokens.accentDark : tokens.muted } }>
 												{ t.seats } seats
 											</Typography>
 										</Box>
+										{ inCombo && ! joinMode && (
+											<LinkIcon sx={ { position: 'absolute', top: 2, right: 2, fontSize: 12, color: tokens.accent } } />
+										) }
 									</Box>
 								);
 							} ) }
 						</Box>
+
+						{ /* Combinations list */ }
+						{ combos.length > 0 && (
+							<Box sx={ { mt: 2 } }>
+								<Typography variant="subtitle2" sx={ { color: tokens.ink2, mb: 1 } }>
+									Table combinations
+									<Typography component="span" sx={ { color: tokens.muted2, fontWeight: 600, ml: 1 } }>
+										offered top-first when no single table fits
+									</Typography>
+								</Typography>
+								<Stack spacing={ 1 }>
+									{ combos.map( ( c, i ) => {
+										const seats = c.tables.reduce( ( s, id ) => s + ( byId[ id ]?.seats || 0 ), 0 );
+										return (
+											<Stack
+												key={ c.id }
+												direction="row"
+												spacing={ 1.5 }
+												alignItems="center"
+												sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 2, p: 1.25 } }
+											>
+												<Stack spacing={ 0 } sx={ { pr: 0.5 } }>
+													<IconButton size="small" onClick={ () => moveCombo( i, -1 ) } disabled={ i === 0 } sx={ { p: 0.1 } }>
+														<ArrowUpwardIcon sx={ { fontSize: 14 } } />
+													</IconButton>
+													<IconButton size="small" onClick={ () => moveCombo( i, 1 ) } disabled={ i === combos.length - 1 } sx={ { p: 0.1 } }>
+														<ArrowDownwardIcon sx={ { fontSize: 14 } } />
+													</IconButton>
+												</Stack>
+												<JoinFullIcon sx={ { color: tokens.accent, fontSize: 18 } } />
+												<Stack direction="row" spacing={ 0.5 } flexWrap="wrap" sx={ { flex: 1 } } useFlexGap>
+													{ c.tables.map( ( id ) => (
+														<Chip key={ id } label={ byId[ id ]?.name || `#${ id }` } size="small" sx={ { bgcolor: tokens.soft, fontWeight: 700 } } />
+													) ) }
+													<Chip label={ `${ seats } seats` } size="small" sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } } />
+												</Stack>
+												<TextField
+													label="Min"
+													type="number"
+													size="small"
+													value={ c.min }
+													onChange={ ( e ) => patchCombo( c.id, { min: Math.max( 1, parseInt( e.target.value, 10 ) || 1 ) } ) }
+													sx={ { width: 74 } }
+												/>
+												<TextField
+													label="Max"
+													type="number"
+													size="small"
+													value={ c.max }
+													onChange={ ( e ) => patchCombo( c.id, { max: Math.max( 1, parseInt( e.target.value, 10 ) || 1 ) } ) }
+													sx={ { width: 74 } }
+												/>
+												<Tooltip title="Delete combination">
+													<IconButton size="small" onClick={ () => removeCombo( c.id ) } sx={ { color: tokens.muted2 } }>
+														<DeleteOutlineIcon fontSize="small" />
+													</IconButton>
+												</Tooltip>
+											</Stack>
+										);
+									} ) }
+								</Stack>
+							</Box>
+						) }
 					</Box>
 
-					{ /* Properties panel */ }
-					{ selected && (
+					{ selected && ! joinMode && (
 						<TableProps
 							table={ selected }
 							areas={ areas }
@@ -346,9 +488,9 @@ export default function FloorPlan() {
 
 			<Divider sx={ { my: 3 } } />
 			<Typography sx={ { fontSize: 13, color: tokens.muted } }>
-				Tip: <strong>min / max party</strong> controls which tables a booking can use — a party of 2
-				won’t be offered a 6-seater if you set its minimum higher. Joining tables for big parties is
-				coming next.
+				Tip: <strong>Join tables</strong> for parties too big for one table — set the combined
+				min/max covers, and the order decides which join is offered first (put your best fit at the
+				top). A booked join blocks all its tables.
 			</Typography>
 		</Box>
 	);

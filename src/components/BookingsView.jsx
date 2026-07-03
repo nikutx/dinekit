@@ -21,6 +21,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import JoinFullIcon from '@mui/icons-material/JoinFull';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
@@ -224,9 +225,10 @@ const BLANK = { name: '', phone: '', email: '', party: 2, time: '19:00', notes: 
 
 function NewBooking( { initialDate, onCreated, onCancel } ) {
 	const [ form, setForm ] = useState( { ...BLANK, date: initialDate } );
-	const [ avail, setAvail ] = useState( null ); // null | { available, tables }
+	const [ avail, setAvail ] = useState( null ); // null | { available, tables, combos }
 	const [ checking, setChecking ] = useState( false );
 	const [ tableId, setTableId ] = useState( 0 ); // 0 = auto
+	const [ comboId, setComboId ] = useState( 0 ); // 0 = none
 	const [ saving, setSaving ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const debounce = useRef( null );
@@ -237,6 +239,7 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 	useEffect( () => {
 		setAvail( null );
 		setTableId( 0 );
+		setComboId( 0 );
 		if ( ! form.date || ! form.time || ! form.party ) {
 			return;
 		}
@@ -265,6 +268,7 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 				email: form.email,
 				notes: form.notes,
 				tableId: tableId || 0,
+				comboId: comboId || 0,
 				status,
 			} );
 			onCreated( booking );
@@ -357,30 +361,45 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 					<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap>
 						<CheckCircleIcon sx={ { color: tokens.green, fontSize: 18 } } />
 						<Typography sx={ { fontSize: 13, color: tokens.ink2, fontWeight: 600, mr: 0.5 } }>
-							{ avail.tables.length } table{ avail.tables.length === 1 ? '' : 's' } free:
+							{ avail.tables.length === 0 && ( avail.combos || [] ).length > 0 ? 'Join available:' : 'Free to book:' }
 						</Typography>
 						<Chip
 							label="Auto-assign"
-							onClick={ () => setTableId( 0 ) }
-							variant={ tableId === 0 ? 'filled' : 'outlined' }
+							onClick={ () => { setTableId( 0 ); setComboId( 0 ); } }
+							variant={ tableId === 0 && comboId === 0 ? 'filled' : 'outlined' }
 							size="small"
 							sx={ {
 								fontWeight: 700,
-								bgcolor: tableId === 0 ? tokens.accentSoft : 'transparent',
-								color: tableId === 0 ? tokens.accentDark : tokens.muted,
+								bgcolor: tableId === 0 && comboId === 0 ? tokens.accentSoft : 'transparent',
+								color: tableId === 0 && comboId === 0 ? tokens.accentDark : tokens.muted,
 							} }
 						/>
 						{ avail.tables.map( ( t ) => (
 							<Chip
 								key={ t.id }
 								label={ `${ t.name } · ${ t.seats }` }
-								onClick={ () => setTableId( t.id ) }
+								onClick={ () => { setTableId( t.id ); setComboId( 0 ); } }
 								variant={ tableId === t.id ? 'filled' : 'outlined' }
 								size="small"
 								sx={ {
 									fontWeight: 700,
 									bgcolor: tableId === t.id ? tokens.accentSoft : 'transparent',
 									color: tableId === t.id ? tokens.accentDark : tokens.ink2,
+								} }
+							/>
+						) ) }
+						{ ( avail.combos || [] ).map( ( c ) => (
+							<Chip
+								key={ 'c' + c.id }
+								icon={ <JoinFullIcon sx={ { fontSize: 15 } } /> }
+								label={ `${ c.name } · ${ c.seats }` }
+								onClick={ () => { setComboId( c.id ); setTableId( 0 ); } }
+								variant={ comboId === c.id ? 'filled' : 'outlined' }
+								size="small"
+								sx={ {
+									fontWeight: 700,
+									bgcolor: comboId === c.id ? tokens.accentSoft : 'transparent',
+									color: comboId === c.id ? tokens.accentDark : tokens.ink2,
 								} }
 							/>
 						) ) }

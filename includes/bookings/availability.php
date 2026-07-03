@@ -135,6 +135,7 @@ function bookings_on( $date, $exclude_id = 0 ) {
 		$out[] = array(
 			'id'       => (int) $post->ID,
 			'table_id' => (int) get_post_meta( $post->ID, 'dk_table_id', true ),
+			'combo_id' => (int) get_post_meta( $post->ID, 'dk_combo_id', true ),
 			'time'     => (string) get_post_meta( $post->ID, 'dk_time', true ),
 			'party'    => (int) get_post_meta( $post->ID, 'dk_party', true ),
 			'status'   => $status,
@@ -144,7 +145,80 @@ function bookings_on( $date, $exclude_id = 0 ) {
 }
 
 /**
- * Tables free for a party at a date/time.
+ * All table combinations (joins), priority-ordered.
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function all_combos() {
+	$posts = get_posts(
+		array(
+			'post_type'   => 'dk_table_combo',
+			'post_status' => 'publish',
+			'numberposts' => 200,
+			'orderby'     => 'menu_order',
+			'order'       => 'ASC',
+		)
+	);
+
+	$combos = array();
+	foreach ( $posts as $post ) {
+		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $post->ID, 'dk_combo_tables', true ) ) ) );
+		$combos[] = array(
+			'id'       => (int) $post->ID,
+			'name'     => $post->post_title,
+			'tables'   => array_values( $ids ),
+			'min'      => (int) get_post_meta( $post->ID, 'dk_combo_min', true ) ?: 2,
+			'max'      => (int) get_post_meta( $post->ID, 'dk_combo_max', true ) ?: 4,
+			'priority' => (int) $post->menu_order,
+		);
+	}
+	return $combos;
+}
+
+/**
+ * Set of table IDs occupied in the requested slot — expands combo bookings to
+ * their member tables so a booked join blocks every table it uses.
+ *
+ * @param string $date       Y-m-d.
+ * @param string $time       H:i.
+ * @param int    $exclude_id Booking id to ignore (editing).
+ * @return array<int,bool> Map of table_id => true.
+ */
+function occupied_ids( $date, $time, $exclude_id = 0 ) {
+	$bookings  = bookings_on( $date, $exclude_id );
+	$dur       = duration();
+	$buf       = buffer();
+	$req_start = to_minutes( $time );
+	$req_end   = $req_start + $dur;
+	$combos    = null; // Loaded lazily only if a combo booking exists.
+
+	$occupied = array();
+	foreach ( $bookings as $booking ) {
+		$b_start = to_minutes( $booking['time'] );
+		$b_end   = $b_start + $dur;
+		if ( ! ( $req_start < $b_end + $buf && $b_start < $req_end + $buf ) ) {
+			continue; // No time overlap.
+		}
+		if ( ! empty( $booking['combo_id'] ) ) {
+			if ( null === $combos ) {
+				$combos = all_combos();
+			}
+			foreach ( $combos as $combo ) {
+				if ( $combo['id'] === (int) $booking['combo_id'] ) {
+					foreach ( $combo['tables'] as $tid ) {
+						$occupied[ $tid ] = true;
+					}
+				}
+			}
+		} elseif ( ! empty( $booking['table_id'] ) ) {
+			$occupied[ (int) $booking['table_id'] ] = true;
+		}
+	}
+	return $occupied;
+}
+
+/**
+ * Single tables free for a party at a date/time.
  *
  * @param string $date       Y-m-d.
  * @param string $time       H:i.
@@ -154,34 +228,62 @@ function bookings_on( $date, $exclude_id = 0 ) {
  */
 function available_tables( $date, $time, $party, $exclude_id = 0 ) {
 	$party    = max( 1, (int) $party );
-	$tables   = all_tables();
-	$bookings = bookings_on( $date, $exclude_id );
-	$dur      = duration();
-	$buf      = buffer();
-
-	$req_start = to_minutes( $time );
-	$req_end   = $req_start + $dur;
+	$occupied = occupied_ids( $date, $time, $exclude_id );
 
 	$free = array();
-	foreach ( $tables as $table ) {
+	foreach ( all_tables() as $table ) {
 		if ( $party < $table['min'] || $party > $table['max'] ) {
 			continue; // Party doesn't fit this table.
 		}
-		$busy = false;
-		foreach ( $bookings as $booking ) {
-			if ( $booking['table_id'] !== $table['id'] ) {
-				continue;
-			}
-			$b_start = to_minutes( $booking['time'] );
-			$b_end   = $b_start + $dur;
-			// Overlap (with buffer either side)?
-			if ( $req_start < $b_end + $buf && $b_start < $req_end + $buf ) {
-				$busy = true;
+		if ( empty( $occupied[ $table['id'] ] ) ) {
+			$free[] = $table;
+		}
+	}
+	return $free;
+}
+
+/**
+ * Table combinations free for a party at a date/time — only when every member
+ * table is free. Priority-ordered so the "cheapest" join is offered first.
+ *
+ * @param string $date       Y-m-d.
+ * @param string $time       H:i.
+ * @param int    $party      Party size.
+ * @param int    $exclude_id Booking id to ignore (editing).
+ * @return array<int,array<string,mixed>>
+ */
+function available_combos( $date, $time, $party, $exclude_id = 0 ) {
+	$party    = max( 1, (int) $party );
+	$occupied = occupied_ids( $date, $time, $exclude_id );
+
+	$by_id = array();
+	foreach ( all_tables() as $t ) {
+		$by_id[ $t['id'] ] = $t;
+	}
+
+	$free = array();
+	foreach ( all_combos() as $combo ) {
+		if ( count( $combo['tables'] ) < 2 || $party < $combo['min'] || $party > $combo['max'] ) {
+			continue;
+		}
+		$all_free = true;
+		$seats    = 0;
+		foreach ( $combo['tables'] as $tid ) {
+			if ( ! isset( $by_id[ $tid ] ) || ! empty( $occupied[ $tid ] ) ) {
+				$all_free = false;
 				break;
 			}
+			$seats += $by_id[ $tid ]['seats'];
 		}
-		if ( ! $busy ) {
-			$free[] = $table;
+		if ( $all_free ) {
+			$combo['seats']       = $seats;
+			$combo['tableNames']  = array_map(
+				static function ( $tid ) use ( $by_id ) {
+					return $by_id[ $tid ]['name'];
+				},
+				$combo['tables']
+			);
+			$free[] = $combo;
 		}
 	}
 	return $free;

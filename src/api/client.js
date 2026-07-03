@@ -64,6 +64,9 @@ export const api = {
 	createTable: ( data ) => request( 'POST', 'bookings/tables', data ),
 	updateTable: ( id, data ) => request( 'PATCH', `bookings/tables/${ id }`, data ),
 	deleteTable: ( id ) => request( 'DELETE', `bookings/tables/${ id }` ),
+	createCombo: ( data ) => request( 'POST', 'bookings/combos', data ),
+	updateCombo: ( id, data ) => request( 'PATCH', `bookings/combos/${ id }`, data ),
+	deleteCombo: ( id ) => request( 'DELETE', `bookings/combos/${ id }` ),
 
 	// Bookings — availability + diary.
 	getAvailability: ( { date, time, party } ) =>

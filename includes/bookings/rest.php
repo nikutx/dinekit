@@ -107,6 +107,32 @@ function register_routes() {
 
 	register_rest_route(
 		$ns,
+		'/bookings/combos',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\create_combo',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/bookings/combos/(?P<id>\d+)',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => __NAMESPACE__ . '\\update_combo',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => __NAMESPACE__ . '\\delete_combo',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
 		'/bookings/availability',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -184,8 +210,142 @@ function get_floor() {
 		array(
 			'areas'  => $areas,
 			'tables' => Availability\all_tables(),
+			'combos' => Availability\all_combos(),
 		)
 	);
+}
+
+/**
+ * Serialize a combo post.
+ *
+ * @param int $id Combo id.
+ * @return array<string,mixed>
+ */
+function combo_response( $id ) {
+	$post = get_post( $id );
+	$ids  = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $id, 'dk_combo_tables', true ) ) ) );
+	return array(
+		'id'       => (int) $id,
+		'name'     => $post->post_title,
+		'tables'   => array_values( $ids ),
+		'min'      => (int) get_post_meta( $id, 'dk_combo_min', true ) ?: 2,
+		'max'      => (int) get_post_meta( $id, 'dk_combo_max', true ) ?: 4,
+		'priority' => (int) $post->menu_order,
+	);
+}
+
+/**
+ * Build a default combo name from its member tables, e.g. "T1 + T2".
+ *
+ * @param int[] $ids Table ids.
+ * @return string
+ */
+function combo_name_from_tables( $ids ) {
+	$names = array();
+	foreach ( $ids as $id ) {
+		$title = get_the_title( (int) $id );
+		if ( $title ) {
+			$names[] = $title;
+		}
+	}
+	return $names ? implode( ' + ', $names ) : __( 'Combination', 'dinekit' );
+}
+
+/**
+ * Apply combo fields from a request.
+ *
+ * @param int              $id      Combo id.
+ * @param \WP_REST_Request $request Request.
+ * @return void
+ */
+function apply_combo_fields( $id, $request ) {
+	$tables = $request->get_param( 'tables' );
+	if ( null !== $tables && is_array( $tables ) ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $tables ) ) ) );
+		update_post_meta( $id, 'dk_combo_tables', implode( ',', $ids ) );
+		// Auto-name unless the caller supplied one.
+		if ( null === $request->get_param( 'name' ) ) {
+			wp_update_post(
+				array(
+					'ID'         => $id,
+					'post_title' => combo_name_from_tables( $ids ),
+				)
+			);
+		}
+	}
+	if ( null !== $request->get_param( 'name' ) ) {
+		wp_update_post(
+			array(
+				'ID'         => $id,
+				'post_title' => sanitize_text_field( (string) $request->get_param( 'name' ) ),
+			)
+		);
+	}
+	foreach ( array( 'min' => 'dk_combo_min', 'max' => 'dk_combo_max' ) as $param => $meta ) {
+		if ( null !== $request->get_param( $param ) ) {
+			update_post_meta( $id, $meta, absint( $request->get_param( $param ) ) );
+		}
+	}
+	if ( null !== $request->get_param( 'priority' ) ) {
+		wp_update_post(
+			array(
+				'ID'         => $id,
+				'menu_order' => (int) $request->get_param( 'priority' ),
+			)
+		);
+	}
+}
+
+/**
+ * POST /bookings/combos.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_combo( $request ) {
+	$tables = array_values( array_unique( array_filter( array_map( 'absint', (array) $request->get_param( 'tables' ) ) ) ) );
+	if ( count( $tables ) < 2 ) {
+		return new \WP_Error( 'dinekit_combo_tables', __( 'A combination needs at least two tables.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	$id = wp_insert_post(
+		array(
+			'post_type'   => 'dk_table_combo',
+			'post_status' => 'publish',
+			'post_title'  => combo_name_from_tables( $tables ),
+			'menu_order'  => (int) $request->get_param( 'priority' ),
+		),
+		true
+	);
+	if ( is_wp_error( $id ) ) {
+		return $id;
+	}
+	update_post_meta( $id, 'dk_combo_min', 2 );
+	update_post_meta( $id, 'dk_combo_max', 4 );
+	apply_combo_fields( $id, $request );
+	return rest_ensure_response( combo_response( $id ) );
+}
+
+/**
+ * PATCH /bookings/combos/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function update_combo( $request ) {
+	$id = (int) $request['id'];
+	apply_combo_fields( $id, $request );
+	return rest_ensure_response( combo_response( $id ) );
+}
+
+/**
+ * DELETE /bookings/combos/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function delete_combo( $request ) {
+	wp_delete_post( (int) $request['id'], true );
+	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
 /**
@@ -377,12 +537,14 @@ function get_availability( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
 	$date  = sanitize_text_field( (string) $request->get_param( 'date' ) );
 	$time  = sanitize_text_field( (string) $request->get_param( 'time' ) );
-	$party = absint( $request->get_param( 'party' ) );
-	$free  = Availability\available_tables( $date, $time, $party );
+	$party  = absint( $request->get_param( 'party' ) );
+	$free   = Availability\available_tables( $date, $time, $party );
+	$combos = Availability\available_combos( $date, $time, $party );
 	return rest_ensure_response(
 		array(
-			'available' => ! empty( $free ),
+			'available' => ! empty( $free ) || ! empty( $combos ),
 			'tables'    => $free,
+			'combos'    => $combos,
 		)
 	);
 }
@@ -395,13 +557,15 @@ function get_availability( $request ) {
  */
 function booking_response( $id ) {
 	$table_id = (int) get_post_meta( $id, 'dk_table_id', true );
+	$combo_id = (int) get_post_meta( $id, 'dk_combo_id', true );
 	return array(
 		'id'      => (int) $id,
 		'date'    => (string) get_post_meta( $id, 'dk_date', true ),
 		'time'    => (string) get_post_meta( $id, 'dk_time', true ),
 		'party'   => (int) get_post_meta( $id, 'dk_party', true ),
 		'tableId' => $table_id,
-		'table'   => $table_id ? get_the_title( $table_id ) : '',
+		'comboId' => $combo_id,
+		'table'   => $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' ),
 		'name'    => (string) get_post_meta( $id, 'dk_name', true ),
 		'email'   => (string) get_post_meta( $id, 'dk_email', true ),
 		'phone'   => (string) get_post_meta( $id, 'dk_phone', true ),
@@ -478,11 +642,18 @@ function create_booking( $request ) {
 		return new \WP_Error( 'dinekit_booking_when', __( 'A valid date and time are required.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 
-	// Table: explicit, or auto-assign the first free one.
+	// Table/combo: explicit, or auto-assign — prefer a single table that fits,
+	// fall back to a table combination for larger parties.
 	$table_id = (int) $request->get_param( 'tableId' );
-	if ( ! $table_id ) {
-		$free     = Availability\available_tables( $date, $time, $party );
-		$table_id = $free ? (int) $free[0]['id'] : 0;
+	$combo_id = (int) $request->get_param( 'comboId' );
+	if ( ! $table_id && ! $combo_id ) {
+		$free = Availability\available_tables( $date, $time, $party );
+		if ( $free ) {
+			$table_id = (int) $free[0]['id'];
+		} else {
+			$combos   = Availability\available_combos( $date, $time, $party );
+			$combo_id = $combos ? (int) $combos[0]['id'] : 0;
+		}
 	}
 
 	$status = (string) $request->get_param( 'status' );
@@ -506,6 +677,7 @@ function create_booking( $request ) {
 	update_post_meta( $post_id, 'dk_time', $time );
 	update_post_meta( $post_id, 'dk_party', $party );
 	update_post_meta( $post_id, 'dk_table_id', $table_id );
+	update_post_meta( $post_id, 'dk_combo_id', $combo_id );
 	update_post_meta( $post_id, 'dk_name', $name );
 	update_post_meta( $post_id, 'dk_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
 	update_post_meta( $post_id, 'dk_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
@@ -530,6 +702,7 @@ function update_booking( $request ) {
 		'time'    => 'dk_time',
 		'party'   => 'dk_party',
 		'tableId' => 'dk_table_id',
+		'comboId' => 'dk_combo_id',
 		'name'    => 'dk_name',
 		'email'   => 'dk_email',
 		'phone'   => 'dk_phone',
@@ -541,7 +714,7 @@ function update_booking( $request ) {
 		if ( null === $value ) {
 			continue;
 		}
-		if ( in_array( $param, array( 'party', 'tableId' ), true ) ) {
+		if ( in_array( $param, array( 'party', 'tableId', 'comboId' ), true ) ) {
 			update_post_meta( $id, $meta, absint( $value ) );
 		} elseif ( 'email' === $param ) {
 			update_post_meta( $id, $meta, sanitize_email( (string) $value ) );

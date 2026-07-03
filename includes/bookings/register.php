@@ -138,6 +138,7 @@ function register() {
 		'dk_time'     => 'string',  // H:i.
 		'dk_party'    => 'integer', // Number of guests.
 		'dk_table_id' => 'integer', // Assigned table (0 = unassigned).
+		'dk_combo_id' => 'integer', // Assigned table combination (0 = none).
 		'dk_name'     => 'string',
 		'dk_email'    => 'string',
 		'dk_phone'    => 'string',
@@ -158,6 +159,68 @@ function register() {
 			)
 		);
 	}
+
+	// --- Table combinations (joins) ---
+	// A combo groups 2+ tables into one bookable unit for larger parties, with
+	// an explicit combined min/max (not summed seats) and a priority so the
+	// engine sells a real large table before joining smaller ones.
+	register_post_type(
+		'dk_table_combo',
+		array(
+			'labels'       => array(
+				'name'          => __( 'Table combinations', 'dinekit' ),
+				'singular_name' => __( 'Table combination', 'dinekit' ),
+			),
+			'description'  => __( 'Joined table groups for larger parties.', 'dinekit' ),
+			'public'       => false,
+			'show_ui'      => false,
+			'show_in_menu' => false,
+			'show_in_rest' => false,
+			'supports'     => array( 'title', 'page-attributes' ),
+			'rewrite'      => false,
+			'has_archive'  => false,
+			'map_meta_cap' => true,
+		)
+	);
+
+	// Member table IDs stored as a comma-separated list.
+	register_post_meta(
+		'dk_table_combo',
+		'dk_combo_tables',
+		array(
+			'type'              => 'string',
+			'single'            => true,
+			'default'           => '',
+			'show_in_rest'      => false,
+			'sanitize_callback' => __NAMESPACE__ . '\\sanitize_id_list',
+			'auth_callback'     => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	foreach ( array( 'dk_combo_min' => 2, 'dk_combo_max' => 4 ) as $key => $default ) {
+		register_post_meta(
+			'dk_table_combo',
+			$key,
+			array(
+				'type'              => 'integer',
+				'single'            => true,
+				'default'           => $default,
+				'show_in_rest'      => false,
+				'sanitize_callback' => 'absint',
+				'auth_callback'     => __NAMESPACE__ . '\\can_manage',
+			)
+		);
+	}
+}
+
+/**
+ * Sanitize a comma-separated list of positive integer IDs.
+ *
+ * @param string $value Raw value.
+ * @return string
+ */
+function sanitize_id_list( $value ) {
+	$ids = array_filter( array_map( 'absint', explode( ',', (string) $value ) ) );
+	return implode( ',', array_unique( $ids ) );
 }
 
 /**
