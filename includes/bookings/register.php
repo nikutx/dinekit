@@ -23,8 +23,71 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function init() {
 	add_action( 'init', __NAMESPACE__ . '\\register' );
+	add_action( 'init', __NAMESPACE__ . '\\register_frontend' );
+	add_shortcode( 'dinekit_booking', __NAMESPACE__ . '\\booking_shortcode' );
 	require_once DINEKIT_DIR . 'includes/bookings/rest.php';
 	Rest\init();
+}
+
+/**
+ * Register the public booking widget's assets and block.
+ *
+ * @return void
+ */
+function register_frontend() {
+	wp_register_style( 'dinekit-booking', DINEKIT_URL . 'assets/css/booking.css', array(), DINEKIT_VERSION );
+	wp_register_script( 'dinekit-booking', DINEKIT_URL . 'assets/js/dinekit-booking.js', array(), DINEKIT_VERSION, true );
+
+	wp_register_script(
+		'dinekit-booking-editor',
+		DINEKIT_URL . 'assets/block/booking-editor.js',
+		array( 'wp-blocks', 'wp-block-editor', 'wp-components', 'wp-element', 'wp-server-side-render', 'wp-i18n' ),
+		DINEKIT_VERSION,
+		true
+	);
+	wp_set_script_translations( 'dinekit-booking-editor', 'dinekit', DINEKIT_DIR . 'languages' );
+
+	if ( function_exists( 'register_block_type' ) ) {
+		register_block_type(
+			DINEKIT_DIR . 'blocks/booking',
+			array( 'render_callback' => __NAMESPACE__ . '\\render_booking_block' )
+		);
+	}
+}
+
+/**
+ * [dinekit_booking] shortcode.
+ *
+ * @param array<string,string>|string $atts Attributes.
+ * @return string
+ */
+function booking_shortcode( $atts ) {
+	require_once DINEKIT_DIR . 'includes/bookings/form.php';
+	$atts = shortcode_atts(
+		array(
+			'heading' => __( 'Book a table', 'dinekit' ),
+			'intro'   => '',
+		),
+		$atts,
+		'dinekit_booking'
+	);
+	return Form\render( $atts );
+}
+
+/**
+ * Render the dinekit/booking block.
+ *
+ * @param array<string,mixed> $attributes Block attributes.
+ * @return string
+ */
+function render_booking_block( $attributes ) {
+	require_once DINEKIT_DIR . 'includes/bookings/form.php';
+	return Form\render(
+		array(
+			'heading' => isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '',
+			'intro'   => isset( $attributes['intro'] ) ? (string) $attributes['intro'] : '',
+		)
+	);
 }
 
 /**
@@ -145,6 +208,7 @@ function register() {
 		'dk_notes'    => 'string',
 		'dk_status'   => 'string',  // pending | confirmed | seated | completed | cancelled | no_show | provisional.
 		'dk_source'   => 'string',  // online | admin | phone.
+		'dk_deposit_required' => 'integer', // 1 when the party triggers a deposit rule.
 	);
 	foreach ( $booking_meta as $key => $type ) {
 		register_post_meta(

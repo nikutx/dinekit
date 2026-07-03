@@ -87,6 +87,8 @@ export const api = {
 	createBooking: ( data ) => request( 'POST', 'bookings', data ),
 	updateBooking: ( id, data ) => request( 'PATCH', `bookings/${ id }`, data ),
 	deleteBooking: ( id ) => request( 'DELETE', `bookings/${ id }` ),
+	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
+	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getPages: async () => {
 		const res = await fetch( cfg.restRoot + 'wp/v2/pages?per_page=100&status=publish&_fields=id,link,title', {
 			credentials: 'same-origin',

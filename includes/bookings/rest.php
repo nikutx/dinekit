@@ -176,6 +176,46 @@ function register_routes() {
 			),
 		)
 	);
+
+	// Admin booking settings.
+	register_rest_route(
+		$ns,
+		'/bookings/settings',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\get_settings',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\save_settings',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
+		)
+	);
+
+	// --- Public (diner-facing) endpoints ---
+	// Intentionally public: a diner requesting a table is unauthenticated.
+	// Abuse is handled in the handlers (honeypot, rate limit, strict validation).
+	register_rest_route(
+		$ns,
+		'/book/check',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\public_check',
+			'permission_callback' => '__return_true',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/book',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\public_book',
+			'permission_callback' => '__return_true',
+		)
+	);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -736,4 +776,195 @@ function update_booking( $request ) {
 function delete_booking( $request ) {
 	wp_delete_post( (int) $request['id'], true );
 	return rest_ensure_response( array( 'deleted' => true ) );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Booking settings (admin)                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * GET /bookings/settings.
+ *
+ * @return \WP_REST_Response
+ */
+function get_settings() {
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	return rest_ensure_response( \DineKit\Bookings\Settings\get() );
+}
+
+/**
+ * POST /bookings/settings.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function save_settings( $request ) {
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	return rest_ensure_response( \DineKit\Bookings\Settings\save( (array) $request->get_json_params() ) );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Public (diner-facing) booking                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Validate a requested date/time/party against the booking rules.
+ *
+ * @param string               $date  Y-m-d.
+ * @param string               $time  H:i.
+ * @param int                  $party Party size.
+ * @param array<string,mixed>  $cfg   Booking settings.
+ * @return string Empty string if valid, else a short reason code.
+ */
+function validate_when( $date, $time, $party, $cfg ) {
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! preg_match( '/^\d{1,2}:\d{2}$/', $time ) ) {
+		return 'invalid';
+	}
+	if ( $party < 1 || $party > (int) $cfg['max_party'] ) {
+		return 'party';
+	}
+	$ts = strtotime( $date . ' ' . $time . ':00' );
+	if ( ! $ts ) {
+		return 'invalid';
+	}
+	$now = (int) current_time( 'timestamp' );
+	if ( $ts < $now + (int) $cfg['min_notice'] * HOUR_IN_SECONDS ) {
+		return 'notice';
+	}
+	if ( $ts > $now + (int) $cfg['max_days_ahead'] * DAY_IN_SECONDS ) {
+		return 'toofar';
+	}
+	return '';
+}
+
+/**
+ * GET /book/check — is a slot available for a party? (No table details leaked.)
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function public_check( $request ) {
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$cfg   = \DineKit\Bookings\Settings\get();
+	$date  = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$time  = sanitize_text_field( (string) $request->get_param( 'time' ) );
+	$party = absint( $request->get_param( 'party' ) );
+
+	$reason = validate_when( $date, $time, $party, $cfg );
+	if ( '' !== $reason ) {
+		return rest_ensure_response( array( 'available' => false, 'reason' => $reason ) );
+	}
+
+	$free      = Availability\available_tables( $date, $time, $party );
+	$combos    = Availability\available_combos( $date, $time, $party );
+	$available = ! empty( $free ) || ! empty( $combos );
+
+	return rest_ensure_response(
+		array(
+			'available' => $available,
+			'deposit'   => \DineKit\Bookings\Settings\needs_deposit( $party ),
+		)
+	);
+}
+
+/**
+ * POST /book — create a booking request from a diner.
+ *
+ * Public by design; guarded by a honeypot, per-IP rate limiting and strict
+ * server-side validation + availability checks.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function public_book( $request ) {
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$cfg = \DineKit\Bookings\Settings\get();
+
+	if ( empty( $cfg['online_enabled'] ) ) {
+		return new \WP_Error( 'dinekit_booking_off', __( 'Online booking is currently closed.', 'dinekit' ), array( 'status' => 403 ) );
+	}
+
+	// Honeypot: a filled hidden field means a bot — look successful, create nothing.
+	if ( '' !== trim( (string) $request->get_param( 'hp' ) ) ) {
+		return rest_ensure_response( array( 'ok' => true, 'status' => 'pending', 'message' => __( 'Thanks!', 'dinekit' ) ) );
+	}
+
+	// Per-IP rate limit.
+	$ip   = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'na';
+	$rl   = 'dinekit_book_rl_' . md5( $ip );
+	$hits = (int) get_transient( $rl );
+	if ( $hits >= 6 ) {
+		return new \WP_Error( 'dinekit_booking_rl', __( 'Too many attempts — please try again a little later.', 'dinekit' ), array( 'status' => 429 ) );
+	}
+	set_transient( $rl, $hits + 1, HOUR_IN_SECONDS );
+
+	$date  = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$time  = sanitize_text_field( (string) $request->get_param( 'time' ) );
+	$party = absint( $request->get_param( 'party' ) );
+	$name  = sanitize_text_field( (string) $request->get_param( 'name' ) );
+	$email = sanitize_email( (string) $request->get_param( 'email' ) );
+	$phone = sanitize_text_field( (string) $request->get_param( 'phone' ) );
+	$notes = sanitize_textarea_field( (string) $request->get_param( 'notes' ) );
+
+	if ( '' !== validate_when( $date, $time, $party, $cfg ) ) {
+		return new \WP_Error( 'dinekit_booking_when', __( 'Please choose a valid date, time and party size.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	if ( '' === $name || ! is_email( $email ) ) {
+		return new \WP_Error( 'dinekit_booking_who', __( 'Please enter your name and a valid email address.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+
+	// Assign a free single table, else a free combination.
+	$free     = Availability\available_tables( $date, $time, $party );
+	$table_id = $free ? (int) $free[0]['id'] : 0;
+	$combo_id = 0;
+	if ( ! $table_id ) {
+		$combos   = Availability\available_combos( $date, $time, $party );
+		$combo_id = $combos ? (int) $combos[0]['id'] : 0;
+	}
+	if ( ! $table_id && ! $combo_id ) {
+		return new \WP_Error( 'dinekit_booking_full', __( 'Sorry, we have no tables at that time. Please try another time.', 'dinekit' ), array( 'status' => 409 ) );
+	}
+
+	$status  = ! empty( $cfg['auto_confirm'] ) ? 'confirmed' : 'pending';
+	$post_id = wp_insert_post(
+		array(
+			'post_type'   => 'dk_booking',
+			'post_status' => 'publish',
+			'post_title'  => sprintf( '%s — %s %s (%dp)', $name, $date, $time, $party ),
+		),
+		true
+	);
+	if ( is_wp_error( $post_id ) ) {
+		return new \WP_Error( 'dinekit_booking_save', __( 'Could not save your booking. Please try again.', 'dinekit' ), array( 'status' => 500 ) );
+	}
+
+	update_post_meta( $post_id, 'dk_date', $date );
+	update_post_meta( $post_id, 'dk_time', $time );
+	update_post_meta( $post_id, 'dk_party', $party );
+	update_post_meta( $post_id, 'dk_table_id', $table_id );
+	update_post_meta( $post_id, 'dk_combo_id', $combo_id );
+	update_post_meta( $post_id, 'dk_name', $name );
+	update_post_meta( $post_id, 'dk_email', $email );
+	update_post_meta( $post_id, 'dk_phone', $phone );
+	update_post_meta( $post_id, 'dk_notes', $notes );
+	update_post_meta( $post_id, 'dk_status', $status );
+	update_post_meta( $post_id, 'dk_source', 'online' );
+	if ( \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
+		update_post_meta( $post_id, 'dk_deposit_required', 1 );
+	}
+
+	$message = 'confirmed' === $status
+		? __( 'Your table is booked — see you then!', 'dinekit' )
+		: __( 'Thanks! Your booking request has been sent — we’ll confirm shortly.', 'dinekit' );
+
+	return rest_ensure_response(
+		array(
+			'ok'      => true,
+			'status'  => $status,
+			'deposit' => \DineKit\Bookings\Settings\needs_deposit( $party ),
+			'message' => $message,
+		)
+	);
 }

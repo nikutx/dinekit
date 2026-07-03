@@ -1,0 +1,157 @@
+/**
+ * DineKit public booking widget — scoped, self-contained, no dependencies.
+ */
+.dinekit-booking {
+	--dkb-accent: #3b82f6;
+	--dkb-accent-dark: #2563eb;
+	--dkb-ink: #0f172a;
+	--dkb-muted: #64748b;
+	--dkb-border: #e2e8f0;
+	--dkb-soft: #f8fafc;
+	--dkb-green: #16a34a;
+	--dkb-red: #dc2626;
+	max-width: 640px;
+	margin: 0 auto;
+	padding: 24px;
+	background: #fff;
+	border: 1px solid var(--dkb-border);
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba( 15, 23, 42, 0.04 );
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	color: var(--dkb-ink);
+	box-sizing: border-box;
+}
+.dinekit-booking *,
+.dinekit-booking *::before,
+.dinekit-booking *::after {
+	box-sizing: border-box;
+}
+.dinekit-booking__heading {
+	margin: 0 0 4px;
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+.dinekit-booking__intro {
+	margin: 0 0 16px;
+	color: var(--dkb-muted);
+	font-size: 15px;
+}
+.dinekit-booking__grid {
+	display: grid;
+	grid-template-columns: repeat( 3, 1fr );
+	gap: 12px;
+	margin-bottom: 12px;
+}
+.dinekit-booking__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--dkb-ink);
+}
+.dinekit-booking__field--full {
+	grid-column: 1 / -1;
+}
+.dinekit-booking__field > span {
+	color: var(--dkb-muted);
+}
+.dinekit-booking__field input,
+.dinekit-booking__field select,
+.dinekit-booking__field textarea {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--dkb-border);
+	border-radius: 10px;
+	font-size: 15px;
+	font-family: inherit;
+	color: var(--dkb-ink);
+	background: #fff;
+}
+.dinekit-booking__field input:focus,
+.dinekit-booking__field select:focus,
+.dinekit-booking__field textarea:focus {
+	outline: none;
+	border-color: var(--dkb-accent);
+	box-shadow: 0 0 0 3px rgba( 59, 130, 246, 0.15 );
+}
+.dinekit-booking__availability {
+	min-height: 20px;
+	margin: 4px 0 12px;
+	font-size: 14px;
+	font-weight: 700;
+}
+.dinekit-booking__availability.is-ok {
+	color: var(--dkb-green);
+}
+.dinekit-booking__availability.is-no {
+	color: var(--dkb-red);
+}
+.dinekit-booking__note {
+	margin: 4px 0 12px;
+	padding: 8px 12px;
+	background: var(--dkb-soft);
+	border-radius: 8px;
+	font-size: 13px;
+	color: var(--dkb-muted);
+}
+.dinekit-booking__submit {
+	appearance: none;
+	border: 0;
+	width: 100%;
+	padding: 13px 20px;
+	margin-top: 4px;
+	background: var(--dkb-accent);
+	color: #fff;
+	font-size: 16px;
+	font-weight: 700;
+	font-family: inherit;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+.dinekit-booking__submit:hover {
+	background: var(--dkb-accent-dark);
+}
+.dinekit-booking__submit:disabled,
+.dinekit-booking__submit.is-loading {
+	opacity: 0.7;
+	cursor: default;
+}
+.dinekit-booking__result {
+	margin: 12px 0 0;
+	font-size: 14px;
+	font-weight: 600;
+	text-align: center;
+}
+.dinekit-booking__result.is-no {
+	color: var(--dkb-red);
+}
+/* Honeypot — visually hidden but not display:none (some bots skip hidden). */
+.dinekit-booking__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+.dinekit-booking__success {
+	text-align: center;
+	padding: 24px 12px;
+}
+.dinekit-booking__success-title {
+	margin: 0 0 6px;
+	font-size: 20px;
+	font-weight: 800;
+	color: var(--dkb-green);
+}
+.dinekit-booking--off p {
+	margin: 0;
+	color: var(--dkb-muted);
+}
+@media ( max-width: 520px ) {
+	.dinekit-booking__grid {
+		grid-template-columns: 1fr;
+	}
+}

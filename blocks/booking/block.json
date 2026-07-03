@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "dinekit/booking",
+	"version": "0.1.0",
+	"title": "DineKit Booking Form",
+	"category": "widgets",
+	"icon": "calendar-alt",
+	"description": "Let diners book a table from your site — commission-free.",
+	"keywords": [ "booking", "reservation", "table", "restaurant", "reserve" ],
+	"textdomain": "dinekit",
+	"editorScript": "dinekit-booking-editor",
+	"style": "dinekit-booking",
+	"supports": {
+		"html": false,
+		"align": [ "wide" ]
+	},
+	"attributes": {
+		"heading": { "type": "string", "default": "" },
+		"intro": { "type": "string", "default": "" }
+	}
+}
