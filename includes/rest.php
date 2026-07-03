@@ -582,6 +582,11 @@ function item_response( $post ) {
 		$prices = array();
 	}
 
+	$modifiers = get_post_meta( $post->ID, 'dk_modifiers', true );
+	if ( ! is_array( $modifiers ) ) {
+		$modifiers = array();
+	}
+
 	$term_ids = static function ( $taxonomy ) use ( $post ) {
 		$terms = get_the_terms( $post, $taxonomy );
 		if ( ! is_array( $terms ) ) {
@@ -612,6 +617,7 @@ function item_response( $post ) {
 		'status'      => $post->post_status,
 		'order'       => (int) $post->menu_order,
 		'prices'      => array_values( $prices ),
+		'modifiers'   => array_values( $modifiers ),
 		'badge'       => (string) get_post_meta( $post->ID, 'dk_badge', true ),
 		'sections'    => $term_ids( 'dk_section' ),
 		'menus'       => $term_ids( 'dk_menu' ),
@@ -730,6 +736,9 @@ function apply_item_fields( $post_id, $request ) {
 	if ( null !== $request->get_param( 'prices' ) ) {
 		update_post_meta( $post_id, 'dk_prices', Meta\sanitize_prices( $request->get_param( 'prices' ) ) );
 	}
+	if ( null !== $request->get_param( 'modifiers' ) ) {
+		update_post_meta( $post_id, 'dk_modifiers', Meta\sanitize_modifiers( $request->get_param( 'modifiers' ) ) );
+	}
 	if ( null !== $request->get_param( 'badge' ) ) {
 		update_post_meta( $post_id, 'dk_badge', sanitize_text_field( (string) $request->get_param( 'badge' ) ) );
 	}
@@ -836,6 +845,7 @@ function clone_item( $src_id, $section_override = null ) {
 	}
 
 	update_post_meta( $new_id, 'dk_prices', get_post_meta( $src_id, 'dk_prices', true ) );
+	update_post_meta( $new_id, 'dk_modifiers', get_post_meta( $src_id, 'dk_modifiers', true ) );
 	update_post_meta( $new_id, 'dk_badge', get_post_meta( $src_id, 'dk_badge', true ) );
 	$thumb = get_post_thumbnail_id( $src_id );
 	if ( $thumb ) {

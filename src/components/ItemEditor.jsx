@@ -18,6 +18,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ImageIcon from '@mui/icons-material/Image';
 import { tokens } from '../theme';
 import PriceRepeater from './PriceRepeater';
+import ModifierEditor from './ModifierEditor';
 import { openMediaPicker } from '../lib/media';
 import { useToast } from './Toast';
 
@@ -176,6 +177,8 @@ export default function ItemEditor( { item, store, onClose } ) {
 				</Box>
 
 				<PriceRepeater prices={ form.prices || [] } onChange={ ( prices ) => setNow( 'prices', prices ) } />
+
+				<ModifierEditor modifiers={ form.modifiers || [] } onChange={ ( m ) => setNow( 'modifiers', m ) } />
 
 				<Box>
 					<Typography sx={ labelSx }>Badge</Typography>

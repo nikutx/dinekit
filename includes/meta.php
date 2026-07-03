@@ -75,6 +75,74 @@ function register() {
 			'auth_callback'     => __NAMESPACE__ . '\\can_edit_item',
 		)
 	);
+
+	// Dish customizations: groups of options a diner can pick or remove.
+	register_post_meta(
+		'dk_menu_item',
+		'dk_modifiers',
+		array(
+			'type'              => 'array',
+			'description'       => __( 'Customization groups (removable ingredients + choice options).', 'dinekit' ),
+			'single'            => true,
+			'default'           => array(),
+			'show_in_rest'      => false,
+			'sanitize_callback' => __NAMESPACE__ . '\\sanitize_modifiers',
+			'auth_callback'     => __NAMESPACE__ . '\\can_edit_item',
+		)
+	);
+}
+
+/**
+ * Sanitize the modifiers structure — an array of groups, each with a name, a
+ * type ("remove" ingredients | "choose" options), min/max selectable, and a
+ * list of options ({ label, price }). One model covers "no onions" and
+ * "choose your base / sauce / toppings" for any dish.
+ *
+ * @param mixed $value Raw meta value.
+ * @return array<int,array<string,mixed>>
+ */
+function sanitize_modifiers( $value ) {
+	if ( ! is_array( $value ) ) {
+		return array();
+	}
+	$clean = array();
+	foreach ( $value as $group ) {
+		if ( ! is_array( $group ) ) {
+			continue;
+		}
+		$name = isset( $group['name'] ) ? sanitize_text_field( (string) $group['name'] ) : '';
+		$type = ( isset( $group['type'] ) && 'remove' === $group['type'] ) ? 'remove' : 'choose';
+		$min  = isset( $group['min'] ) ? absint( $group['min'] ) : 0;
+		$max  = isset( $group['max'] ) ? absint( $group['max'] ) : 0;
+
+		$options = array();
+		if ( isset( $group['options'] ) && is_array( $group['options'] ) ) {
+			foreach ( $group['options'] as $opt ) {
+				if ( ! is_array( $opt ) ) {
+					continue;
+				}
+				$label = isset( $opt['label'] ) ? sanitize_text_field( (string) $opt['label'] ) : '';
+				if ( '' === $label ) {
+					continue;
+				}
+				$options[] = array(
+					'label' => $label,
+					'price' => isset( $opt['price'] ) ? sanitize_text_field( (string) $opt['price'] ) : '',
+				);
+			}
+		}
+		if ( '' === $name && empty( $options ) ) {
+			continue;
+		}
+		$clean[] = array(
+			'name'    => $name,
+			'type'    => $type,
+			'min'     => $min,
+			'max'     => $max,
+			'options' => $options,
+		);
+	}
+	return $clean;
 }
 
 /**
