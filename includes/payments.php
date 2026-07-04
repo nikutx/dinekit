@@ -156,6 +156,7 @@ function create_booking_intent( $request ) {
 	}
 
 	update_post_meta( $booking_id, 'dk_deposit_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
+	update_post_meta( $booking_id, 'dk_deposit_amount', $pence );
 
 	return rest_ensure_response(
 		array(

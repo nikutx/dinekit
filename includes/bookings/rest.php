@@ -731,20 +731,27 @@ function get_availability( $request ) {
 function booking_response( $id ) {
 	$table_id = (int) get_post_meta( $id, 'dk_table_id', true );
 	$combo_id = (int) get_post_meta( $id, 'dk_combo_id', true );
+	$history  = json_decode( (string) get_post_meta( $id, 'dk_history', true ), true );
 	return array(
-		'id'      => (int) $id,
-		'date'    => (string) get_post_meta( $id, 'dk_date', true ),
-		'time'    => (string) get_post_meta( $id, 'dk_time', true ),
-		'party'   => (int) get_post_meta( $id, 'dk_party', true ),
-		'tableId' => $table_id,
-		'comboId' => $combo_id,
-		'table'   => $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' ),
-		'name'    => (string) get_post_meta( $id, 'dk_name', true ),
-		'email'   => (string) get_post_meta( $id, 'dk_email', true ),
-		'phone'   => (string) get_post_meta( $id, 'dk_phone', true ),
-		'notes'   => (string) get_post_meta( $id, 'dk_notes', true ),
-		'status'  => (string) get_post_meta( $id, 'dk_status', true ),
-		'source'  => (string) get_post_meta( $id, 'dk_source', true ),
+		'id'              => (int) $id,
+		'date'            => (string) get_post_meta( $id, 'dk_date', true ),
+		'time'            => (string) get_post_meta( $id, 'dk_time', true ),
+		'party'           => (int) get_post_meta( $id, 'dk_party', true ),
+		'tableId'         => $table_id,
+		'comboId'         => $combo_id,
+		'table'           => $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' ),
+		'name'            => (string) get_post_meta( $id, 'dk_name', true ),
+		'email'           => (string) get_post_meta( $id, 'dk_email', true ),
+		'phone'           => (string) get_post_meta( $id, 'dk_phone', true ),
+		'notes'           => (string) get_post_meta( $id, 'dk_notes', true ),
+		'status'          => (string) get_post_meta( $id, 'dk_status', true ),
+		'source'          => (string) get_post_meta( $id, 'dk_source', true ),
+		'depositRequired' => '1' === (string) get_post_meta( $id, 'dk_deposit_required', true ),
+		'depositPaid'     => '1' === (string) get_post_meta( $id, 'dk_deposit_paid', true ),
+		'depositAmount'   => (int) get_post_meta( $id, 'dk_deposit_amount', true ),
+		'archived'        => '1' === (string) get_post_meta( $id, 'dk_archived', true ),
+		'refundDue'       => '1' === (string) get_post_meta( $id, 'dk_refund_due', true ),
+		'history'         => is_array( $history ) ? $history : array(),
 	);
 }
 
@@ -772,6 +779,20 @@ function list_bookings( $request ) {
 			'value' => $from,
 		);
 	}
+
+	// Archived bookings are kept forever but hidden from the diary.
+	$meta_query[] = array(
+		'relation' => 'OR',
+		array(
+			'key'     => 'dk_archived',
+			'compare' => 'NOT EXISTS',
+		),
+		array(
+			'key'     => 'dk_archived',
+			'value'   => '1',
+			'compare' => '!=',
+		),
+	);
 
 	$query = new \WP_Query(
 		array(
@@ -905,24 +926,47 @@ function update_booking( $request ) {
 		}
 	}
 
-	// Email the diner when a booking is freshly confirmed or cancelled.
-	if ( $new_status !== $old_status && in_array( $new_status, array( 'confirmed', 'cancelled' ), true ) ) {
-		require_once DINEKIT_DIR . 'includes/bookings/emails.php';
-		\DineKit\Bookings\Emails\status_changed( $id, $new_status );
+	if ( $new_status !== $old_status ) {
+		$labels = Bookings\statuses();
+		/* translators: %s: booking status label. */
+		Bookings\log_event( $id, sprintf( __( 'Status changed to %s', 'dinekit' ), $labels[ $new_status ] ?? $new_status ) );
+		// Email the diner when freshly confirmed or cancelled.
+		if ( in_array( $new_status, array( 'confirmed', 'cancelled' ), true ) ) {
+			require_once DINEKIT_DIR . 'includes/bookings/emails.php';
+			\DineKit\Bookings\Emails\status_changed( $id, $new_status );
+		}
+		// Cancelling a booking with a paid deposit triggers a refund + guest notice.
+		if ( 'cancelled' === $new_status ) {
+			Bookings\refund_deposit( $id );
+		}
+	}
+
+	// Archive / restore (bookings are never hard-deleted).
+	if ( null !== $request->get_param( 'archived' ) ) {
+		$arch = (bool) $request->get_param( 'archived' );
+		update_post_meta( $id, 'dk_archived', $arch ? 1 : 0 );
+		Bookings\log_event( $id, $arch ? __( 'Archived', 'dinekit' ) : __( 'Restored from archive', 'dinekit' ) );
 	}
 
 	return rest_ensure_response( booking_response( $id ) );
 }
 
 /**
- * DELETE /bookings/:id.
+ * DELETE /bookings/:id — bookings are records, so this ARCHIVES rather than
+ * hard-deleting. A paid deposit is refunded and the guest flagged for notice.
  *
  * @param \WP_REST_Request $request Request.
- * @return \WP_REST_Response
+ * @return \WP_REST_Response|\WP_Error
  */
 function delete_booking( $request ) {
-	wp_delete_post( (int) $request['id'], true );
-	return rest_ensure_response( array( 'deleted' => true ) );
+	$id = (int) $request['id'];
+	if ( 'dk_booking' !== get_post_type( $id ) ) {
+		return new \WP_Error( 'dinekit_booking_404', __( 'Booking not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	Bookings\refund_deposit( $id );
+	update_post_meta( $id, 'dk_archived', 1 );
+	Bookings\log_event( $id, __( 'Archived', 'dinekit' ) );
+	return rest_ensure_response( booking_response( $id ) );
 }
 
 /* -------------------------------------------------------------------------- */

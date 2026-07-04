@@ -144,12 +144,30 @@ function register() {
 
 	// --- Table meta: capacity, party size limits + floor-plan geometry ---
 	$table_meta = array(
-		'dk_seats'     => array( 'default' => 2, 'desc' => __( 'Number of seats at the table.', 'dinekit' ) ),
-		'dk_min_party' => array( 'default' => 1, 'desc' => __( 'Smallest party this table takes.', 'dinekit' ) ),
-		'dk_max_party' => array( 'default' => 2, 'desc' => __( 'Largest party this table takes.', 'dinekit' ) ),
-		'dk_pos_x'     => array( 'default' => 40, 'desc' => __( 'Floor-plan X position (px).', 'dinekit' ) ),
-		'dk_pos_y'     => array( 'default' => 40, 'desc' => __( 'Floor-plan Y position (px).', 'dinekit' ) ),
-		'dk_rotation'  => array( 'default' => 0, 'desc' => __( 'Rotation on the floor plan (degrees).', 'dinekit' ) ),
+		'dk_seats'     => array(
+			'default' => 2,
+			'desc'    => __( 'Number of seats at the table.', 'dinekit' ),
+		),
+		'dk_min_party' => array(
+			'default' => 1,
+			'desc'    => __( 'Smallest party this table takes.', 'dinekit' ),
+		),
+		'dk_max_party' => array(
+			'default' => 2,
+			'desc'    => __( 'Largest party this table takes.', 'dinekit' ),
+		),
+		'dk_pos_x'     => array(
+			'default' => 40,
+			'desc'    => __( 'Floor-plan X position (px).', 'dinekit' ),
+		),
+		'dk_pos_y'     => array(
+			'default' => 40,
+			'desc'    => __( 'Floor-plan Y position (px).', 'dinekit' ),
+		),
+		'dk_rotation'  => array(
+			'default' => 0,
+			'desc'    => __( 'Rotation on the floor plan (degrees).', 'dinekit' ),
+		),
 	);
 	foreach ( $table_meta as $key => $conf ) {
 		register_post_meta(
@@ -219,20 +237,24 @@ function register() {
 
 	// --- Booking meta ---
 	$booking_meta = array(
-		'dk_date'     => 'string',  // Y-m-d.
-		'dk_time'     => 'string',  // H:i.
-		'dk_party'    => 'integer', // Number of guests.
-		'dk_table_id' => 'integer', // Assigned table (0 = unassigned).
-		'dk_combo_id' => 'integer', // Assigned table combination (0 = none).
-		'dk_name'     => 'string',
-		'dk_email'    => 'string',
-		'dk_phone'    => 'string',
-		'dk_notes'    => 'string',
-		'dk_status'   => 'string',  // pending | confirmed | seated | completed | cancelled | no_show | provisional.
-		'dk_source'   => 'string',  // online | admin | phone.
+		'dk_date'             => 'string',  // Y-m-d.
+		'dk_time'             => 'string',  // H:i.
+		'dk_party'            => 'integer', // Number of guests.
+		'dk_table_id'         => 'integer', // Assigned table (0 = unassigned).
+		'dk_combo_id'         => 'integer', // Assigned table combination (0 = none).
+		'dk_name'             => 'string',
+		'dk_email'            => 'string',
+		'dk_phone'            => 'string',
+		'dk_notes'            => 'string',
+		'dk_status'           => 'string',  // pending | confirmed | seated | completed | cancelled | no_show | provisional.
+		'dk_source'           => 'string',  // online | admin | phone.
 		'dk_deposit_required' => 'integer', // 1 when the party triggers a deposit rule.
 		'dk_deposit_pi'       => 'string',  // Stripe PaymentIntent id for the deposit.
 		'dk_deposit_paid'     => 'integer', // 1 once the deposit is paid (set by webhook).
+		'dk_deposit_amount'   => 'integer', // Deposit due, in pence (stored at intent time).
+		'dk_archived'         => 'integer', // 1 = archived (never hard-deleted).
+		'dk_refund_due'       => 'integer', // 1 = a deposit refund is owed but failed automatically.
+		'dk_history'          => 'string',  // JSON: [{t,e}] audit trail.
 	);
 	foreach ( $booking_meta as $key => $type ) {
 		register_post_meta(
@@ -284,7 +306,10 @@ function register() {
 			'auth_callback'     => __NAMESPACE__ . '\\can_manage',
 		)
 	);
-	foreach ( array( 'dk_combo_min' => 2, 'dk_combo_max' => 4 ) as $key => $default ) {
+	foreach ( array(
+		'dk_combo_min' => 2,
+		'dk_combo_max' => 4,
+	) as $key => $default ) {
 		register_post_meta(
 			'dk_table_combo',
 			$key,
@@ -326,6 +351,55 @@ function statuses() {
 		'cancelled'   => __( 'Cancelled', 'dinekit' ),
 		'no_show'     => __( 'No-show', 'dinekit' ),
 	);
+}
+
+/**
+ * Append an event to a booking's history audit trail (oldest first).
+ *
+ * @param int    $id    Booking id.
+ * @param string $event Human-readable event.
+ * @return void
+ */
+function log_event( $id, $event ) {
+	$log = json_decode( (string) get_post_meta( $id, 'dk_history', true ), true );
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
+	$log[] = array(
+		't' => current_time( 'c' ),
+		'e' => (string) $event,
+	);
+	if ( count( $log ) > 100 ) {
+		$log = array_slice( $log, -100 );
+	}
+	update_post_meta( $id, 'dk_history', wp_json_encode( $log ) );
+}
+
+/**
+ * When a booking with a paid deposit is cancelled, refund it via Stripe and
+ * flag the guest for notification. No-op if there's no paid deposit.
+ *
+ * @param int $id Booking id.
+ * @return void
+ */
+function refund_deposit( $id ) {
+	if ( '1' !== (string) get_post_meta( $id, 'dk_deposit_paid', true ) ) {
+		return;
+	}
+	$pi = (string) get_post_meta( $id, 'dk_deposit_pi', true );
+	if ( '' === $pi ) {
+		return;
+	}
+	require_once DINEKIT_DIR . 'includes/payments.php';
+	$res = \DineKit\Payments\stripe_post( 'refunds', array( 'payment_intent' => $pi ) );
+	if ( is_wp_error( $res ) ) {
+		update_post_meta( $id, 'dk_refund_due', 1 );
+		log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Deposit refund failed (needs manual action): %s', 'dinekit' ), $res->get_error_message() ) );
+		return;
+	}
+	update_post_meta( $id, 'dk_deposit_paid', 0 );
+	update_post_meta( $id, 'dk_refund_due', 0 );
+	log_event( $id, __( 'Deposit refunded — please let the guest know', 'dinekit' ) );
 }
 
 /**

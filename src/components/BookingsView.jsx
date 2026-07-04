@@ -466,6 +466,20 @@ function BookingRow( { booking, onStatus, onDelete, onRequestReview } ) {
 					{ booking.phone ? ` · ${ booking.phone }` : '' }
 				</Typography>
 			</Box>
+			{ booking.depositPaid ? (
+				<Chip
+					label={ booking.depositAmount ? `Deposit £${ ( booking.depositAmount / 100 ).toFixed( 2 ) }` : 'Deposit paid' }
+					size="small"
+					sx={ { height: 20, fontSize: 11.5, fontWeight: 600, bgcolor: tokens.greenSoft, color: tokens.green } }
+				/>
+			) : booking.depositRequired ? (
+				<Chip label="Deposit due" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 600, bgcolor: tokens.amberSoft, color: tokens.amber } } />
+			) : null }
+			{ booking.refundDue && (
+				<Tooltip title="A deposit refund is owed — refund the guest in Stripe">
+					<Chip label="Refund owed" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 600, bgcolor: tokens.redSoft, color: tokens.red } } />
+				</Tooltip>
+			) }
 			{ booking.notes && (
 				<Tooltip title={ booking.notes }>
 					<Chip label="Notes" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 600, bgcolor: tokens.soft, color: tokens.muted } } />
@@ -498,7 +512,7 @@ function BookingRow( { booking, onStatus, onDelete, onRequestReview } ) {
 					</IconButton>
 				</Tooltip>
 			) }
-			<Tooltip title="Delete booking">
+			<Tooltip title="Cancel &amp; archive (refunds a paid deposit; kept on record)">
 				<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted2 } }>
 					<DeleteOutlineIcon fontSize="small" />
 				</IconButton>
