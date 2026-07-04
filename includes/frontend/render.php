@@ -124,9 +124,9 @@ function menu( $args = array() ) {
 		require_once DINEKIT_DIR . 'includes/menus.php';
 		$menu_status = \DineKit\Menus\status( (int) $args['menu'] );
 		if ( 'coming' === $menu_status['state'] ) {
-			$term   = get_term( (int) $args['menu'], 'dk_menu' );
-			$accent = isset( $args['accent'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $args['accent'] ) ? $args['accent'] : '';
-			return '<div class="dinekit-menu dinekit-coming"' . ( $accent ? ' style="--dinekit-accent:' . esc_attr( $accent ) . '"' : '' ) . '>' .
+			$term  = get_term( (int) $args['menu'], 'dk_menu' );
+			$style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' );
+			return '<div class="dinekit-menu dinekit-coming"' . ( $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . '>' .
 				'<div class="dinekit-coming__card">' .
 				'<span class="dinekit-coming__badge">' . esc_html__( 'Coming soon', 'dinekit' ) . '</span>' .
 				'<h3 class="dinekit-coming__title">' . esc_html( $term ? $term->name : '' ) . '</h3>' .
@@ -157,10 +157,10 @@ function menu( $args = array() ) {
 
 	ob_start();
 	?>
-	<?php $accent = isset( $args['accent'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $args['accent'] ) ? $args['accent'] : ''; ?>
+	<?php $style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' ); ?>
 	<div
 		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?>"
-		<?php echo $accent ? 'style="--dinekit-accent:' . esc_attr( $accent ) . '"' : ''; ?>
+		<?php echo $style ? 'style="' . esc_attr( $style ) . '"' : ''; ?>
 	>
 		<?php
 		if ( $args['show_filter'] ) {

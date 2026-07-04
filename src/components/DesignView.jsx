@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Box,
 	Stack,
@@ -8,6 +8,7 @@ import {
 	Switch,
 	FormControlLabel,
 	Button,
+	TextField,
 	CircularProgress,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -38,7 +39,29 @@ export default function DesignView() {
 	const [ filter, setFilter ] = useState( true );
 	const [ preview, setPreview ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
+	const [ design, setDesign ] = useState( null );
+	const dsave = useRef( null );
 	const toast = useToast();
+
+	useEffect( () => {
+		api.getSettings().then( ( s ) =>
+			setDesign( {
+				accent: s.accent || '#b91c1c',
+				menu_ink: s.menu_ink || '#1f2937',
+				menu_muted: s.menu_muted || '#6b7280',
+				menu_line: s.menu_line || '#e5e7eb',
+				menu_bg: s.menu_bg || '',
+				menu_radius: s.menu_radius != null ? s.menu_radius : 12,
+			} )
+		);
+	}, [] );
+
+	const patchDesign = ( p ) => {
+		const next = { ...design, ...p };
+		setDesign( next );
+		clearTimeout( dsave.current );
+		dsave.current = setTimeout( () => api.saveSettings( next ), 500 );
+	};
 
 	const params = useMemo(
 		() => ( {
@@ -93,8 +116,12 @@ export default function DesignView() {
 		return `[${ parts.join( ' ' ) }]`;
 	}, [ layout, columns, images, allergens, dietary, matrix, filter ] );
 
+	// Live colour overrides so the preview reflects unsaved picks instantly.
+	const varStyle = design
+		? `.dinekit-menu{--dinekit-accent:${ design.accent };--dinekit-ink:${ design.menu_ink };--dinekit-muted:${ design.menu_muted };--dinekit-line:${ design.menu_line };--dinekit-radius:${ design.menu_radius }px;${ design.menu_bg ? `--dinekit-bg:${ design.menu_bg };` : '' }}`
+		: '';
 	const srcDoc = preview
-		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
+		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}${ varStyle }</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
 		: '';
 
 	const copyShortcode = () => {
@@ -159,6 +186,58 @@ export default function DesignView() {
 					</Box>
 				</Stack>
 			</Card>
+
+			{ /* Colours — every menu token, saved and applied to the live front end. */ }
+			{ design && (
+				<Card sx={ { p: 2, mb: 2.5 } }>
+					<Typography sx={ { ...labelSx, mb: 1.5 } }>Colours</Typography>
+					<Stack direction="row" spacing={ 3 } rowGap={ 2 } flexWrap="wrap" alignItems="flex-end">
+						{ [
+							[ 'accent', 'Accent' ],
+							[ 'menu_ink', 'Text' ],
+							[ 'menu_muted', 'Muted text' ],
+							[ 'menu_line', 'Lines' ],
+						].map( ( [ key, label ] ) => (
+							<Box key={ key }>
+								<Typography sx={ labelSx }>{ label }</Typography>
+								<Box
+									component="input"
+									type="color"
+									value={ design[ key ] }
+									onChange={ ( e ) => patchDesign( { [ key ]: e.target.value } ) }
+									sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
+								/>
+							</Box>
+						) ) }
+						<Box>
+							<Typography sx={ labelSx }>Background</Typography>
+							<Stack direction="row" spacing={ 0.75 } alignItems="center">
+								<Box
+									component="input"
+									type="color"
+									value={ design.menu_bg || '#ffffff' }
+									onChange={ ( e ) => patchDesign( { menu_bg: e.target.value } ) }
+									sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
+								/>
+								<Button size="small" onClick={ () => patchDesign( { menu_bg: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
+									Clear
+								</Button>
+							</Stack>
+						</Box>
+						<TextField
+							label="Radius (px)"
+							type="number"
+							size="small"
+							value={ design.menu_radius }
+							onChange={ ( e ) => patchDesign( { menu_radius: Math.max( 0, Math.min( 40, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
+							sx={ { width: 110 } }
+						/>
+					</Stack>
+					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
+						Saved automatically and applied to your live menu. Colours are scoped to <code>.dinekit-menu</code> as CSS custom properties — a theme can’t easily override them, and developers can via the <code>dinekit_menu_style_vars</code> filter.
+					</Typography>
+				</Card>
+			) }
 
 			{ /* Full-width preview, framed as a little browser window */ }
 			<Typography sx={ labelSx }>Live preview</Typography>
