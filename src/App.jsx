@@ -10,6 +10,7 @@ import GridViewIcon from '@mui/icons-material/GridView';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard';
 import InsightsIcon from '@mui/icons-material/Insights';
@@ -28,6 +29,7 @@ import FloorPlan from './components/FloorPlan';
 import IntegrationsView from './components/IntegrationsView';
 import EventsView from './components/EventsView';
 import GuestsView from './components/GuestsView';
+import ReviewsView from './components/ReviewsView';
 import OrdersView from './components/OrdersView';
 import DashboardView from './components/DashboardView';
 import ReportsView from './components/ReportsView';
@@ -43,6 +45,7 @@ const NAV = [
 	{ key: 'orders', label: 'Orders', icon: <ReceiptLongIcon fontSize="small" /> },
 	{ key: 'events', label: 'Events', icon: <CelebrationIcon fontSize="small" /> },
 	{ key: 'guests', label: 'Guests', icon: <PeopleAltIcon fontSize="small" /> },
+	{ key: 'reviews', label: 'Reviews', icon: <StarBorderIcon fontSize="small" /> },
 	{ group: 'Menu' },
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
@@ -136,6 +139,7 @@ export default function App() {
 							{ activeView === 'floor' && <FloorPlan /> }
 							{ activeView === 'events' && <EventsView /> }
 							{ activeView === 'guests' && <GuestsView /> }
+							{ activeView === 'reviews' && <ReviewsView /> }
 							{ activeView === 'integrations' && <IntegrationsView /> }
 							{ activeView === 'settings' && <SettingsView /> }
 						</>

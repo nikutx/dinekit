@@ -83,6 +83,9 @@ final class Plugin {
 		if ( $this->load( 'ordering/ordering.php' ) ) {
 			Ordering\init();
 		}
+		if ( $this->load( 'reviews.php' ) ) {
+			Reviews\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();

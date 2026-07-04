@@ -106,6 +106,8 @@ export const api = {
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getGuests: () => request( 'GET', 'guests' ),
+	getReviews: () => request( 'GET', 'reviews' ),
+	saveReviews: ( data ) => request( 'POST', 'reviews', data ),
 
 	// Ordering (admin board).
 	getOrders: () => request( 'GET', 'orders' ),
