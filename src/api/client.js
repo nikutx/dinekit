@@ -118,6 +118,10 @@ export const api = {
 	createShift: ( data ) => request( 'POST', 'shifts', data ),
 	updateShift: ( id, data ) => request( 'PATCH', `shifts/${ id }`, data ),
 	deleteShift: ( id ) => request( 'DELETE', `shifts/${ id }` ),
+	getLeave: () => request( 'GET', 'leave' ),
+	createLeave: ( data ) => request( 'POST', 'leave', data ),
+	updateLeave: ( id, data ) => request( 'PATCH', `leave/${ id }`, data ),
+	deleteLeave: ( id ) => request( 'DELETE', `leave/${ id }` ),
 
 	getReviews: () => request( 'GET', 'reviews' ),
 	saveReviews: ( data ) => request( 'POST', 'reviews', data ),

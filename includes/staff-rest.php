@@ -116,6 +116,208 @@ function register_routes() {
 			),
 		)
 	);
+
+	// Holiday / leave.
+	register_rest_route(
+		$ns,
+		'/leave',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\list_leave',
+				'permission_callback' => $perm,
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\create_leave',
+				'permission_callback' => $perm,
+			),
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/leave/(?P<id>\d+)',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => __NAMESPACE__ . '\\update_leave',
+				'permission_callback' => $perm,
+			),
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => __NAMESPACE__ . '\\delete_leave',
+				'permission_callback' => $perm,
+			),
+		)
+	);
+}
+
+/**
+ * Inclusive whole-day count between two Y-m-d dates.
+ *
+ * @param string $from Y-m-d.
+ * @param string $to   Y-m-d.
+ * @return float
+ */
+function day_span( $from, $to ) {
+	$a = strtotime( $from . ' 00:00:00' );
+	$b = strtotime( $to . ' 00:00:00' );
+	if ( ! $a || ! $b || $b < $a ) {
+		return 0.0;
+	}
+	return (float) ( floor( ( $b - $a ) / DAY_IN_SECONDS ) + 1 );
+}
+
+/**
+ * Serialize a leave request.
+ *
+ * @param int $id Leave id.
+ * @return array<string,mixed>
+ */
+function leave_response( $id ) {
+	$staff_id = (int) get_post_meta( $id, 'dk_leave_staff', true );
+	$status   = (string) get_post_meta( $id, 'dk_leave_status', true );
+	return array(
+		'id'      => (int) $id,
+		'staffId' => $staff_id,
+		'from'    => (string) get_post_meta( $id, 'dk_leave_from', true ),
+		'to'      => (string) get_post_meta( $id, 'dk_leave_to', true ),
+		'days'    => (float) get_post_meta( $id, 'dk_leave_days', true ),
+		'status'  => '' !== $status ? $status : 'pending',
+		'note'    => (string) get_post_meta( $id, 'dk_leave_note', true ),
+	);
+}
+
+/**
+ * GET /leave — all requests (newest first) + per-member balances for this year.
+ *
+ * @return \WP_REST_Response
+ */
+function list_leave() {
+	require_once DINEKIT_DIR . 'includes/staff.php';
+	$posts    = get_posts(
+		array(
+			'post_type'      => 'dk_leave',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded team leave.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+		)
+	);
+	$requests = array_map( __NAMESPACE__ . '\\leave_response', $posts );
+	usort(
+		$requests,
+		static function ( $a, $b ) {
+			return strcmp( $b['from'], $a['from'] );
+		}
+	);
+
+	// Balances: allowance (dk_holiday) minus approved days taken this year.
+	$year     = (int) gmdate( 'Y' );
+	$balances = array();
+	foreach ( Staff\all_staff() as $post ) {
+		$allowance = (int) get_post_meta( $post->ID, 'dk_holiday', true );
+		$taken     = 0.0;
+		foreach ( $requests as $r ) {
+			if ( $r['staffId'] === (int) $post->ID && 'approved' === $r['status'] && (int) substr( $r['from'], 0, 4 ) === $year ) {
+				$taken += $r['days'];
+			}
+		}
+		$balances[ (int) $post->ID ] = array(
+			'allowance' => $allowance,
+			'taken'     => $taken,
+			'remaining' => round( $allowance - $taken, 2 ),
+		);
+	}
+
+	return rest_ensure_response(
+		array(
+			'requests' => $requests,
+			'balances' => $balances,
+		)
+	);
+}
+
+/**
+ * Apply leave fields.
+ *
+ * @param int              $id      Leave id.
+ * @param \WP_REST_Request $request Request.
+ * @return void
+ */
+function apply_leave_fields( $id, $request ) {
+	if ( null !== $request->get_param( 'staffId' ) ) {
+		update_post_meta( $id, 'dk_leave_staff', absint( $request->get_param( 'staffId' ) ) );
+	}
+	foreach ( array(
+		'from' => 'dk_leave_from',
+		'to'   => 'dk_leave_to',
+		'note' => 'dk_leave_note',
+	) as $param => $key ) {
+		if ( null !== $request->get_param( $param ) ) {
+			update_post_meta( $id, $key, sanitize_text_field( (string) $request->get_param( $param ) ) );
+		}
+	}
+	if ( null !== $request->get_param( 'status' ) ) {
+		$status = sanitize_key( (string) $request->get_param( 'status' ) );
+		update_post_meta( $id, 'dk_leave_status', in_array( $status, array( 'pending', 'approved', 'denied' ), true ) ? $status : 'pending' );
+	}
+	// Days: explicit value wins (half-days), else derive from the date span.
+	if ( null !== $request->get_param( 'days' ) ) {
+		update_post_meta( $id, 'dk_leave_days', number_format( max( 0, (float) $request->get_param( 'days' ) ), 2, '.', '' ) );
+	} else {
+		$from = (string) get_post_meta( $id, 'dk_leave_from', true );
+		$to   = (string) get_post_meta( $id, 'dk_leave_to', true );
+		if ( '' !== $from && '' !== $to ) {
+			update_post_meta( $id, 'dk_leave_days', number_format( day_span( $from, $to ), 2, '.', '' ) );
+		}
+	}
+}
+
+/**
+ * POST /leave.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_leave( $request ) {
+	$id = wp_insert_post(
+		array(
+			'post_type'   => 'dk_leave',
+			'post_status' => 'publish',
+			'post_title'  => 'leave',
+		),
+		true
+	);
+	if ( is_wp_error( $id ) ) {
+		return $id;
+	}
+	update_post_meta( $id, 'dk_leave_status', 'pending' );
+	apply_leave_fields( $id, $request );
+	return rest_ensure_response( leave_response( $id ) );
+}
+
+/**
+ * PATCH /leave/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function update_leave( $request ) {
+	$id = (int) $request['id'];
+	apply_leave_fields( $id, $request );
+	return rest_ensure_response( leave_response( $id ) );
+}
+
+/**
+ * DELETE /leave/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function delete_leave( $request ) {
+	wp_delete_post( (int) $request['id'], true );
+	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
 /**

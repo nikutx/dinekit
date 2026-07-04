@@ -28,6 +28,7 @@ import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
 import StaffRota from './StaffRota';
+import StaffHoliday from './StaffHoliday';
 
 export default function StaffView() {
 	const [ staff, setStaff ] = useState( [] );
@@ -94,9 +95,11 @@ export default function StaffView() {
 			<ToggleButtonGroup exclusive size="small" value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 2 } }>
 				<ToggleButton value="people">People</ToggleButton>
 				<ToggleButton value="rota">Rota</ToggleButton>
+				<ToggleButton value="holiday">Holiday</ToggleButton>
 			</ToggleButtonGroup>
 
 			{ tab === 'rota' && <StaffRota staff={ staff } roles={ roles } /> }
+			{ tab === 'holiday' && <StaffHoliday staff={ staff } /> }
 
 			{ tab === 'people' && ( staff.length === 0 ? (
 				<EmptyState
