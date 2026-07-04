@@ -68,14 +68,19 @@ export default function IntegrationsView() {
 
 	const set = ( patch ) => setForm( ( f ) => ( { ...f, ...patch } ) );
 
-	const save = () => {
+	// Persist Stripe settings. Accepts an override so the enable toggle can save
+	// its new value immediately (state updates are async), instead of silently
+	// dropping the change until the user remembers to hit "Save Stripe keys".
+	const persist = ( overrides = {} ) => {
+		const next = { ...form, ...overrides };
+		setForm( next );
 		setSaveState( 'saving' );
 		const payload = {
 			stripe: {
-				enabled: form.enabled,
-				mode: form.mode,
-				testPublishable: form.testPublishable,
-				livePublishable: form.livePublishable,
+				enabled: next.enabled,
+				mode: next.mode,
+				testPublishable: next.testPublishable,
+				livePublishable: next.livePublishable,
 			},
 		};
 		if ( secret.test ) {
@@ -93,6 +98,8 @@ export default function IntegrationsView() {
 			} )
 			.catch( () => setSaveState( 'error' ) );
 	};
+
+	const save = () => persist();
 
 	if ( loading ) {
 		return (
@@ -135,7 +142,7 @@ export default function IntegrationsView() {
 
 				<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
 					<Stack direction="row" alignItems="center" spacing={ 1 }>
-						<Switch checked={ form.enabled } onChange={ ( e ) => set( { enabled: e.target.checked } ) } />
+						<Switch checked={ form.enabled } onChange={ ( e ) => persist( { enabled: e.target.checked } ) } />
 						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>
 							{ form.enabled ? 'Stripe enabled' : 'Stripe off' }
 						</Typography>

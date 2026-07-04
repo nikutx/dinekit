@@ -149,6 +149,29 @@ const theme = createTheme( {
 		MuiTextField: {
 			defaultProps: { size: 'small' },
 		},
+		// Quieter, more legible field labels + helper text — the outlined-input
+		// density read as noisy. Labels sit muted/calm; helper text is small and
+		// unobtrusive so packed setting grids stay tidy.
+		MuiInputLabel: {
+			styleOverrides: {
+				root: {
+					color: tokens.muted,
+					fontWeight: 500,
+					'&.Mui-focused': { color: tokens.accent },
+				},
+			},
+		},
+		MuiFormHelperText: {
+			styleOverrides: {
+				root: {
+					marginLeft: 2,
+					marginTop: 3,
+					fontSize: 11.5,
+					lineHeight: 1.35,
+					color: tokens.muted2,
+				},
+			},
+		},
 		MuiChip: {
 			styleOverrides: {
 				root: { fontWeight: 550, borderRadius: 6 },

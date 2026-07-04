@@ -87,7 +87,7 @@ function save( $data ) {
 		'max_party'       => array( 1, 100 ),
 		'min_notice'      => array( 0, 720 ),
 		'max_days_ahead'  => array( 1, 730 ),
-		'slot_interval'   => array( 15, 240 ),
+		'slot_interval'   => array( 5, 240 ),
 		'turn_time'       => array( 15, 480 ),
 		'buffer'          => array( 0, 120 ),
 		'deposit_over'    => array( 0, 100 ),

@@ -261,7 +261,15 @@ function GuestProfileDrawer( { guest, onClose, onSaved } ) {
 	};
 
 	return (
-		<Drawer anchor="right" open={ !! guest } onClose={ onClose } PaperProps={ { sx: { width: { xs: '100%', sm: 400 } } } }>
+		<Drawer
+			anchor="right"
+			open={ !! guest }
+			onClose={ onClose }
+			// Sit above the WP admin bar (99999) so the drawer isn't hidden behind it.
+			disableEnforceFocus
+			sx={ { zIndex: 100000 } }
+			PaperProps={ { sx: { width: { xs: '100%', sm: 400 } } } }
+		>
 			{ guest && (
 				<Box sx={ { p: 3, display: 'flex', flexDirection: 'column', height: '100%' } }>
 					<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 0.5 } }>

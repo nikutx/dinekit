@@ -140,7 +140,7 @@ export default function BookingSettingsView( { onBack } ) {
 					<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mt: 1.5 } }>
 						<TextField label="First booking" type="time" size="small" value={ cfg.open_time } onChange={ ( e ) => patch( { open_time: e.target.value } ) } sx={ { width: 130 } } />
 						<TextField label="Last booking" type="time" size="small" value={ cfg.close_time } onChange={ ( e ) => patch( { close_time: e.target.value } ) } sx={ { width: 130 } } />
-						{ num( 'Slot gap (min)', 'slot_interval', 15, 240 ) }
+						{ num( 'Slot gap (min)', 'slot_interval', 5, 240 ) }
 						{ num( 'Turn time (min)', 'turn_time', 15, 480, 'How long a table is held' ) }
 						{ num( 'Buffer (min)', 'buffer', 0, 120, 'Gap between sittings' ) }
 					</Stack>

@@ -33,12 +33,14 @@ const CANVAS_H = 560;
 const SNAP = 10;
 const snap = ( v ) => Math.round( v / SNAP ) * SNAP;
 
-// Table shapes and their pixel footprint.
+// Table shapes and their pixel footprint. Radius MUST be a string with units —
+// a bare number is scaled by theme.shape.borderRadius (×8) and clamps every
+// shape into a circle. '50%' = round; px strings keep square/rect/bar squared.
 const SHAPES = {
 	round: { w: 62, h: 62, radius: '50%', label: 'Round' },
-	square: { w: 62, h: 62, radius: 10, label: 'Square' },
-	rect: { w: 104, h: 62, radius: 10, label: 'Rectangle' },
-	bar: { w: 150, h: 42, radius: 10, label: 'Bar / bench' },
+	square: { w: 62, h: 62, radius: '10px', label: 'Square' },
+	rect: { w: 104, h: 62, radius: '10px', label: 'Rectangle' },
+	bar: { w: 150, h: 42, radius: '10px', label: 'Bar / bench' },
 };
 const dims = ( shape ) => SHAPES[ shape ] || SHAPES.round;
 
