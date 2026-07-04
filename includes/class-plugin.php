@@ -86,6 +86,9 @@ final class Plugin {
 		if ( $this->load( 'reviews.php' ) ) {
 			Reviews\init();
 		}
+		if ( $this->load( 'payments.php' ) ) {
+			Payments\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();

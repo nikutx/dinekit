@@ -24,12 +24,14 @@ const OPTION = 'dinekit_integrations';
 function defaults() {
 	return array(
 		'stripe' => array(
-			'enabled'         => false,
-			'mode'            => 'test', // test | live.
-			'test_publishable' => '',
-			'test_secret'     => '',
-			'live_publishable' => '',
-			'live_secret'     => '',
+			'enabled'             => false,
+			'mode'                => 'test', // test | live.
+			'test_publishable'    => '',
+			'test_secret'         => '',
+			'live_publishable'    => '',
+			'live_secret'         => '',
+			'test_webhook_secret' => '',
+			'live_webhook_secret' => '',
 		),
 	);
 }
@@ -44,8 +46,8 @@ function raw() {
 	if ( ! is_array( $stored ) ) {
 		$stored = array();
 	}
-	$defaults          = defaults();
-	$stored['stripe']  = array_merge( $defaults['stripe'], isset( $stored['stripe'] ) && is_array( $stored['stripe'] ) ? $stored['stripe'] : array() );
+	$defaults         = defaults();
+	$stored['stripe'] = array_merge( $defaults['stripe'], isset( $stored['stripe'] ) && is_array( $stored['stripe'] ) ? $stored['stripe'] : array() );
 	return $stored;
 }
 
@@ -60,12 +62,14 @@ function get_public() {
 	$s   = $raw['stripe'];
 	return array(
 		'stripe' => array(
-			'enabled'          => (bool) $s['enabled'],
-			'mode'             => 'live' === $s['mode'] ? 'live' : 'test',
-			'testPublishable'  => (string) $s['test_publishable'],
-			'livePublishable'  => (string) $s['live_publishable'],
-			'testSecretSet'    => '' !== (string) $s['test_secret'],
-			'liveSecretSet'    => '' !== (string) $s['live_secret'],
+			'enabled'         => (bool) $s['enabled'],
+			'mode'            => 'live' === $s['mode'] ? 'live' : 'test',
+			'testPublishable' => (string) $s['test_publishable'],
+			'livePublishable' => (string) $s['live_publishable'],
+			'testSecretSet'   => '' !== (string) $s['test_secret'],
+			'liveSecretSet'   => '' !== (string) $s['live_secret'],
+			'testWebhookSet'  => '' !== (string) $s['test_webhook_secret'],
+			'liveWebhookSet'  => '' !== (string) $s['live_webhook_secret'],
 		),
 	);
 }
@@ -90,12 +94,21 @@ function save( $data ) {
 	if ( isset( $in['mode'] ) ) {
 		$strip['mode'] = 'live' === $in['mode'] ? 'live' : 'test';
 	}
-	foreach ( array( 'testPublishable' => 'test_publishable', 'livePublishable' => 'live_publishable' ) as $param => $key ) {
+	foreach ( array(
+		'testPublishable' => 'test_publishable',
+		'livePublishable' => 'live_publishable',
+	) as $param => $key ) {
 		if ( isset( $in[ $param ] ) ) {
 			$strip[ $key ] = sanitize_text_field( (string) $in[ $param ] );
 		}
 	}
-	foreach ( array( 'testSecret' => 'test_secret', 'liveSecret' => 'live_secret' ) as $param => $key ) {
+	$secret_map = array(
+		'testSecret'        => 'test_secret',
+		'liveSecret'        => 'live_secret',
+		'testWebhookSecret' => 'test_webhook_secret',
+		'liveWebhookSecret' => 'live_webhook_secret',
+	);
+	foreach ( $secret_map as $param => $key ) {
 		if ( ! isset( $in[ $param ] ) ) {
 			continue;
 		}
@@ -118,9 +131,9 @@ function save( $data ) {
  * @return bool
  */
 function stripe_ready() {
-	$s   = raw()['stripe'];
-	$pk  = 'live' === $s['mode'] ? $s['live_publishable'] : $s['test_publishable'];
-	$sk  = 'live' === $s['mode'] ? $s['live_secret'] : $s['test_secret'];
+	$s  = raw()['stripe'];
+	$pk = 'live' === $s['mode'] ? $s['live_publishable'] : $s['test_publishable'];
+	$sk = 'live' === $s['mode'] ? $s['live_secret'] : $s['test_secret'];
 	return $s['enabled'] && '' !== $pk && '' !== $sk;
 }
 
@@ -132,6 +145,26 @@ function stripe_ready() {
 function active_secret() {
 	$s = raw()['stripe'];
 	return (string) ( 'live' === $s['mode'] ? $s['live_secret'] : $s['test_secret'] );
+}
+
+/**
+ * The publishable key for the active mode (safe to send to the browser).
+ *
+ * @return string
+ */
+function active_publishable() {
+	$s = raw()['stripe'];
+	return (string) ( 'live' === $s['mode'] ? $s['live_publishable'] : $s['test_publishable'] );
+}
+
+/**
+ * The webhook signing secret for the active mode (server-side only).
+ *
+ * @return string
+ */
+function active_webhook_secret() {
+	$s = raw()['stripe'];
+	return (string) ( 'live' === $s['mode'] ? $s['live_webhook_secret'] : $s['test_webhook_secret'] );
 }
 
 /**
