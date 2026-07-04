@@ -118,25 +118,28 @@ function order_response( $id ) {
 	$history  = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
 	$emaillog = json_decode( (string) get_post_meta( $id, 'dk_order_email_log', true ), true );
 	return array(
-		'id'        => (int) $id,
-		'number'    => (int) get_post_meta( $id, 'dk_order_number', true ),
-		'items'     => is_array( $items ) ? $items : array(),
-		'total'     => (string) get_post_meta( $id, 'dk_order_total', true ),
-		'status'    => (string) get_post_meta( $id, 'dk_order_status', true ),
-		'name'      => (string) get_post_meta( $id, 'dk_order_name', true ),
-		'email'     => (string) get_post_meta( $id, 'dk_order_email', true ),
-		'phone'     => (string) get_post_meta( $id, 'dk_order_phone', true ),
-		'notes'     => (string) get_post_meta( $id, 'dk_order_notes', true ),
-		'when'      => (string) get_post_meta( $id, 'dk_order_when', true ),
-		'payment'   => (string) get_post_meta( $id, 'dk_order_payment', true ),
-		'source'    => (string) get_post_meta( $id, 'dk_order_source', true ),
-		'pi'        => (string) get_post_meta( $id, 'dk_order_pi', true ),
-		'archived'  => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
-		'refundDue' => '1' === (string) get_post_meta( $id, 'dk_order_refund_due', true ),
-		'printed'   => (string) get_post_meta( $id, 'dk_order_printed', true ),
-		'history'   => is_array( $history ) ? $history : array(),
-		'emailLog'  => is_array( $emaillog ) ? $emaillog : array(),
-		'placed'    => (string) get_post_time( 'c', false, $id ),
+		'id'         => (int) $id,
+		'number'     => (int) get_post_meta( $id, 'dk_order_number', true ),
+		'items'      => is_array( $items ) ? $items : array(),
+		'total'      => (string) get_post_meta( $id, 'dk_order_total', true ),
+		'status'     => (string) get_post_meta( $id, 'dk_order_status', true ),
+		'name'       => (string) get_post_meta( $id, 'dk_order_name', true ),
+		'email'      => (string) get_post_meta( $id, 'dk_order_email', true ),
+		'phone'      => (string) get_post_meta( $id, 'dk_order_phone', true ),
+		'notes'      => (string) get_post_meta( $id, 'dk_order_notes', true ),
+		'when'       => (string) get_post_meta( $id, 'dk_order_when', true ),
+		'payment'    => (string) get_post_meta( $id, 'dk_order_payment', true ),
+		'source'     => (string) get_post_meta( $id, 'dk_order_source', true ),
+		'fulfilment' => 'delivery' === get_post_meta( $id, 'dk_order_fulfilment', true ) ? 'delivery' : 'collection',
+		'address'    => (string) get_post_meta( $id, 'dk_order_address', true ),
+		'fee'        => (string) get_post_meta( $id, 'dk_order_fee', true ),
+		'pi'         => (string) get_post_meta( $id, 'dk_order_pi', true ),
+		'archived'   => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
+		'refundDue'  => '1' === (string) get_post_meta( $id, 'dk_order_refund_due', true ),
+		'printed'    => (string) get_post_meta( $id, 'dk_order_printed', true ),
+		'history'    => is_array( $history ) ? $history : array(),
+		'emailLog'   => is_array( $emaillog ) ? $emaillog : array(),
+		'placed'     => (string) get_post_time( 'c', false, $id ),
 	);
 }
 
@@ -383,6 +386,23 @@ function place_order( $request ) {
 		return new \WP_Error( 'dinekit_order_min', __( 'Your order is below the minimum.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 
+	// Fulfilment: collection (default) or delivery (when enabled). Delivery needs
+	// an address, may have its own minimum, and adds a flat fee to the total.
+	$fulfilment = ( 'delivery' === $request->get_param( 'fulfilment' ) && ! empty( $settings['delivery_enabled'] ) ) ? 'delivery' : 'collection';
+	$address    = '';
+	$fee        = 0.0;
+	if ( 'delivery' === $fulfilment ) {
+		$address = sanitize_textarea_field( (string) $request->get_param( 'address' ) );
+		if ( '' === trim( $address ) ) {
+			return new \WP_Error( 'dinekit_order_addr', __( 'Please enter a delivery address.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		if ( $settings['delivery_min'] > 0 && $computed['total'] < (float) $settings['delivery_min'] ) {
+			return new \WP_Error( 'dinekit_order_dmin', __( 'Your order is below the delivery minimum.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		$fee = (float) $settings['delivery_fee'];
+	}
+	$grand = $computed['total'] + $fee;
+
 	$name  = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$email = sanitize_email( (string) $request->get_param( 'email' ) );
 	$phone = sanitize_text_field( (string) $request->get_param( 'phone' ) );
@@ -414,7 +434,7 @@ function place_order( $request ) {
 	$auto = ! empty( $settings['auto_accept'] );
 	update_post_meta( $post_id, 'dk_order_number', $number );
 	update_post_meta( $post_id, 'dk_order_items', wp_json_encode( $computed['items'] ) );
-	update_post_meta( $post_id, 'dk_order_total', number_format( $computed['total'], 2, '.', '' ) );
+	update_post_meta( $post_id, 'dk_order_total', number_format( $grand, 2, '.', '' ) );
 	update_post_meta( $post_id, 'dk_order_status', $auto ? 'preparing' : 'new' );
 	update_post_meta( $post_id, 'dk_order_name', $name );
 	update_post_meta( $post_id, 'dk_order_email', $email );
@@ -422,6 +442,9 @@ function place_order( $request ) {
 	update_post_meta( $post_id, 'dk_order_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 	update_post_meta( $post_id, 'dk_order_when', $when );
 	update_post_meta( $post_id, 'dk_order_source', 'online' );
+	update_post_meta( $post_id, 'dk_order_fulfilment', $fulfilment );
+	update_post_meta( $post_id, 'dk_order_address', $address );
+	update_post_meta( $post_id, 'dk_order_fee', number_format( $fee, 2, '.', '' ) );
 	Ordering\log_event( $post_id, __( 'Order received online', 'dinekit' ) );
 	if ( $auto ) {
 		Ordering\log_event( $post_id, __( 'Auto-accepted', 'dinekit' ) );
@@ -430,7 +453,7 @@ function place_order( $request ) {
 	// When Stripe is connected and there's something to charge, hold the order as
 	// awaiting payment (the webhook flips it to 'paid'); otherwise pay-on-collection.
 	require_once DINEKIT_DIR . 'includes/integrations.php';
-	$pay = \DineKit\Integrations\stripe_ready() && $computed['total'] > 0;
+	$pay = \DineKit\Integrations\stripe_ready() && $grand > 0;
 	update_post_meta( $post_id, 'dk_order_payment', $pay ? 'pending' : 'on_collection' );
 
 	require_once DINEKIT_DIR . 'includes/ordering/emails.php';
@@ -442,10 +465,12 @@ function place_order( $request ) {
 			'id'      => $pay ? $post_id : 0,
 			'pay'     => $pay,
 			'number'  => $number,
-			'total'   => number_format( $computed['total'], 2, '.', '' ),
+			'total'   => number_format( $grand, 2, '.', '' ),
 			'message' => $pay
 				? __( 'Almost there — please pay to confirm your order.', 'dinekit' )
-				: __( 'Order placed! We’ll have it ready for collection.', 'dinekit' ),
+				: ( 'delivery' === $fulfilment
+					? __( 'Order placed! We’ll deliver it to you.', 'dinekit' )
+					: __( 'Order placed! We’ll have it ready for collection.', 'dinekit' ) ),
 		)
 	);
 }

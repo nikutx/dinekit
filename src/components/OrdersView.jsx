@@ -46,6 +46,8 @@ const O_STATUS = [
 	{ key: 'new', label: 'New', fg: tokens.accentDark, bg: tokens.accentSoft },
 	{ key: 'preparing', label: 'Preparing', fg: tokens.amber, bg: tokens.amberSoft },
 	{ key: 'ready', label: 'Ready', fg: tokens.green, bg: tokens.greenSoft },
+	{ key: 'out_for_delivery', label: 'Out for delivery', fg: tokens.violet, bg: tokens.violetSoft },
+	{ key: 'delivered', label: 'Delivered', fg: tokens.muted, bg: tokens.soft },
 	{ key: 'completed', label: 'Completed', fg: tokens.muted, bg: tokens.soft },
 	{ key: 'cancelled', label: 'Cancelled', fg: tokens.red, bg: tokens.redSoft },
 ];
@@ -162,16 +164,16 @@ export default function OrdersView() {
 			return archived || [];
 		}
 		if ( tab === 'active' ) {
-			return orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) );
+			return orders.filter( ( o ) => [ 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) );
 		}
 		if ( tab === 'done' ) {
-			return orders.filter( ( o ) => [ 'completed', 'cancelled' ].includes( o.status ) );
+			return orders.filter( ( o ) => [ 'completed', 'cancelled', 'delivered' ].includes( o.status ) );
 		}
 		return orders;
 	}, [ orders, archived, tab ] );
 
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
-	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) ).length;
+	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) ).length;
 
 	const markPrinted = ( id, station ) => {
 		patchLocal( id, { printed: new Date().toISOString() } );
@@ -316,6 +318,9 @@ export default function OrdersView() {
 												{ o.printed && (
 													<Chip label="Printed" size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: tokens.muted, bgcolor: tokens.soft } } />
 												) }
+												{ o.fulfilment === 'delivery' && (
+													<Chip label="Delivery" size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: tokens.violet, bgcolor: tokens.violetSoft } } />
+												) }
 												<Box sx={ { flex: 1 } } />
 												<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
 												{ tab !== 'archived' && (
@@ -375,6 +380,7 @@ export default function OrdersView() {
 													return `${ li.qty }× ${ li.title }${ extra.length ? ` (${ extra.join( ', ' ) })` : '' }`;
 												} ).join( '  ·  ' ) }
 											</Typography>
+											{ o.fulfilment === 'delivery' && o.address && <Typography sx={ { fontSize: 12.5, color: tokens.violet, mt: 0.5, fontWeight: 600 } }>🛵 { o.address }</Typography> }
 											{ o.notes && <Typography sx={ { fontSize: 12.5, color: tokens.ink2, mt: 0.5, fontStyle: 'italic' } }>“{ o.notes }”</Typography> }
 										</Card>
 									);
@@ -582,6 +588,21 @@ function OrderSettings() {
 					sx={ { width: 240 } }
 				/>
 			</Stack>
+
+			<Divider sx={ { my: 2 } } />
+			<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: cfg.delivery_enabled ? 1.5 : 0 } }>
+				<Switch checked={ !! cfg.delivery_enabled } onChange={ ( e ) => patch( { delivery_enabled: e.target.checked } ) } />
+				<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Offer delivery</Typography>
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>Diners choose collection or delivery at checkout (no live tracking yet).</Typography>
+			</Stack>
+			{ cfg.delivery_enabled && (
+				<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
+					<TextField label="Delivery fee" type="number" size="small" value={ cfg.delivery_fee } onChange={ ( e ) => patch( { delivery_fee: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } sx={ { width: 130 } } />
+					<TextField label="Delivery min" type="number" size="small" value={ cfg.delivery_min } onChange={ ( e ) => patch( { delivery_min: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } helperText="0 = none" sx={ { width: 130 } } />
+					<TextField label="Delivery time (min)" type="number" size="small" value={ cfg.delivery_mins } onChange={ ( e ) => patch( { delivery_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) } sx={ { width: 150 } } />
+					<TextField label="Delivery area (note)" size="small" placeholder="e.g. within 3 miles" value={ cfg.delivery_area } onChange={ ( e ) => patch( { delivery_area: e.target.value } ) } sx={ { width: 240 } } />
+				</Stack>
+			) }
 
 			<Divider sx={ { my: 2 } } />
 			<Stack direction="row" alignItems="center" spacing={ 1.5 } flexWrap="wrap" useFlexGap>

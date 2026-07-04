@@ -60,14 +60,17 @@ function money( $n ) {
 function order_data( $id ) {
 	$items = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
 	return array(
-		'number' => (int) get_post_meta( $id, 'dk_order_number', true ),
-		'items'  => is_array( $items ) ? $items : array(),
-		'total'  => (float) get_post_meta( $id, 'dk_order_total', true ),
-		'name'   => (string) get_post_meta( $id, 'dk_order_name', true ),
-		'email'  => (string) get_post_meta( $id, 'dk_order_email', true ),
-		'phone'  => (string) get_post_meta( $id, 'dk_order_phone', true ),
-		'when'   => (string) get_post_meta( $id, 'dk_order_when', true ),
-		'notes'  => (string) get_post_meta( $id, 'dk_order_notes', true ),
+		'number'     => (int) get_post_meta( $id, 'dk_order_number', true ),
+		'items'      => is_array( $items ) ? $items : array(),
+		'total'      => (float) get_post_meta( $id, 'dk_order_total', true ),
+		'name'       => (string) get_post_meta( $id, 'dk_order_name', true ),
+		'email'      => (string) get_post_meta( $id, 'dk_order_email', true ),
+		'phone'      => (string) get_post_meta( $id, 'dk_order_phone', true ),
+		'when'       => (string) get_post_meta( $id, 'dk_order_when', true ),
+		'notes'      => (string) get_post_meta( $id, 'dk_order_notes', true ),
+		'fulfilment' => 'delivery' === get_post_meta( $id, 'dk_order_fulfilment', true ) ? 'delivery' : 'collection',
+		'address'    => (string) get_post_meta( $id, 'dk_order_address', true ),
+		'fee'        => (float) get_post_meta( $id, 'dk_order_fee', true ),
 	);
 }
 
@@ -100,8 +103,15 @@ function order_inner( $d ) {
 	}
 	$html .= '<tr><td style="padding:8px 10px;font-weight:800">' . esc_html__( 'Total', 'dinekit' ) . '</td>' .
 		'<td style="padding:8px 10px;text-align:right;font-weight:800">' . esc_html( money( $d['total'] ) ) . '</td></tr>';
+	if ( ! empty( $d['fee'] ) ) {
+		$html .= '<tr><td style="padding:2px 10px;color:#64748b">' . esc_html__( 'incl. delivery', 'dinekit' ) . '</td><td style="padding:2px 10px;text-align:right;color:#64748b">' . esc_html( money( $d['fee'] ) ) . '</td></tr>';
+	}
 	$html .= '</table>';
-	$html .= '<p style="font-size:14px;margin:14px 0 0"><strong>' . esc_html__( 'Collection:', 'dinekit' ) . '</strong> ' . esc_html( $when ) . '</p>';
+	if ( 'delivery' === ( $d['fulfilment'] ?? 'collection' ) ) {
+		$html .= '<p style="font-size:14px;margin:14px 0 0"><strong>' . esc_html__( 'Delivery to:', 'dinekit' ) . '</strong> ' . esc_html( $d['address'] ) . '</p>';
+	} else {
+		$html .= '<p style="font-size:14px;margin:14px 0 0"><strong>' . esc_html__( 'Collection:', 'dinekit' ) . '</strong> ' . esc_html( $when ) . '</p>';
+	}
 	if ( $d['notes'] ) {
 		$html .= '<p style="font-size:13px;color:#64748b;margin:6px 0 0">' . esc_html( $d['notes'] ) . '</p>';
 	}

@@ -425,6 +425,34 @@
 	color: var(--dko-muted);
 }
 
+/* Fulfilment toggle (collection / delivery) */
+.dinekit-order__fulfil {
+	display: flex;
+	gap: 6px;
+	background: var(--dko-soft);
+	border-radius: 12px;
+	padding: 4px;
+	margin: 0 0 16px;
+}
+.dinekit-order__fulfil-btn {
+	flex: 1;
+	border: 0;
+	background: transparent;
+	color: var(--dko-muted);
+	font: inherit;
+	font-weight: 700;
+	font-size: 14px;
+	padding: 9px 12px;
+	border-radius: 9px;
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.dinekit-order__fulfil-btn.is-active {
+	background: #fff;
+	color: var(--dko-ink);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
 /* Order payment step (Stripe Payment Element). */
 .dinekit-order__pay-element {
 	margin: 18px 0;

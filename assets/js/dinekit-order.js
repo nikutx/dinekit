@@ -370,15 +370,41 @@
 			back.addEventListener( 'click', function () { state.view = 'menu'; render(); } );
 			box.appendChild( back );
 
+			// Fulfilment: collection (default) or delivery (when the venue offers it).
+			state.fulfilment = state.fulfilment || 'collection';
+			var deliver = !! ( cfg.delivery && state.fulfilment === 'delivery' );
+			var feeVal = deliver ? ( cfg.deliveryFee || 0 ) : 0;
+			var orderTotal = subtotal() + feeVal;
+			if ( cfg.delivery ) {
+				var seg = el( 'div', 'dinekit-order__fulfil' );
+				[ [ 'collection', t.collection || 'Collection' ], [ 'delivery', t.delivery || 'Delivery' ] ].forEach( function ( opt ) {
+					var bt = el( 'button', 'dinekit-order__fulfil-btn' + ( state.fulfilment === opt[ 0 ] ? ' is-active' : '' ), opt[ 1 ] );
+					bt.type = 'button';
+					bt.addEventListener( 'click', function () { state.fulfilment = opt[ 0 ]; render(); } );
+					seg.appendChild( bt );
+				} );
+				box.appendChild( seg );
+			}
+
 			state.lines.forEach( function ( line ) {
 				var r = el( 'div', 'dinekit-order__sum-line' );
 				r.appendChild( el( 'span', null, line.qty + '× ' + ( findItem( line.itemId ) || {} ).title ) );
 				r.appendChild( el( 'span', null, money( lineTotal( line ) ) ) );
 				box.appendChild( r );
 			} );
+			if ( deliver ) {
+				var subL = el( 'div', 'dinekit-order__sum-line' );
+				subL.appendChild( el( 'span', null, t.subtotal || 'Subtotal' ) );
+				subL.appendChild( el( 'span', null, money( subtotal() ) ) );
+				box.appendChild( subL );
+				var feeL = el( 'div', 'dinekit-order__sum-line' );
+				feeL.appendChild( el( 'span', null, t.deliveryFee || 'Delivery' ) );
+				feeL.appendChild( el( 'span', null, money( feeVal ) ) );
+				box.appendChild( feeL );
+			}
 			var sub = el( 'div', 'dinekit-order__subtotal' );
 			sub.appendChild( el( 'span', null, t.total || 'Total' ) );
-			sub.appendChild( el( 'strong', null, money( subtotal() ) ) );
+			sub.appendChild( el( 'strong', null, money( orderTotal ) ) );
 			box.appendChild( sub );
 
 			var form = el( 'form', 'dinekit-order__form' );
@@ -398,6 +424,10 @@
 			row.appendChild( field( 'email', t.email || 'Email', 'email' ) );
 			row.appendChild( field( 'phone', t.phone || 'Phone', 'tel' ) );
 			form.appendChild( row );
+
+			if ( deliver ) {
+				form.appendChild( field( 'address', t.address || 'Delivery address', 'textarea' ) );
+			}
 
 			var whenL = el( 'label', 'dinekit-order__field' );
 			whenL.appendChild( el( 'span', null, t.collection || 'Collection' ) );
@@ -426,7 +456,7 @@
 			hp.appendChild( hpi );
 			form.appendChild( hp );
 
-			var submit = el( 'button', 'dinekit-order__place', ( t.placeOrder || 'Place order' ) + ' · ' + money( subtotal() ) );
+			var submit = el( 'button', 'dinekit-order__place', ( t.placeOrder || 'Place order' ) + ' · ' + money( orderTotal ) );
 			submit.type = 'submit';
 			form.appendChild( submit );
 			var result = el( 'p', 'dinekit-order__result' );
@@ -444,6 +474,12 @@
 					result.classList.add( 'is-no' );
 					return;
 				}
+				var address = ( deliver && form.address ) ? form.address.value.trim() : '';
+				if ( deliver && ! address ) {
+					result.textContent = t.needAddress || 'Please enter your delivery address.';
+					result.classList.add( 'is-no' );
+					return;
+				}
 				submit.disabled = true;
 				fetch( cfg.restUrl + 'checkout', {
 					method: 'POST',
@@ -454,6 +490,8 @@
 						phone: phone,
 						when: form.when.value,
 						notes: form.notes.value,
+						fulfilment: state.fulfilment,
+						address: address,
 						hp: form.hp.value,
 						items: state.lines.map( function ( l ) {
 							return { itemId: l.itemId, qty: l.qty, priceIndex: l.priceIndex, choices: l.choices, removed: l.removed };

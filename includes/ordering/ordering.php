@@ -162,11 +162,13 @@ function can_manage() {
  */
 function statuses() {
 	return array(
-		'new'       => __( 'New', 'dinekit' ),
-		'preparing' => __( 'Preparing', 'dinekit' ),
-		'ready'     => __( 'Ready', 'dinekit' ),
-		'completed' => __( 'Completed', 'dinekit' ),
-		'cancelled' => __( 'Cancelled', 'dinekit' ),
+		'new'              => __( 'New', 'dinekit' ),
+		'preparing'        => __( 'Preparing', 'dinekit' ),
+		'ready'            => __( 'Ready', 'dinekit' ),
+		'out_for_delivery' => __( 'Out for delivery', 'dinekit' ),
+		'delivered'        => __( 'Delivered', 'dinekit' ),
+		'completed'        => __( 'Completed', 'dinekit' ),
+		'cancelled'        => __( 'Cancelled', 'dinekit' ),
 	);
 }
 
@@ -213,6 +215,9 @@ function register() {
 		'dk_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
 		'dk_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
 		'dk_order_printed'    => 'string',  // ISO time the ticket was last printed.
+		'dk_order_fulfilment' => 'string',  // collection | delivery.
+		'dk_order_address'    => 'string',  // Delivery address (when delivery).
+		'dk_order_fee'        => 'string',  // Delivery fee (decimal string).
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -236,12 +241,18 @@ function register() {
  */
 function get_settings() {
 	$defaults = array(
-		'enabled'        => true,
-		'auto_accept'    => false, // false = receive & hold (accept/reject); true = auto-accept on arrival.
-		'prep_mins'      => 30,   // Minimum lead time before collection.
-		'min_order'      => 0,    // Minimum order value (0 = none).
-		'emails_enabled' => true, // Send customer + kitchen order emails.
-		'notify_email'   => '',   // Kitchen recipient (empty = site admin).
+		'enabled'          => true,
+		'auto_accept'      => false, // false = receive & hold (accept/reject); true = auto-accept on arrival.
+		'prep_mins'        => 30,    // Minimum lead time before collection.
+		'min_order'        => 0,     // Minimum order value (0 = none).
+		'emails_enabled'   => true,  // Send customer + kitchen order emails.
+		'notify_email'     => '',    // Kitchen recipient (empty = site admin).
+		// Delivery (non-tracked). Live driver/Maps tracking is a later expansion.
+		'delivery_enabled' => false, // Offer delivery alongside collection.
+		'delivery_fee'     => 0,     // Flat delivery fee.
+		'delivery_min'     => 0,     // Minimum food subtotal for delivery (0 = none).
+		'delivery_mins'    => 45,    // Estimated delivery lead time.
+		'delivery_area'    => '',    // Free-text note about the delivery area/zones.
 	);
 	$stored   = get_option( SETTINGS, array() );
 	return is_array( $stored ) ? array_merge( $defaults, $stored ) : $defaults;
@@ -273,6 +284,21 @@ function save_settings( $data ) {
 	if ( isset( $data['notify_email'] ) ) {
 		$email                   = sanitize_email( (string) $data['notify_email'] );
 		$current['notify_email'] = is_email( $email ) ? $email : '';
+	}
+	if ( isset( $data['delivery_enabled'] ) ) {
+		$current['delivery_enabled'] = (bool) $data['delivery_enabled'];
+	}
+	if ( isset( $data['delivery_fee'] ) ) {
+		$current['delivery_fee'] = max( 0, (float) $data['delivery_fee'] );
+	}
+	if ( isset( $data['delivery_min'] ) ) {
+		$current['delivery_min'] = max( 0, (float) $data['delivery_min'] );
+	}
+	if ( isset( $data['delivery_mins'] ) ) {
+		$current['delivery_mins'] = max( 0, min( 480, absint( $data['delivery_mins'] ) ) );
+	}
+	if ( isset( $data['delivery_area'] ) ) {
+		$current['delivery_area'] = sanitize_text_field( (string) $data['delivery_area'] );
 	}
 	update_option( SETTINGS, $current );
 	return $current;
