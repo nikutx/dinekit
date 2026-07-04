@@ -11,6 +11,8 @@ import {
 	Chip,
 	Drawer,
 	Tooltip,
+	ToggleButton,
+	ToggleButtonGroup,
 	CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -25,12 +27,14 @@ import EmptyState from './ui/EmptyState';
 import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
+import StaffRota from './StaffRota';
 
 export default function StaffView() {
 	const [ staff, setStaff ] = useState( [] );
 	const [ roles, setRoles ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ editing, setEditing ] = useState( null ); // staff object being edited, or null.
+	const [ tab, setTab ] = useState( 'people' );
 
 	useEffect( () => {
 		Promise.all( [ api.getStaff(), api.getStaffSettings() ] )
@@ -87,7 +91,14 @@ export default function StaffView() {
 				] }
 			/>
 
-			{ staff.length === 0 ? (
+			<ToggleButtonGroup exclusive size="small" value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 2 } }>
+				<ToggleButton value="people">People</ToggleButton>
+				<ToggleButton value="rota">Rota</ToggleButton>
+			</ToggleButtonGroup>
+
+			{ tab === 'rota' && <StaffRota staff={ staff } roles={ roles } /> }
+
+			{ tab === 'people' && ( staff.length === 0 ? (
 				<EmptyState
 					icon={ <BadgeIcon /> }
 					title="No team members yet"
@@ -117,7 +128,7 @@ export default function StaffView() {
 						</Card>
 					) ) }
 				</Stack>
-			) }
+			) ) }
 
 			<Drawer
 				anchor="right"

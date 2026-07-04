@@ -82,6 +82,179 @@ function register_routes() {
 			),
 		)
 	);
+
+	// Rota / shifts.
+	register_rest_route(
+		$ns,
+		'/shifts',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\list_shifts',
+				'permission_callback' => $perm,
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\create_shift',
+				'permission_callback' => $perm,
+			),
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/shifts/(?P<id>\d+)',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => __NAMESPACE__ . '\\update_shift',
+				'permission_callback' => $perm,
+			),
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => __NAMESPACE__ . '\\delete_shift',
+				'permission_callback' => $perm,
+			),
+		)
+	);
+}
+
+/**
+ * Minutes past midnight for "H:i".
+ *
+ * @param string $t Time.
+ * @return int
+ */
+function to_min( $t ) {
+	return preg_match( '/^(\d{1,2}):(\d{2})$/', (string) $t, $m ) ? (int) $m[1] * 60 + (int) $m[2] : 0;
+}
+
+/**
+ * Serialize a shift, with computed hours + labour cost from the member's rate.
+ *
+ * @param int $id Shift id.
+ * @return array<string,mixed>
+ */
+function shift_response( $id ) {
+	$staff_id = (int) get_post_meta( $id, 'dk_shift_staff', true );
+	$start    = (string) get_post_meta( $id, 'dk_shift_start', true );
+	$end      = (string) get_post_meta( $id, 'dk_shift_end', true );
+	$mins     = to_min( $end ) - to_min( $start );
+	if ( $mins <= 0 ) {
+		$mins += 1440; // Over-midnight shift.
+	}
+	$hours = round( $mins / 60, 2 );
+	$rate  = (float) get_post_meta( $staff_id, 'dk_rate', true );
+	return array(
+		'id'      => (int) $id,
+		'staffId' => $staff_id,
+		'date'    => (string) get_post_meta( $id, 'dk_shift_date', true ),
+		'start'   => $start,
+		'end'     => $end,
+		'role'    => (string) get_post_meta( $id, 'dk_shift_role', true ),
+		'note'    => (string) get_post_meta( $id, 'dk_shift_note', true ),
+		'hours'   => $hours,
+		'cost'    => round( $hours * $rate, 2 ),
+	);
+}
+
+/**
+ * GET /shifts?from&to — shifts within a date range (inclusive).
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function list_shifts( $request ) {
+	$from = sanitize_text_field( (string) $request->get_param( 'from' ) );
+	$to   = sanitize_text_field( (string) $request->get_param( 'to' ) );
+	$meta = array();
+	if ( $from && $to ) {
+		$meta[] = array(
+			'key'     => 'dk_shift_date',
+			'value'   => array( $from, $to ),
+			'compare' => 'BETWEEN',
+			'type'    => 'DATE',
+		);
+	}
+	$posts = get_posts(
+		array(
+			'post_type'      => 'dk_shift',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- one week of a venue's shifts.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'meta_query'     => $meta, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		)
+	);
+	return rest_ensure_response( array_map( __NAMESPACE__ . '\\shift_response', $posts ) );
+}
+
+/**
+ * Apply shift fields.
+ *
+ * @param int              $id      Shift id.
+ * @param \WP_REST_Request $request Request.
+ * @return void
+ */
+function apply_shift_fields( $id, $request ) {
+	if ( null !== $request->get_param( 'staffId' ) ) {
+		update_post_meta( $id, 'dk_shift_staff', absint( $request->get_param( 'staffId' ) ) );
+	}
+	foreach ( array(
+		'date'  => 'dk_shift_date',
+		'start' => 'dk_shift_start',
+		'end'   => 'dk_shift_end',
+		'role'  => 'dk_shift_role',
+		'note'  => 'dk_shift_note',
+	) as $param => $key ) {
+		if ( null !== $request->get_param( $param ) ) {
+			update_post_meta( $id, $key, sanitize_text_field( (string) $request->get_param( $param ) ) );
+		}
+	}
+}
+
+/**
+ * POST /shifts.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_shift( $request ) {
+	$id = wp_insert_post(
+		array(
+			'post_type'   => 'dk_shift',
+			'post_status' => 'publish',
+			'post_title'  => 'shift',
+		),
+		true
+	);
+	if ( is_wp_error( $id ) ) {
+		return $id;
+	}
+	apply_shift_fields( $id, $request );
+	return rest_ensure_response( shift_response( $id ) );
+}
+
+/**
+ * PATCH /shifts/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function update_shift( $request ) {
+	$id = (int) $request['id'];
+	apply_shift_fields( $id, $request );
+	return rest_ensure_response( shift_response( $id ) );
+}
+
+/**
+ * DELETE /shifts/:id.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function delete_shift( $request ) {
+	wp_delete_post( (int) $request['id'], true );
+	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
 /**

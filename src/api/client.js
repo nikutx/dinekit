@@ -114,6 +114,10 @@ export const api = {
 	deleteStaff: ( id ) => request( 'DELETE', `staff/${ id }` ),
 	getStaffSettings: () => request( 'GET', 'staff/settings' ),
 	saveStaffSettings: ( data ) => request( 'POST', 'staff/settings', data ),
+	getShifts: ( { from, to } ) => request( 'GET', 'shifts?' + new URLSearchParams( { from, to } ).toString() ),
+	createShift: ( data ) => request( 'POST', 'shifts', data ),
+	updateShift: ( id, data ) => request( 'PATCH', `shifts/${ id }`, data ),
+	deleteShift: ( id ) => request( 'DELETE', `shifts/${ id }` ),
 
 	getReviews: () => request( 'GET', 'reviews' ),
 	saveReviews: ( data ) => request( 'POST', 'reviews', data ),
