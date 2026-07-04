@@ -249,6 +249,16 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/integrations/test',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\test_integration',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/preview',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -410,6 +420,16 @@ function save_settings( $request ) {
 function get_integrations() {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
 	return rest_ensure_response( \DineKit\Integrations\get_public() );
+}
+
+/**
+ * POST /integrations/test — validate the saved Stripe keys against the API.
+ *
+ * @return \WP_REST_Response
+ */
+function test_integration() {
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	return rest_ensure_response( \DineKit\Integrations\test_connection() );
 }
 
 /**

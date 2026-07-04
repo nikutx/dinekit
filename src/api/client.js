@@ -69,6 +69,7 @@ export const api = {
 	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),
 	getIntegrations: () => request( 'GET', 'integrations' ),
 	saveIntegrations: ( data ) => request( 'POST', 'integrations', data ),
+	testStripe: () => request( 'POST', 'integrations/test' ),
 	saveMenuSchedule: ( id, schedule ) => request( 'POST', `menus/${ id }/schedule`, schedule ),
 	duplicateMenu: ( id ) => request( 'POST', `menus/${ id }/duplicate` ),
 	getMenuUsed: ( id ) => request( 'GET', `menus/${ id }/used` ),

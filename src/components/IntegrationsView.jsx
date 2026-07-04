@@ -51,6 +51,17 @@ export default function IntegrationsView() {
 	const [ form, setForm ] = useState( { enabled: false, mode: 'test', testPublishable: '', livePublishable: '' } );
 	const [ secret, setSecret ] = useState( { test: '', live: '' } );
 	const [ saveState, setSaveState ] = useState( 'idle' );
+	const [ test, setTest ] = useState( null );
+	const [ testing, setTesting ] = useState( false );
+
+	const runTest = () => {
+		setTesting( true );
+		setTest( null );
+		api.testStripe()
+			.then( setTest )
+			.catch( () => setTest( { valid: false, error: 'Could not reach the server.' } ) )
+			.finally( () => setTesting( false ) );
+	};
 
 	useEffect( () => {
 		api.getIntegrations()
@@ -186,6 +197,9 @@ export default function IntegrationsView() {
 					<Button variant="contained" onClick={ save } disabled={ saveState === 'saving' }>
 						{ saveState === 'saving' ? 'Saving…' : 'Save Stripe keys' }
 					</Button>
+					<Button variant="outlined" onClick={ runTest } disabled={ testing }>
+						{ testing ? 'Testing…' : 'Test connection' }
+					</Button>
 					{ saveState === 'saved' && (
 						<Stack direction="row" alignItems="center" spacing={ 0.5 } sx={ { color: tokens.green } }>
 							<CheckCircleIcon sx={ { fontSize: 18 } } />
@@ -197,6 +211,22 @@ export default function IntegrationsView() {
 						Where are my keys? <OpenInNewIcon sx={ { fontSize: 14 } } />
 					</Link>
 				</Stack>
+
+				{ test && (
+					<Box sx={ { mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: test.valid ? tokens.greenSoft : tokens.redSoft } }>
+						{ test.valid ? (
+							<Typography sx={ { fontSize: 13, color: tokens.green, fontWeight: 600 } }>
+								✓ Connected{ test.account ? ` to ${ test.account }` : '' } · { test.mode } mode
+								{ test.chargesEnabled ? ' · charges enabled' : ' · charges not enabled yet' }
+								{ test.modeMismatch ? ' — note: this key’s mode differs from your selected mode' : '' }
+							</Typography>
+						) : (
+							<Typography sx={ { fontSize: 13, color: tokens.red, fontWeight: 600 } }>
+								✗ { test.error || 'Connection failed.' }
+							</Typography>
+						) }
+					</Box>
+				) }
 			</Card>
 
 			{ /* Coming soon: accounting & CRM */ }

@@ -123,3 +123,73 @@ function stripe_ready() {
 	$sk  = 'live' === $s['mode'] ? $s['live_secret'] : $s['test_secret'];
 	return $s['enabled'] && '' !== $pk && '' !== $sk;
 }
+
+/**
+ * The secret key for the active mode (server-side only).
+ *
+ * @return string
+ */
+function active_secret() {
+	$s = raw()['stripe'];
+	return (string) ( 'live' === $s['mode'] ? $s['live_secret'] : $s['test_secret'] );
+}
+
+/**
+ * Validate the saved keys against Stripe's API — the "Test connection" action.
+ * Uses the merchant's own secret key server-side; the key never reaches the
+ * browser. Returns account status so the UI can confirm it's really connected.
+ *
+ * @return array<string,mixed>
+ */
+function test_connection() {
+	$s    = raw()['stripe'];
+	$mode = 'live' === $s['mode'] ? 'live' : 'test';
+	$sk   = active_secret();
+	if ( '' === $sk ) {
+		return array(
+			'valid' => false,
+			'mode'  => $mode,
+			'error' => __( 'Add and save your secret key for this mode first.', 'dinekit' ),
+		);
+	}
+
+	$res = wp_remote_get(
+		'https://api.stripe.com/v1/account',
+		array(
+			'headers' => array( 'Authorization' => 'Bearer ' . $sk ),
+			'timeout' => 15,
+		)
+	);
+	if ( is_wp_error( $res ) ) {
+		return array(
+			'valid' => false,
+			'mode'  => $mode,
+			'error' => $res->get_error_message(),
+		);
+	}
+	$code = (int) wp_remote_retrieve_response_code( $res );
+	$body = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+	if ( 200 !== $code ) {
+		return array(
+			'valid' => false,
+			'mode'  => $mode,
+			'error' => isset( $body['error']['message'] ) ? (string) $body['error']['message'] : __( 'Stripe rejected the key.', 'dinekit' ),
+		);
+	}
+
+	// The key prefix is the source of truth for live vs test.
+	$is_live = ( 0 === strpos( $sk, 'sk_live' ) || 0 === strpos( $sk, 'rk_live' ) );
+	$name    = '';
+	if ( isset( $body['business_profile']['name'] ) && '' !== (string) $body['business_profile']['name'] ) {
+		$name = (string) $body['business_profile']['name'];
+	} elseif ( isset( $body['email'] ) ) {
+		$name = (string) $body['email'];
+	}
+	return array(
+		'valid'          => true,
+		'mode'           => $is_live ? 'live' : 'test',
+		'account'        => $name,
+		'chargesEnabled' => ! empty( $body['charges_enabled'] ),
+		'modeMismatch'   => ( $is_live ? 'live' : 'test' ) !== $mode,
+	);
+}
