@@ -107,6 +107,14 @@ export const api = {
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getGuests: () => request( 'GET', 'guests' ),
+	// Staff & labour.
+	getStaff: () => request( 'GET', 'staff' ),
+	createStaff: ( data ) => request( 'POST', 'staff', data ),
+	updateStaff: ( id, data ) => request( 'PATCH', `staff/${ id }`, data ),
+	deleteStaff: ( id ) => request( 'DELETE', `staff/${ id }` ),
+	getStaffSettings: () => request( 'GET', 'staff/settings' ),
+	saveStaffSettings: ( data ) => request( 'POST', 'staff/settings', data ),
+
 	getReviews: () => request( 'GET', 'reviews' ),
 	saveReviews: ( data ) => request( 'POST', 'reviews', data ),
 	requestReview: ( bookingId ) => request( 'POST', `reviews/request/${ bookingId }` ),

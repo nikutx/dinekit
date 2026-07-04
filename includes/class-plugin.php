@@ -89,6 +89,9 @@ final class Plugin {
 		if ( $this->load( 'payments.php' ) ) {
 			Payments\init();
 		}
+		if ( $this->load( 'staff.php' ) ) {
+			Staff\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();
