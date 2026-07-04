@@ -212,6 +212,7 @@ function register() {
 		'dk_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
 		'dk_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
 		'dk_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
+		'dk_order_printed'    => 'string',  // ISO time the ticket was last printed.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -482,6 +483,7 @@ function recompute( $lines ) {
 			'lineTotal'  => $line_total,
 			'chosen'     => $chosen,
 			'removed'    => $removed,
+			'station'    => 'bar' === get_post_meta( $item_id, 'dk_station', true ) ? 'bar' : 'kitchen',
 		);
 	}
 

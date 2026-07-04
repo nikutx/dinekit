@@ -173,23 +173,47 @@ export default function OrdersView() {
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
 	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) ).length;
 
-	const printTicket = ( o ) => {
+	const markPrinted = ( id, station ) => {
+		patchLocal( id, { printed: new Date().toISOString() } );
+		api.updateOrder( id, { action: 'printed', station } ).then( ( o ) => o && patchLocal( id, o ) );
+	};
+
+	// Print a kitchen/bar ticket. `station` = 'kitchen' | 'bar' | 'all'; items are
+	// grouped by their prep station so each pass only gets what it makes.
+	const printTicket = ( o, station = 'all' ) => {
+		const stationOf = ( li ) => ( li.station === 'bar' ? 'bar' : 'kitchen' );
+		const wanted = o.items.filter( ( li ) => station === 'all' || stationOf( li ) === station );
+		if ( ! wanted.length ) {
+			return;
+		}
+		const line = ( li ) => {
+			let s = '<div class="dk-row"><span><strong>' + li.qty + '×</strong> ' + esc( li.title ) +
+				( li.priceLabel ? ' (' + esc( li.priceLabel ) + ')' : '' ) + '</span></div>';
+			const mods = li.chosen.map( ( c ) => c.label ).concat( ( li.removed || [] ).map( ( r ) => 'no ' + r ) );
+			if ( mods.length ) {
+				s += '<div style="font-size:13px;color:#64748b;padding:2px 0 6px 16px">' + esc( mods.join( ', ' ) ) + '</div>';
+			}
+			return s;
+		};
 		let body = '<h1>Order #' + o.number + '</h1>';
 		body += '<p class="dk-sub">' + esc( o.name ) + ( o.phone ? ' · ' + esc( o.phone ) : '' ) +
 			' · ' + ( o.when === 'asap' ? 'ASAP' : esc( o.when ) ) + '</p>';
-		o.items.forEach( ( li ) => {
-			body += '<div class="dk-row"><span><strong>' + li.qty + '×</strong> ' + esc( li.title ) +
-				( li.priceLabel ? ' (' + esc( li.priceLabel ) + ')' : '' ) + '</span><strong>' + money( li.lineTotal ) + '</strong></div>';
-			const mods = li.chosen.map( ( c ) => c.label ).concat( ( li.removed || [] ).map( ( r ) => 'no ' + r ) );
-			if ( mods.length ) {
-				body += '<div style="font-size:13px;color:#64748b;padding:2px 0 6px 16px">' + esc( mods.join( ', ' ) ) + '</div>';
+		const stations = station === 'all' ? [ 'kitchen', 'bar' ] : [ station ];
+		stations.forEach( ( st ) => {
+			const rows = wanted.filter( ( li ) => stationOf( li ) === st );
+			if ( ! rows.length ) {
+				return;
 			}
+			if ( station === 'all' && wanted.some( ( li ) => stationOf( li ) !== st ) ) {
+				body += '<h2 style="font-size:15px;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">' + ( st === 'bar' ? 'Bar' : 'Kitchen' ) + '</h2>';
+			}
+			rows.forEach( ( li ) => { body += line( li ); } );
 		} );
-		body += '<div class="dk-row" style="border-top:2px solid #0f172a;margin-top:6px"><span><strong>Total</strong></span><strong>' + money( o.total ) + '</strong></div>';
 		if ( o.notes ) {
 			body += '<p class="dk-flag">“' + esc( o.notes ) + '”</p>';
 		}
-		printDoc( 'Order #' + o.number, body );
+		printDoc( 'Order #' + o.number + ( station === 'all' ? '' : ' · ' + station ), body );
+		markPrinted( o.id, station );
 	};
 
 	if ( loading ) {
@@ -289,6 +313,9 @@ export default function OrdersView() {
 												{ pay && (
 													<Chip label={ pay.label } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: pay.fg, bgcolor: pay.bg } } />
 												) }
+												{ o.printed && (
+													<Chip label="Printed" size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: tokens.muted, bgcolor: tokens.soft } } />
+												) }
 												<Box sx={ { flex: 1 } } />
 												<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
 												{ tab !== 'archived' && (
@@ -358,7 +385,7 @@ export default function OrdersView() {
 				</Stack>
 			) }
 			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } disableEnforceFocus sx={ { zIndex: 100000 } } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
-				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } onCancel={ () => { reject( detail.id ); setDetail( null ); } } /> }
+				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } onCancel={ () => { reject( detail.id ); setDetail( null ); } } onPrint={ ( st ) => printTicket( detail, st ) } /> }
 			</Drawer>
 		</Page>
 	);
@@ -601,10 +628,12 @@ function DRow( { label, value, mono } ) {
 
 // Full order detail: customer, items, payment (+Stripe id), receipt email log
 // with resend, and the status/payment history trail.
-function OrderDetail( { order, money, onClose, onResend, onCancel } ) {
+function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint } ) {
 	const m = O_STATUS.find( ( s ) => s.key === order.status ) || O_STATUS[ 0 ];
 	const pay = PAYMENT[ order.payment ];
 	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
+	const hasBar = ( order.items || [] ).some( ( li ) => li.station === 'bar' );
+	const hasKitchen = ( order.items || [] ).some( ( li ) => li.station !== 'bar' );
 	// Manager override: cancel + refund/release even after an order was accepted.
 	const canCancel = ! [ 'cancelled', 'completed' ].includes( order.status );
 	const refundable = [ 'paid', 'authorized', 'pending' ].includes( order.payment );
@@ -692,6 +721,15 @@ function OrderDetail( { order, money, onClose, onResend, onCancel } ) {
 						}
 					/>
 				) }
+			</DSection>
+
+			<DSection title="Tickets">
+				<Stack direction="row" spacing={ 1 } flexWrap="wrap" useFlexGap>
+					<Button size="small" variant="outlined" onClick={ () => onPrint( 'all' ) }>Print ticket</Button>
+					{ hasKitchen && hasBar && <Button size="small" variant="outlined" onClick={ () => onPrint( 'kitchen' ) }>Kitchen only</Button> }
+					{ hasBar && <Button size="small" variant="outlined" onClick={ () => onPrint( 'bar' ) }>Bar only</Button> }
+				</Stack>
+				{ order.printed && <Typography sx={ { fontSize: 12.5, color: tokens.muted, mt: 0.75 } }>Last printed { fmt( order.printed ) }</Typography> }
 			</DSection>
 
 			<DSection title="Receipt email" action={ order.email ? <Button size="small" startIcon={ <ReplayIcon /> } onClick={ onResend }>Resend</Button> : null }>

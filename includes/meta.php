@@ -76,6 +76,23 @@ function register() {
 		)
 	);
 
+	// Prep station for order-ticket routing: 'kitchen' (default) or 'bar'.
+	register_post_meta(
+		'dk_menu_item',
+		'dk_station',
+		array(
+			'type'              => 'string',
+			'description'       => __( 'Prep station for order tickets: kitchen or bar.', 'dinekit' ),
+			'single'            => true,
+			'default'           => 'kitchen',
+			'show_in_rest'      => false,
+			'sanitize_callback' => static function ( $v ) {
+				return 'bar' === $v ? 'bar' : 'kitchen';
+			},
+			'auth_callback'     => __NAMESPACE__ . '\\can_edit_item',
+		)
+	);
+
 	// Dish customizations: groups of options a diner can pick or remove.
 	register_post_meta(
 		'dk_menu_item',

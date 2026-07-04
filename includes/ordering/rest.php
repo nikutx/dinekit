@@ -133,6 +133,7 @@ function order_response( $id ) {
 		'pi'        => (string) get_post_meta( $id, 'dk_order_pi', true ),
 		'archived'  => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
 		'refundDue' => '1' === (string) get_post_meta( $id, 'dk_order_refund_due', true ),
+		'printed'   => (string) get_post_meta( $id, 'dk_order_printed', true ),
 		'history'   => is_array( $history ) ? $history : array(),
 		'emailLog'  => is_array( $emaillog ) ? $emaillog : array(),
 		'placed'    => (string) get_post_time( 'c', false, $id ),
@@ -265,6 +266,11 @@ function update_order( $request ) {
 		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 		$sent = Ordering\Emails\resend_confirmation( $id );
 		Ordering\log_event( $id, $sent ? __( 'Receipt re-sent to customer', 'dinekit' ) : __( 'Receipt resend failed', 'dinekit' ) );
+	} elseif ( 'printed' === $action ) {
+		update_post_meta( $id, 'dk_order_printed', current_time( 'c' ) );
+		$station = sanitize_key( (string) $request->get_param( 'station' ) );
+		/* translators: %s: station name (kitchen/bar/all). */
+		Ordering\log_event( $id, sprintf( __( 'Ticket printed (%s)', 'dinekit' ), '' !== $station ? $station : 'all' ) );
 	}
 
 	$status = (string) $request->get_param( 'status' );

@@ -12,6 +12,8 @@ import {
 	FormControlLabel,
 	Divider,
 	Tooltip,
+	ToggleButton,
+	ToggleButtonGroup,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -188,6 +190,20 @@ export default function ItemEditor( { item, store, onClose } ) {
 						onChange={ ( e ) => setField( 'badge', e.target.value ) }
 						placeholder="e.g. New, Popular, Chef’s Special"
 					/>
+				</Box>
+
+				<Box>
+					<Typography sx={ labelSx }>Prep station</Typography>
+					<ToggleButtonGroup
+						exclusive
+						size="small"
+						value={ form.station || 'kitchen' }
+						onChange={ ( e, v ) => v && setNow( 'station', v ) }
+					>
+						<ToggleButton value="kitchen">Kitchen</ToggleButton>
+						<ToggleButton value="bar">Bar</ToggleButton>
+					</ToggleButtonGroup>
+					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 0.5 } }>Which pass this prints to on order tickets.</Typography>
 				</Box>
 
 				<TermChips

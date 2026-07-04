@@ -832,6 +832,7 @@ function item_response( $post ) {
 		'prices'      => array_values( $prices ),
 		'modifiers'   => array_values( $modifiers ),
 		'badge'       => (string) get_post_meta( $post->ID, 'dk_badge', true ),
+		'station'     => 'bar' === get_post_meta( $post->ID, 'dk_station', true ) ? 'bar' : 'kitchen',
 		'sections'    => $term_ids( 'dk_section' ),
 		'menus'       => $term_ids( 'dk_menu' ),
 		'dietary'     => $term_ids( 'dk_dietary' ),
@@ -1024,6 +1025,9 @@ function apply_item_fields( $post_id, $request ) {
 	}
 	if ( null !== $request->get_param( 'badge' ) ) {
 		update_post_meta( $post_id, 'dk_badge', sanitize_text_field( (string) $request->get_param( 'badge' ) ) );
+	}
+	if ( null !== $request->get_param( 'station' ) ) {
+		update_post_meta( $post_id, 'dk_station', 'bar' === $request->get_param( 'station' ) ? 'bar' : 'kitchen' );
 	}
 
 	$taxonomy_params = array(
