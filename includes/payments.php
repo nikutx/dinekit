@@ -300,6 +300,8 @@ function handle_webhook( $request ) {
 		}
 		if ( $booking_id && 'dk_booking' === get_post_type( $booking_id ) ) {
 			update_post_meta( $booking_id, 'dk_deposit_paid', 1 );
+			require_once DINEKIT_DIR . 'includes/bookings/register.php';
+			\DineKit\Bookings\log_event( $booking_id, __( 'Deposit paid', 'dinekit' ) );
 			// A paid deposit secures the table — promote a pending request to confirmed.
 			if ( 'pending' === (string) get_post_meta( $booking_id, 'dk_status', true ) ) {
 				update_post_meta( $booking_id, 'dk_status', 'confirmed' );

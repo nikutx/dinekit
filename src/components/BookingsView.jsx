@@ -17,9 +17,13 @@ import {
 	Snackbar,
 	ToggleButton,
 	ToggleButtonGroup,
+	Drawer,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
@@ -45,6 +49,7 @@ import { ListSkeleton } from './ui/Skeletons';
 import BookingSettingsView from './BookingSettingsView';
 import ServiceTimeline from './ServiceTimeline';
 import PageTour from './PageTour';
+import { DetailSection, DetailRow } from './ui/Detail';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -107,14 +112,23 @@ export default function BookingsView() {
 			.catch( ( e ) => setReviewMsg( e.message || 'Could not send the request' ) );
 	};
 
+	const [ detail, setDetail ] = useState( null ); // Booking shown in the detail drawer.
+	const patchLocal = ( id, changes ) => {
+		setBookings( ( bs ) => bs.map( ( b ) => ( b.id === id ? { ...b, ...changes } : b ) ) );
+		setDetail( ( d ) => ( d && d.id === id ? { ...d, ...changes } : d ) );
+	};
+
 	const setStatus = ( id, status ) => {
-		setBookings( ( bs ) => bs.map( ( b ) => ( b.id === id ? { ...b, status } : b ) ) );
-		api.updateBooking( id, { status } );
+		patchLocal( id, { status } );
+		// Use the server response so deposit/refund fields (e.g. cancelling a paid
+		// booking → refunded) reflect in the diary + open drawer.
+		api.updateBooking( id, { status } ).then( ( b ) => b && patchLocal( id, b ) );
 	};
 
 	const remove = async ( id ) => {
 		await api.deleteBooking( id );
 		setBookings( ( bs ) => bs.filter( ( b ) => b.id !== id ) );
+		setDetail( ( d ) => ( d && d.id === id ? null : d ) );
 	};
 
 	const printDay = () => {
@@ -414,6 +428,7 @@ export default function BookingsView() {
 												onStatus={ ( s ) => setStatus( b.id, s ) }
 												onDelete={ () => remove( b.id ) }
 												onRequestReview={ () => askReview( b.id ) }
+												onOpen={ () => setDetail( b ) }
 											/>
 										) ) }
 									</Stack>
@@ -431,11 +446,14 @@ export default function BookingsView() {
 				message={ reviewMsg }
 				anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } }
 			/>
+			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } disableEnforceFocus sx={ { zIndex: 100000 } } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
+				{ detail && <BookingDetail booking={ detail } onClose={ () => setDetail( null ) } onCancel={ () => setStatus( detail.id, 'cancelled' ) } /> }
+			</Drawer>
 		</Page>
 	);
 }
 
-function BookingRow( { booking, onStatus, onDelete, onRequestReview } ) {
+function BookingRow( { booking, onStatus, onDelete, onRequestReview, onOpen } ) {
 	const meta = statusMeta( booking.status );
 	return (
 		<Stack
@@ -505,6 +523,11 @@ function BookingRow( { booking, onStatus, onDelete, onRequestReview } ) {
 					</MenuItem>
 				) ) }
 			</Select>
+			<Tooltip title="Details">
+				<IconButton size="small" onClick={ onOpen } sx={ { color: tokens.muted2 } }>
+					<InfoOutlinedIcon fontSize="small" />
+				</IconButton>
+			</Tooltip>
 			{ booking.email && (
 				<Tooltip title="Ask this guest for a review">
 					<IconButton size="small" onClick={ onRequestReview } sx={ { color: tokens.muted2 } }>
@@ -772,6 +795,88 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 					</Button>
 				) }
 			</Stack>
+		</Box>
+	);
+}
+
+// Full booking detail: reservation, guest, deposit/payment (+Stripe link),
+// history trail, and a Cancel & refund override.
+function BookingDetail( { booking, onClose, onCancel } ) {
+	const m = statusMeta( booking.status );
+	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
+	const canCancel = ! [ 'cancelled', 'no_show', 'completed' ].includes( booking.status );
+	const stripeUrl = booking.depositPi ? `https://dashboard.stripe.com/${ api.config.stripeMode === 'live' ? '' : 'test/' }payments/${ booking.depositPi }` : '';
+	return (
+		<Box sx={ { p: 3 } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
+				<Typography variant="h6" sx={ { fontSize: 18 } }>{ booking.name || 'Guest' }</Typography>
+				<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
+			</Stack>
+			<Stack direction="row" spacing={ 1 } sx={ { mb: 2 } } flexWrap="wrap" useFlexGap>
+				<Chip label={ m.label } size="small" sx={ { fontWeight: 600, color: m.fg, bgcolor: m.bg } } />
+				{ booking.depositPaid && <Chip label={ booking.depositAmount ? `Deposit £${ ( booking.depositAmount / 100 ).toFixed( 2 ) } paid` : 'Deposit paid' } size="small" sx={ { fontWeight: 600, color: tokens.green, bgcolor: tokens.greenSoft } } /> }
+			</Stack>
+
+			{ booking.refundDue && (
+				<Box sx={ { mb: 2, p: 1.5, borderRadius: 2, bgcolor: tokens.redSoft } }>
+					<Stack direction="row" spacing={ 1 } alignItems="center">
+						<ErrorOutlineIcon sx={ { fontSize: 16, color: tokens.red } } />
+						<Typography sx={ { fontSize: 13, color: tokens.red, fontWeight: 600 } }>A deposit refund is owed — refund the guest in Stripe.</Typography>
+					</Stack>
+				</Box>
+			) }
+
+			{ canCancel && (
+				<Button size="small" variant="outlined" color="error" sx={ { mb: 2 } }
+					onClick={ () => { if ( window.confirm( booking.depositPaid ? 'Cancel this booking and refund the deposit?' : 'Cancel this booking?' ) ) { onCancel(); } } }>
+					{ booking.depositPaid ? 'Cancel & refund' : 'Cancel booking' }
+				</Button>
+			) }
+
+			<DetailSection title="Reservation">
+				<DetailRow label="Date" value={ booking.date } />
+				<DetailRow label="Time" value={ booking.time } />
+				<DetailRow label="Party" value={ `${ booking.party } ${ booking.party === 1 ? 'guest' : 'guests' }` } />
+				<DetailRow label="Table" value={ booking.table || 'Unassigned' } />
+				{ booking.source && <DetailRow label="Source" value={ booking.source } /> }
+			</DetailSection>
+
+			<DetailSection title="Guest">
+				<DetailRow label="Name" value={ booking.name || '—' } />
+				{ booking.email && <DetailRow label="Email" value={ booking.email } /> }
+				{ booking.phone && <DetailRow label="Phone" value={ booking.phone } /> }
+			</DetailSection>
+
+			{ booking.notes && (
+				<DetailSection title="Notes">
+					<Typography sx={ { fontSize: 13, fontStyle: 'italic', color: tokens.ink2 } }>“{ booking.notes }”</Typography>
+				</DetailSection>
+			) }
+
+			{ ( booking.depositRequired || booking.depositPaid || booking.depositPi ) && (
+				<DetailSection title="Deposit">
+					<DetailRow label="Status" value={ booking.depositPaid ? 'Paid' : ( booking.depositRequired ? 'Due' : '—' ) } />
+					{ booking.depositAmount > 0 && <DetailRow label="Amount" value={ `£${ ( booking.depositAmount / 100 ).toFixed( 2 ) }` } /> }
+					{ booking.depositPi && (
+						<DetailRow label="Stripe" mono value={
+							<Box component="a" href={ stripeUrl } target="_blank" rel="noopener" sx={ { color: tokens.accent, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } } }>{ booking.depositPi } ↗</Box>
+						} />
+					) }
+				</DetailSection>
+			) }
+
+			{ ( booking.history || [] ).length > 0 && (
+				<DetailSection title="History">
+					<Stack spacing={ 0.5 }>
+						{ booking.history.map( ( h, i ) => (
+							<Stack key={ i } direction="row" spacing={ 1 }>
+								<Typography sx={ { color: tokens.muted2, minWidth: 130, fontSize: 12 } }>{ fmt( h.t ) }</Typography>
+								<Typography sx={ { color: tokens.ink2, fontSize: 12.5 } }>{ h.e }</Typography>
+							</Stack>
+						) ) }
+					</Stack>
+				</DetailSection>
+			) }
 		</Box>
 	);
 }

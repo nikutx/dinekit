@@ -749,6 +749,7 @@ function booking_response( $id ) {
 		'depositRequired' => '1' === (string) get_post_meta( $id, 'dk_deposit_required', true ),
 		'depositPaid'     => '1' === (string) get_post_meta( $id, 'dk_deposit_paid', true ),
 		'depositAmount'   => (int) get_post_meta( $id, 'dk_deposit_amount', true ),
+		'depositPi'       => (string) get_post_meta( $id, 'dk_deposit_pi', true ),
 		'archived'        => '1' === (string) get_post_meta( $id, 'dk_archived', true ),
 		'refundDue'       => '1' === (string) get_post_meta( $id, 'dk_refund_due', true ),
 		'history'         => is_array( $history ) ? $history : array(),
@@ -878,6 +879,7 @@ function create_booking( $request ) {
 	update_post_meta( $post_id, 'dk_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 	update_post_meta( $post_id, 'dk_status', $status );
 	update_post_meta( $post_id, 'dk_source', 'admin' );
+	Bookings\log_event( $post_id, __( 'Booking created by staff', 'dinekit' ) );
 
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id, false );
@@ -1357,6 +1359,7 @@ function public_book( $request ) {
 	if ( \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
 		update_post_meta( $post_id, 'dk_deposit_required', 1 );
 	}
+	Bookings\log_event( $post_id, __( 'Booking received online', 'dinekit' ) );
 
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id );
