@@ -211,14 +211,38 @@ export default function BookingsView() {
 		printDoc( 'Service sheet — ' + prettyDate( date ), body );
 	};
 
+	const [ prefill, setPrefill ] = useState( null ); // { time, tableId } for click-to-book.
 	const onCreated = ( booking ) => {
 		setAdding( false );
+		setPrefill( null );
 		if ( booking.date === date ) {
 			setBookings( ( bs ) =>
 				[ ...bs, booking ].sort( ( a, b ) => ( a.time > b.time ? 1 : -1 ) )
 			);
 		} else {
 			setDate( booking.date );
+		}
+	};
+
+	// Timeline: click an empty table cell → open the booking form pre-filled.
+	const createAt = ( tableId, time ) => {
+		setPrefill( { time, tableId } );
+		setView( 'list' );
+		setAdding( true );
+	};
+
+	// Walk-in: an on-the-spot guest, seated immediately with no details required.
+	const addWalkIn = async () => {
+		const now = new Date();
+		let min = now.getHours() * 60 + now.getMinutes();
+		min = Math.max( svc.openMin, Math.min( svc.closeMin, Math.round( min / 15 ) * 15 ) );
+		const p2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		const time = p2( Math.floor( min / 60 ) ) + ':' + p2( min % 60 );
+		try {
+			const booking = await api.createBooking( { date, time, party: 2, name: 'Walk-in', status: 'seated', tableId: 0, comboId: 0 } );
+			onCreated( booking );
+		} catch ( e ) {
+			setReviewMsg( e.message || 'Could not add the walk-in' );
 		}
 	};
 
@@ -254,6 +278,9 @@ export default function BookingsView() {
 								<TuneIcon />
 							</IconButton>
 						</Tooltip>
+						<Button variant="outlined" startIcon={ <PeopleAltIcon /> } onClick={ addWalkIn }>
+							Walk-in
+						</Button>
 						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( ( v ) => ! v ) }>
 							New booking
 						</Button>
@@ -273,7 +300,7 @@ export default function BookingsView() {
 			/>
 
 			<Collapse in={ adding } unmountOnExit>
-				<NewBooking initialDate={ date } onCreated={ onCreated } onCancel={ () => setAdding( false ) } />
+				<NewBooking initialDate={ date } initialTime={ prefill && prefill.time } initialTable={ prefill && prefill.tableId } onCreated={ onCreated } onCancel={ () => { setAdding( false ); setPrefill( null ); } } />
 			</Collapse>
 
 			{ /* Day navigator — one cohesive toolbar: segmented date stepper + jump-to-today */ }
@@ -348,6 +375,8 @@ export default function BookingsView() {
 					openMin={ svc.openMin }
 					closeMin={ svc.closeMin }
 					turnMin={ turnMin }
+					onSelect={ ( b ) => setDetail( b ) }
+					onCreate={ createAt }
 				/>
 			) }
 
@@ -546,8 +575,8 @@ function BookingRow( { booking, onStatus, onDelete, onRequestReview, onOpen } ) 
 
 const BLANK = { name: '', phone: '', email: '', party: 2, time: '19:00', notes: '' };
 
-function NewBooking( { initialDate, onCreated, onCancel } ) {
-	const [ form, setForm ] = useState( { ...BLANK, date: initialDate } );
+function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel } ) {
+	const [ form, setForm ] = useState( { ...BLANK, date: initialDate, time: initialTime || BLANK.time } );
 	const [ avail, setAvail ] = useState( null ); // null | { available, tables, combos }
 	const [ checking, setChecking ] = useState( false );
 	const [ tableId, setTableId ] = useState( 0 ); // 0 = auto
@@ -555,6 +584,7 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 	const [ saving, setSaving ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const debounce = useRef( null );
+	const prefillTable = useRef( initialTable || 0 ); // Pre-select the clicked table once availability loads.
 
 	const set = ( patch ) => setForm( ( f ) => ( { ...f, ...patch } ) );
 
@@ -575,6 +605,14 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 		}, 350 );
 		return () => clearTimeout( debounce.current );
 	}, [ form.date, form.time, form.party ] );
+
+	// Pre-select the table clicked in the timeline, once it's confirmed available.
+	useEffect( () => {
+		if ( avail && prefillTable.current && ( avail.tables || [] ).some( ( t ) => t.id === prefillTable.current ) ) {
+			setTableId( prefillTable.current );
+			prefillTable.current = 0;
+		}
+	}, [ avail ] );
 
 	const noTables = avail && ! avail.available;
 

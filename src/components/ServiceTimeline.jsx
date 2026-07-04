@@ -23,8 +23,9 @@ const colorFor = ( s ) => STATUS_COLOR[ s ] || tokens.muted;
 
 const LABEL_W = 150;
 
-export default function ServiceTimeline( { bookings, tables, areas, combos, events, eventCovers, openMin, closeMin, turnMin, onSelect } ) {
+export default function ServiceTimeline( { bookings, tables, areas, combos, events, eventCovers, openMin, closeMin, turnMin, onSelect, onCreate } ) {
 	const span = Math.max( 60, closeMin - openMin );
+	const hourPct = ( 60 / span ) * 100; // Width of one hour, for the gridlines.
 	const active = bookings.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) );
 	const comboMembers = Object.fromEntries( ( combos || [] ).map( ( c ) => [ c.id, c.tables ] ) );
 
@@ -50,7 +51,7 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 		return (
 			<Tooltip title={ `${ b.time } · ${ b.name || 'Guest' } · ${ b.party }p · ${ b.status }` }>
 				<Box
-					onClick={ () => onSelect && onSelect( b ) }
+					onClick={ ( e ) => { e.stopPropagation(); onSelect && onSelect( b ); } }
 					sx={ {
 						position: 'absolute',
 						left: `${ left }%`,
@@ -79,19 +80,45 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 		);
 	};
 
-	const Row = ( { label, sub, blocks, head } ) => (
-		<Stack direction="row" sx={ { borderTop: `1px solid ${ tokens.border }`, minHeight: head ? 30 : 42, bgcolor: head ? tokens.soft : 'transparent' } }>
-			<Box sx={ { width: LABEL_W, flexShrink: 0, px: 1.5, py: 0.75, borderRight: `1px solid ${ tokens.border }` } }>
-				<Typography sx={ { fontSize: head ? 12 : 13, fontWeight: head ? 700 : 650, color: head ? tokens.muted : tokens.ink, textTransform: head ? 'uppercase' : 'none', letterSpacing: head ? '0.03em' : 0 } }>
-					{ label }
-				</Typography>
-				{ sub && <Typography sx={ { fontSize: 11, color: tokens.muted } }>{ sub }</Typography> }
-			</Box>
-			<Box sx={ { position: 'relative', flex: 1, minWidth: 0 } }>
-				{ ( blocks || [] ).map( ( b ) => <Block key={ b.id } b={ b } /> ) }
-			</Box>
-		</Stack>
-	);
+	// Click an empty part of a table row to start a booking at that time + table.
+	const createAt = ( tableId, e ) => {
+		if ( ! onCreate || ! tableId ) {
+			return;
+		}
+		const rect = e.currentTarget.getBoundingClientRect();
+		let min = openMin + ( ( e.clientX - rect.left ) / rect.width ) * span;
+		min = Math.max( openMin, Math.min( closeMin, Math.round( min / 15 ) * 15 ) );
+		onCreate( tableId, hhmm( min ) );
+	};
+
+	const Row = ( { label, sub, blocks, head, tableId } ) => {
+		const clickable = !! ( onCreate && tableId );
+		return (
+			<Stack direction="row" sx={ { borderTop: `1px solid ${ tokens.border }`, minHeight: head ? 30 : 42, bgcolor: head ? tokens.soft : 'transparent' } }>
+				<Box sx={ { width: LABEL_W, flexShrink: 0, px: 1.5, py: 0.75, borderRight: `1px solid ${ tokens.border }` } }>
+					<Typography sx={ { fontSize: head ? 12 : 13, fontWeight: head ? 700 : 650, color: head ? tokens.muted : tokens.ink, textTransform: head ? 'uppercase' : 'none', letterSpacing: head ? '0.03em' : 0 } }>
+						{ label }
+					</Typography>
+					{ sub && <Typography sx={ { fontSize: 11, color: tokens.muted } }>{ sub }</Typography> }
+				</Box>
+				<Box
+					onClick={ clickable ? ( e ) => createAt( tableId, e ) : undefined }
+					title={ clickable ? 'Click to add a booking here' : undefined }
+					sx={ {
+						position: 'relative',
+						flex: 1,
+						minWidth: 0,
+						cursor: clickable ? 'copy' : 'default',
+						// Per-hour vertical gridlines for clear separation.
+						backgroundImage: head ? 'none' : `repeating-linear-gradient(to right, ${ tokens.border } 0 1px, transparent 1px ${ hourPct }%)`,
+						'&:hover': clickable ? { bgcolor: tokens.soft } : {},
+					} }
+				>
+					{ ( blocks || [] ).map( ( b ) => <Block key={ b.id } b={ b } /> ) }
+				</Box>
+			</Stack>
+		);
+	};
 
 	return (
 		<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '12px', overflowX: 'auto', bgcolor: tokens.surface } }>
@@ -137,7 +164,7 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 					return (
 						<React.Fragment key={ z.id }>
 							<Row label={ z.name } head />
-							{ zt.map( ( t ) => <Row key={ t.id } label={ t.name } sub={ `${ t.seats } seats` } blocks={ rowsFor( t.id ) } /> ) }
+							{ zt.map( ( t ) => <Row key={ t.id } label={ t.name } sub={ `${ t.seats } seats` } blocks={ rowsFor( t.id ) } tableId={ t.id } /> ) }
 						</React.Fragment>
 					);
 				} ) }
