@@ -259,6 +259,16 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/integrations/webhook',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\register_stripe_webhook',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/preview',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -430,6 +440,20 @@ function get_integrations() {
 function test_integration() {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
 	return rest_ensure_response( \DineKit\Integrations\test_connection() );
+}
+
+/**
+ * POST /integrations/webhook — auto-create the Stripe webhook endpoint for the
+ * active mode and capture its signing secret. Returns the refreshed public
+ * settings so the UI reflects the new "webhook set" status.
+ *
+ * @return \WP_REST_Response
+ */
+function register_stripe_webhook() {
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	$result             = \DineKit\Integrations\register_webhook();
+	$result['settings'] = \DineKit\Integrations\get_public();
+	return rest_ensure_response( $result );
 }
 
 /**

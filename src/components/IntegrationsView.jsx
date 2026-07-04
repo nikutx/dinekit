@@ -53,6 +53,22 @@ export default function IntegrationsView() {
 	const [ saveState, setSaveState ] = useState( 'idle' );
 	const [ test, setTest ] = useState( null );
 	const [ testing, setTesting ] = useState( false );
+	const [ hook, setHook ] = useState( null );
+	const [ hooking, setHooking ] = useState( false );
+
+	const setupWebhook = () => {
+		setHooking( true );
+		setHook( null );
+		api.registerStripeWebhook()
+			.then( ( res ) => {
+				setHook( res );
+				if ( res.settings ) {
+					setData( res.settings );
+				}
+			} )
+			.catch( () => setHook( { ok: false, error: 'Could not reach the server.' } ) )
+			.finally( () => setHooking( false ) );
+	};
 
 	const runTest = () => {
 		setTesting( true );
@@ -123,6 +139,8 @@ export default function IntegrationsView() {
 	const mode = form.mode;
 	const pkKey = mode === 'live' ? 'livePublishable' : 'testPublishable';
 	const secretSet = mode === 'live' ? data.stripe.liveSecretSet : data.stripe.testSecretSet;
+	const webhookSet = mode === 'live' ? data.stripe.liveWebhookSet : data.stripe.testWebhookSet;
+	const webhookable = !! data.stripe.webhookable;
 
 	return (
 		<Page>
@@ -225,6 +243,53 @@ export default function IntegrationsView() {
 								✗ { test.error || 'Connection failed.' }
 							</Typography>
 						) }
+					</Box>
+				) }
+
+				<Divider sx={ { my: 2 } } />
+
+				{ /* Webhook — auto-registered so fulfilment is reliable even if the diner closes the tab. */ }
+				<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 1 } }>
+					<Box sx={ { flex: 1 } }>
+						<Stack direction="row" alignItems="center" spacing={ 1 }>
+							<Typography sx={ { fontWeight: 650, fontSize: 14, color: tokens.ink } }>Payment webhook</Typography>
+							<Chip
+								label={ webhookSet ? 'Set up' : 'Not set up' }
+								size="small"
+								sx={ {
+									bgcolor: webhookSet ? tokens.greenSoft : tokens.soft,
+									color: webhookSet ? tokens.green : tokens.muted,
+									fontWeight: 600,
+								} }
+							/>
+						</Stack>
+						<Typography sx={ { fontSize: 12.5, color: tokens.muted, mt: 0.25 } }>
+							Confirms payments even if the diner closes the tab. DineKit creates it in your Stripe
+							account for you — no copy-pasting a signing secret.
+						</Typography>
+					</Box>
+					<Button
+						variant="outlined"
+						onClick={ setupWebhook }
+						disabled={ hooking || ! webhookable }
+					>
+						{ hooking ? 'Setting up…' : webhookSet ? 'Refresh webhook' : 'Set up automatically' }
+					</Button>
+				</Stack>
+
+				{ ! webhookable && (
+					<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>
+						Available on your live site — Stripe can’t reach a local/dev address ({ data.stripe.webhookUrl }).
+					</Typography>
+				) }
+
+				{ hook && (
+					<Box sx={ { mt: 1, p: 1.5, borderRadius: 2, bgcolor: hook.ok ? tokens.greenSoft : tokens.redSoft } }>
+						<Typography sx={ { fontSize: 13, fontWeight: 600, color: hook.ok ? tokens.green : tokens.red } }>
+							{ hook.ok
+								? `✓ Webhook ready (${ hook.mode } mode) — listening for payments at ${ hook.url }`
+								: `✗ ${ hook.error || 'Could not set up the webhook.' }` }
+						</Typography>
 					</Box>
 				) }
 			</Card>

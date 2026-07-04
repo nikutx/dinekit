@@ -70,6 +70,7 @@ export const api = {
 	getIntegrations: () => request( 'GET', 'integrations' ),
 	saveIntegrations: ( data ) => request( 'POST', 'integrations', data ),
 	testStripe: () => request( 'POST', 'integrations/test' ),
+	registerStripeWebhook: () => request( 'POST', 'integrations/webhook' ),
 	saveMenuSchedule: ( id, schedule ) => request( 'POST', `menus/${ id }/schedule`, schedule ),
 	duplicateMenu: ( id ) => request( 'POST', `menus/${ id }/duplicate` ),
 	getMenuUsed: ( id ) => request( 'GET', `menus/${ id }/used` ),
