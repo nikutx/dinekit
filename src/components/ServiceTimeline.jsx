@@ -23,7 +23,7 @@ const colorFor = ( s ) => STATUS_COLOR[ s ] || tokens.muted;
 
 const LABEL_W = 150;
 
-export default function ServiceTimeline( { bookings, tables, areas, combos, openMin, closeMin, turnMin, onSelect } ) {
+export default function ServiceTimeline( { bookings, tables, areas, combos, events, eventCovers, openMin, closeMin, turnMin, onSelect } ) {
 	const span = Math.max( 60, closeMin - openMin );
 	const active = bookings.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) );
 	const comboMembers = Object.fromEntries( ( combos || [] ).map( ( c ) => [ c.id, c.tables ] ) );
@@ -109,6 +109,23 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, open
 						) ) }
 					</Box>
 				</Stack>
+
+					{ ( events || [] ).map( ( ev ) => {
+					const start = Math.max( openMin, toMin( ev.time || '00:00' ) );
+					const left = ( ( start - openMin ) / span ) * 100;
+					return (
+						<Stack key={ 'ev' + ev.id } direction="row" sx={ { borderTop: `1px solid ${ tokens.border }`, minHeight: 34, bgcolor: tokens.violetSoft } }>
+							<Box sx={ { width: LABEL_W, flexShrink: 0, px: 1.5, py: 0.75, borderRight: `1px solid ${ tokens.border }` } }>
+								<Typography sx={ { fontSize: 11, fontWeight: 700, color: tokens.violet, textTransform: 'uppercase', letterSpacing: '0.03em' } }>Event</Typography>
+							</Box>
+							<Box sx={ { position: 'relative', flex: 1, minWidth: 0 } }>
+								<Box sx={ { position: 'absolute', left: `${ left }%`, top: 4, bottom: 4, display: 'flex', alignItems: 'center', px: 1, bgcolor: tokens.violet, color: '#fff', borderRadius: '6px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', maxWidth: '96%', overflow: 'hidden' } }>
+									{ ev.time ? ev.time + ' · ' : '' }{ ev.name } · { eventCovers ? eventCovers( ev ) : 0 }
+								</Box>
+							</Box>
+						</Stack>
+					);
+				} ) }
 
 				{ unassigned.length > 0 && <Row label={ `Unassigned · ${ unassigned.length }` } blocks={ unassigned } head /> }
 

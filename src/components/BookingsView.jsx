@@ -29,6 +29,8 @@ import PrintIcon from '@mui/icons-material/Print';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
+import CelebrationIcon from '@mui/icons-material/Celebration';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
@@ -51,6 +53,12 @@ export default function BookingsView() {
 	const [ floor, setFloor ] = useState( { areas: [], tables: [], combos: [] } );
 	const [ svc, setSvc ] = useState( { openMin: 720, closeMin: 1320 } );
 	const [ turnMin, setTurnMin ] = useState( 120 );
+	const [ events, setEvents ] = useState( [] );
+
+	// Events share the day with bookings — surface them in the diary + timeline.
+	useEffect( () => {
+		api.getEvents().then( ( e ) => setEvents( e || [] ) ).catch( () => {} );
+	}, [] );
 
 	const load = useCallback( ( d ) => {
 		setLoading( true );
@@ -83,6 +91,11 @@ export default function BookingsView() {
 	const covers = bookings
 		.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) )
 		.reduce( ( s, b ) => s + ( b.party || 0 ), 0 );
+
+	// Events happening on the shown day, with an expected head-count.
+	const eventCovers = ( e ) =>
+		( e.groups || [] ).reduce( ( s, g ) => s + ( g.size || 0 ), 0 ) || e.capacity || e.guestCount || 0;
+	const eventsToday = events.filter( ( e ) => e.date === date );
 
 	const setStatus = ( id, status ) => {
 		setBookings( ( bs ) => bs.map( ( b ) => ( b.id === id ? { ...b, status } : b ) ) );
@@ -295,13 +308,50 @@ export default function BookingsView() {
 					tables={ floor.tables }
 					areas={ floor.areas }
 					combos={ floor.combos }
+					events={ eventsToday }
+					eventCovers={ eventCovers }
 					openMin={ svc.openMin }
 					closeMin={ svc.closeMin }
 					turnMin={ turnMin }
 				/>
 			) }
 
-			{ view === 'list' && ( loading ? (
+			{ view === 'list' && (
+			<>
+			{ eventsToday.length > 0 && (
+				<Box sx={ { mb: 2 } }>
+					<Typography sx={ { fontSize: 11, fontWeight: 650, letterSpacing: '0.08em', textTransform: 'uppercase', color: tokens.muted, mb: 1, px: 0.5 } }>
+						Events
+					</Typography>
+					<Stack spacing={ 1 }>
+						{ eventsToday.map( ( ev ) => (
+							<Stack
+								key={ ev.id }
+								direction="row"
+								alignItems="center"
+								spacing={ 1.5 }
+								onClick={ () => { window.location.hash = '#/events'; } }
+								sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderLeft: `3px solid ${ tokens.violet }`, borderRadius: '10px', p: 1.25, cursor: 'pointer', '&:hover': { boxShadow: tokens.shadowSm } } }
+							>
+								<CelebrationIcon sx={ { fontSize: 18, color: tokens.violet } } />
+								<Box sx={ { flex: 1, minWidth: 0 } }>
+									<Typography sx={ { fontWeight: 700, fontSize: 14, color: tokens.ink } } noWrap>{ ev.name }</Typography>
+									<Typography sx={ { fontSize: 12, color: tokens.muted } }>
+										{ ev.time || 'Time TBC' }{ ev.status !== 'published' ? ' · draft' : '' }
+									</Typography>
+								</Box>
+								<Chip
+									icon={ <PeopleAltIcon sx={ { fontSize: 14 } } /> }
+									label={ `${ eventCovers( ev ) } covers` }
+									size="small"
+									sx={ { bgcolor: tokens.violetSoft, color: tokens.violet, fontWeight: 600, '& .MuiChip-icon': { color: tokens.violet } } }
+								/>
+							</Stack>
+						) ) }
+					</Stack>
+				</Box>
+			) }
+			{ loading ? (
 				<ListSkeleton rows={ 5 } />
 			) : bookings.length === 0 ? (
 				<EmptyState
@@ -349,7 +399,9 @@ export default function BookingsView() {
 							);
 						} ) }
 				</Stack>
-			) ) }
+			) }
+			</>
+			) }
 		</Page>
 	);
 }
