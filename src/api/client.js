@@ -114,6 +114,7 @@ export const api = {
 
 	// Ordering (admin board).
 	getOrders: () => request( 'GET', 'orders' ),
+	createOrder: ( data ) => request( 'POST', 'orders', data ),
 	updateOrder: ( id, data ) => request( 'PATCH', `orders/${ id }`, data ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),

@@ -45,9 +45,16 @@ function register_routes() {
 		$ns,
 		'/orders',
 		array(
-			'methods'             => \WP_REST_Server::READABLE,
-			'callback'            => __NAMESPACE__ . '\\list_orders',
-			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\list_orders',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\create_order',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage',
+			),
 		)
 	);
 	register_rest_route(
@@ -123,6 +130,58 @@ function order_response( $id ) {
 		'payment' => (string) get_post_meta( $id, 'dk_order_payment', true ),
 		'placed'  => (string) get_post_time( 'c', false, $id ),
 	);
+}
+
+/**
+ * POST /orders — staff creates an order manually (phone/walk-in). Amount is
+ * recomputed server-side; no rate-limit/honeypot (admin-only).
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_order( $request ) {
+	$computed = Ordering\recompute( (array) $request->get_param( 'items' ) );
+	if ( empty( $computed['items'] ) ) {
+		return new \WP_Error( 'dinekit_order_empty', __( 'Add at least one item.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
+	if ( '' === $name ) {
+		$name = __( 'Walk-in', 'dinekit' );
+	}
+	$when = sanitize_text_field( (string) $request->get_param( 'when' ) );
+	if ( 'asap' !== $when && ! preg_match( '/^\d{1,2}:\d{2}$/', $when ) ) {
+		$when = 'asap';
+	}
+	$payment = (string) $request->get_param( 'payment' );
+	$payment = in_array( $payment, array( 'paid', 'unpaid', 'on_collection' ), true ) ? $payment : 'unpaid';
+
+	$number  = Ordering\next_number();
+	$post_id = wp_insert_post(
+		array(
+			'post_type'   => 'dk_order',
+			'post_status' => 'publish',
+			/* translators: %d: order number. */
+			'post_title'  => sprintf( __( 'Order #%d', 'dinekit' ), $number ),
+		),
+		true
+	);
+	if ( is_wp_error( $post_id ) ) {
+		return new \WP_Error( 'dinekit_order_save', __( 'Could not create the order.', 'dinekit' ), array( 'status' => 500 ) );
+	}
+
+	update_post_meta( $post_id, 'dk_order_number', $number );
+	update_post_meta( $post_id, 'dk_order_items', wp_json_encode( $computed['items'] ) );
+	update_post_meta( $post_id, 'dk_order_total', number_format( $computed['total'], 2, '.', '' ) );
+	update_post_meta( $post_id, 'dk_order_status', 'new' );
+	update_post_meta( $post_id, 'dk_order_name', $name );
+	update_post_meta( $post_id, 'dk_order_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
+	update_post_meta( $post_id, 'dk_order_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
+	update_post_meta( $post_id, 'dk_order_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
+	update_post_meta( $post_id, 'dk_order_when', $when );
+	update_post_meta( $post_id, 'dk_order_payment', $payment );
+	update_post_meta( $post_id, 'dk_order_source', 'staff' );
+
+	return rest_ensure_response( order_response( $post_id ) );
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 	Snackbar,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AddIcon from '@mui/icons-material/Add';
 import PrintIcon from '@mui/icons-material/Print';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -47,6 +48,7 @@ export default function OrdersView() {
 	const [ tab, setTab ] = useState( 'active' );
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
+	const [ adding, setAdding ] = useState( false );
 
 	useEffect( () => {
 		Promise.all( [ api.getOrders(), api.getSettings() ] )
@@ -135,12 +137,23 @@ export default function OrdersView() {
 								<TuneIcon />
 							</IconButton>
 						</Tooltip>
+						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( ( v ) => ! v ) }>
+							New order
+						</Button>
 					</>
 				}
 			/>
 
 			<Collapse in={ settingsOpen } unmountOnExit>
 				<OrderSettings />
+			</Collapse>
+
+			<Collapse in={ adding } unmountOnExit>
+				<NewOrder
+					money={ money }
+					onCancel={ () => setAdding( false ) }
+					onCreated={ ( order ) => { setOrders( ( os ) => [ order, ...os ] ); setAdding( false ); setTab( 'active' ); } }
+				/>
 			</Collapse>
 
 			<ToggleButtonGroup size="small" exclusive value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 2 } }>
@@ -213,6 +226,118 @@ export default function OrdersView() {
 				</Stack>
 			) }
 		</Page>
+	);
+}
+
+// Staff order builder — phone/walk-in orders. Amount is recomputed server-side.
+function NewOrder( { money, onCreated, onCancel } ) {
+	const [ menu, setMenu ] = useState( [] );
+	const [ lines, setLines ] = useState( [] );
+	const [ pick, setPick ] = useState( '' );
+	const [ name, setName ] = useState( '' );
+	const [ phone, setPhone ] = useState( '' );
+	const [ notes, setNotes ] = useState( '' );
+	const [ saving, setSaving ] = useState( false );
+	const [ error, setError ] = useState( '' );
+
+	useEffect( () => {
+		api.getState().then( ( s ) => {
+			// Only items with at least one price are orderable.
+			const priced = ( s.items || [] )
+				.filter( ( it ) => ( it.prices || [] ).length > 0 && it.title )
+				.map( ( it ) => ( { id: it.id, title: it.title, unit: Number( it.prices[ 0 ].amount ) || 0 } ) );
+			setMenu( priced );
+		} );
+	}, [] );
+
+	const addLine = ( id ) => {
+		const it = menu.find( ( m ) => m.id === id );
+		if ( ! it ) {
+			return;
+		}
+		setLines( ( ls ) => {
+			const existing = ls.find( ( l ) => l.id === id );
+			return existing
+				? ls.map( ( l ) => ( l.id === id ? { ...l, qty: l.qty + 1 } : l ) )
+				: [ ...ls, { id, title: it.title, unit: it.unit, qty: 1 } ];
+		} );
+		setPick( '' );
+	};
+	const setQty = ( id, d ) => setLines( ( ls ) => ls.map( ( l ) => ( l.id === id ? { ...l, qty: Math.max( 1, l.qty + d ) } : l ) ).filter( ( l ) => l.qty > 0 ) );
+	const removeLine = ( id ) => setLines( ( ls ) => ls.filter( ( l ) => l.id !== id ) );
+	const total = lines.reduce( ( s, l ) => s + l.unit * l.qty, 0 );
+
+	const create = async () => {
+		if ( ! lines.length ) {
+			setError( 'Add at least one item.' );
+			return;
+		}
+		setSaving( true );
+		setError( '' );
+		try {
+			const order = await api.createOrder( {
+				items: lines.map( ( l ) => ( { itemId: l.id, qty: l.qty } ) ),
+				name,
+				phone,
+				notes,
+				when: 'asap',
+				payment: 'unpaid',
+			} );
+			onCreated( order );
+		} catch ( e ) {
+			setError( e.message || 'Could not create the order.' );
+		} finally {
+			setSaving( false );
+		}
+	};
+
+	return (
+		<Card sx={ { p: 2.5, mb: 2 } }>
+			<Typography variant="subtitle2" sx={ { color: tokens.ink, mb: 1.5 } }>New order (phone / walk-in)</Typography>
+			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
+				<Select
+					size="small"
+					displayEmpty
+					value={ pick }
+					onChange={ ( e ) => addLine( e.target.value ) }
+					sx={ { minWidth: 260 } }
+					renderValue={ () => 'Add an item…' }
+				>
+					{ menu.length === 0 && <MenuItem value="" disabled>No priced items yet</MenuItem> }
+					{ menu.map( ( m ) => (
+						<MenuItem key={ m.id } value={ m.id }>{ m.title } · { money( m.unit ) }</MenuItem>
+					) ) }
+				</Select>
+				<TextField size="small" label="Customer name" value={ name } onChange={ ( e ) => setName( e.target.value ) } sx={ { width: 200 } } />
+				<TextField size="small" label="Phone" value={ phone } onChange={ ( e ) => setPhone( e.target.value ) } sx={ { width: 160 } } />
+			</Stack>
+
+			{ lines.length > 0 && (
+				<Stack spacing={ 0.75 } sx={ { mb: 1.5 } }>
+					{ lines.map( ( l ) => (
+						<Stack key={ l.id } direction="row" alignItems="center" spacing={ 1 } sx={ { bgcolor: tokens.soft, borderRadius: 2, px: 1.5, py: 0.75 } }>
+							<Typography sx={ { flex: 1, fontSize: 14 } }>{ l.title }</Typography>
+							<IconButton size="small" onClick={ () => setQty( l.id, -1 ) }>−</IconButton>
+							<Typography sx={ { width: 24, textAlign: 'center', fontWeight: 700 } }>{ l.qty }</Typography>
+							<IconButton size="small" onClick={ () => setQty( l.id, 1 ) }>+</IconButton>
+							<Typography sx={ { width: 70, textAlign: 'right', fontWeight: 650 } }>{ money( l.unit * l.qty ) }</Typography>
+							<IconButton size="small" onClick={ () => removeLine( l.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
+						</Stack>
+					) ) }
+				</Stack>
+			) }
+
+			<TextField size="small" fullWidth label="Notes (optional)" value={ notes } onChange={ ( e ) => setNotes( e.target.value ) } sx={ { mb: 1.5 } } />
+			{ error && <Typography sx={ { color: tokens.red, fontSize: 13, mb: 1 } }>{ error }</Typography> }
+			<Stack direction="row" alignItems="center" spacing={ 2 }>
+				<Typography sx={ { fontWeight: 700, fontSize: 16 } }>Total: { money( total ) }</Typography>
+				<Box sx={ { flex: 1 } } />
+				<Button onClick={ onCancel } sx={ { color: tokens.muted } }>Cancel</Button>
+				<Button variant="contained" onClick={ create } disabled={ saving || lines.length === 0 }>
+					{ saving ? 'Creating…' : 'Create order' }
+				</Button>
+			</Stack>
+		</Card>
 	);
 }
 
