@@ -84,6 +84,7 @@ function render( $menu_id = 0, $heading = '' ) {
 				'paying'       => __( 'Processing…', 'dinekit' ),
 				'payError'     => __( 'Payment could not be completed. Please try again.', 'dinekit' ),
 				'paid'         => __( 'Payment received — thank you!', 'dinekit' ),
+				'held'         => __( 'Card authorised — we’ll confirm your order shortly, then take payment.', 'dinekit' ),
 			),
 		),
 		JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP

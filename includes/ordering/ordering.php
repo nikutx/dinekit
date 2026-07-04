@@ -196,20 +196,21 @@ function register() {
 	);
 
 	$meta = array(
-		'dk_order_number'   => 'integer',
-		'dk_order_items'    => 'string',  // JSON of recomputed lines.
-		'dk_order_total'    => 'string',  // Decimal string.
-		'dk_order_status'   => 'string',
-		'dk_order_name'     => 'string',
-		'dk_order_email'    => 'string',
-		'dk_order_phone'    => 'string',
-		'dk_order_notes'    => 'string',
-		'dk_order_when'     => 'string',  // 'asap' or H:i.
-		'dk_order_payment'  => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
-		'dk_order_source'   => 'string',
-		'dk_order_pi'       => 'string',  // Stripe PaymentIntent id.
-		'dk_order_archived' => 'integer', // 1 = archived (never hard-deleted).
-		'dk_order_history'  => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
+		'dk_order_number'     => 'integer',
+		'dk_order_items'      => 'string',  // JSON of recomputed lines.
+		'dk_order_total'      => 'string',  // Decimal string.
+		'dk_order_status'     => 'string',
+		'dk_order_name'       => 'string',
+		'dk_order_email'      => 'string',
+		'dk_order_phone'      => 'string',
+		'dk_order_notes'      => 'string',
+		'dk_order_when'       => 'string',  // 'asap' or H:i.
+		'dk_order_payment'    => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
+		'dk_order_source'     => 'string',
+		'dk_order_pi'         => 'string',  // Stripe PaymentIntent id.
+		'dk_order_archived'   => 'integer', // 1 = archived (never hard-deleted).
+		'dk_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
+		'dk_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -298,27 +299,67 @@ function log_event( $id, $event ) {
 }
 
 /**
- * Capture an authorized PaymentIntent hold when an order is accepted. No-op for
- * now (orders are charged immediately); the authorize/capture slice replaces
- * this with a real Stripe capture.
+ * Capture an authorized PaymentIntent hold when an order is accepted. No-op
+ * unless the order is currently holding an authorized card (receive-and-hold
+ * mode); immediately-charged and cash orders are left untouched.
  *
  * @param int $id Order id.
  * @return void
  */
 function capture_payment( $id ) {
-	unset( $id ); // Wired up in the Stripe authorize/capture slice.
+	$pi  = (string) get_post_meta( $id, 'dk_order_pi', true );
+	$pay = (string) get_post_meta( $id, 'dk_order_payment', true );
+	if ( '' === $pi || 'authorized' !== $pay ) {
+		return;
+	}
+	require_once DINEKIT_DIR . 'includes/payments.php';
+	$res = \DineKit\Payments\stripe_post( 'payment_intents/' . rawurlencode( $pi ) . '/capture', array() );
+	if ( is_wp_error( $res ) ) {
+		log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Card capture failed: %s', 'dinekit' ), $res->get_error_message() ) );
+		return;
+	}
+	update_post_meta( $id, 'dk_order_payment', 'paid' );
+	log_event( $id, __( 'Card captured — payment taken', 'dinekit' ) );
 }
 
 /**
- * Release an uncaptured hold, or refund an already-captured payment, when an
- * order is rejected/cancelled (and flag the customer for notification). No-op
- * for now; implemented in the authorize/capture slice.
+ * On reject/cancel: release the hold if the card was only authorized (customer
+ * never charged), or refund if it was already captured. Flags that the customer
+ * should be notified of a refund.
  *
  * @param int $id Order id.
  * @return void
  */
 function release_or_refund( $id ) {
-	unset( $id ); // Wired up in the Stripe authorize/capture slice.
+	$pi  = (string) get_post_meta( $id, 'dk_order_pi', true );
+	$pay = (string) get_post_meta( $id, 'dk_order_payment', true );
+	if ( '' === $pi ) {
+		return;
+	}
+	require_once DINEKIT_DIR . 'includes/payments.php';
+
+	if ( 'authorized' === $pay ) {
+		$res = \DineKit\Payments\stripe_post( 'payment_intents/' . rawurlencode( $pi ) . '/cancel', array() );
+		if ( ! is_wp_error( $res ) ) {
+			update_post_meta( $id, 'dk_order_payment', 'released' );
+			log_event( $id, __( 'Hold released — customer was not charged', 'dinekit' ) );
+		} else {
+			log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Hold release failed: %s', 'dinekit' ), $res->get_error_message() ) );
+		}
+		return;
+	}
+
+	if ( 'paid' === $pay ) {
+		$res = \DineKit\Payments\stripe_post( 'refunds', array( 'payment_intent' => $pi ) );
+		if ( ! is_wp_error( $res ) ) {
+			update_post_meta( $id, 'dk_order_payment', 'refunded' );
+			update_post_meta( $id, 'dk_order_refund_due', 0 );
+			log_event( $id, __( 'Refunded — please let the customer know', 'dinekit' ) );
+		} else {
+			update_post_meta( $id, 'dk_order_refund_due', 1 );
+			log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Refund failed (needs manual action): %s', 'dinekit' ), $res->get_error_message() ) );
+		}
+	}
 }
 
 /**

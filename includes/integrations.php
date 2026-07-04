@@ -348,7 +348,7 @@ function register_webhook() {
 		'webhook_endpoints',
 		array(
 			'url'            => $url,
-			'enabled_events' => array( 'payment_intent.succeeded', 'payment_intent.payment_failed' ),
+			'enabled_events' => array( 'payment_intent.succeeded', 'payment_intent.amount_capturable_updated', 'payment_intent.payment_failed' ),
 			'description'    => 'DineKit — ' . home_url(),
 			'metadata'       => array( 'dinekit' => '1' ),
 		)

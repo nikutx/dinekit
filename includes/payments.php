@@ -186,16 +186,22 @@ function create_order_intent( $request ) {
 		return new \WP_Error( 'dinekit_pay_amount', __( 'This order has no payable total.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 
-	$intent = stripe_post(
-		'payment_intents',
-		array(
-			'amount'                             => $pence,
-			'currency'                           => 'gbp',
-			'automatic_payment_methods[enabled]' => 'true',
-			'metadata[order_id]'                 => (string) $order_id,
-			'metadata[site]'                     => home_url(),
-		)
+	// Receive-and-hold: authorize only (hold the card) and capture when the
+	// restaurant accepts. Auto-accept: charge immediately.
+	require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+	$hold   = empty( \DineKit\Ordering\get_settings()['auto_accept'] );
+	$params = array(
+		'amount'                             => $pence,
+		'currency'                           => 'gbp',
+		'automatic_payment_methods[enabled]' => 'true',
+		'metadata[order_id]'                 => (string) $order_id,
+		'metadata[site]'                     => home_url(),
 	);
+	if ( $hold ) {
+		$params['capture_method'] = 'manual';
+	}
+
+	$intent = stripe_post( 'payment_intents', $params );
 	if ( is_wp_error( $intent ) ) {
 		return $intent;
 	}
@@ -207,6 +213,7 @@ function create_order_intent( $request ) {
 			'clientSecret'   => (string) ( $intent['client_secret'] ?? '' ),
 			'publishableKey' => \DineKit\Integrations\active_publishable(),
 			'amount'         => $pence,
+			'hold'           => $hold,
 		)
 	);
 }
@@ -274,10 +281,19 @@ function handle_webhook( $request ) {
 		);
 	}
 
+	$meta       = isset( $event['data']['object']['metadata'] ) && is_array( $event['data']['object']['metadata'] ) ? $event['data']['object']['metadata'] : array();
+	$order_id   = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
+	$booking_id = isset( $meta['booking_id'] ) ? absint( $meta['booking_id'] ) : 0;
+
+	// A held (manual-capture) card fires amount_capturable_updated on authorize,
+	// before it's captured — reflect that as "authorized" so the board shows it.
+	if ( 'payment_intent.amount_capturable_updated' === $type && $order_id && 'dk_order' === get_post_type( $order_id ) ) {
+		if ( 'paid' !== (string) get_post_meta( $order_id, 'dk_order_payment', true ) ) {
+			update_post_meta( $order_id, 'dk_order_payment', 'authorized' );
+		}
+	}
+
 	if ( 'payment_intent.succeeded' === $type ) {
-		$meta       = isset( $event['data']['object']['metadata'] ) && is_array( $event['data']['object']['metadata'] ) ? $event['data']['object']['metadata'] : array();
-		$order_id   = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
-		$booking_id = isset( $meta['booking_id'] ) ? absint( $meta['booking_id'] ) : 0;
 		if ( $order_id && 'dk_order' === get_post_type( $order_id ) ) {
 			update_post_meta( $order_id, 'dk_order_payment', 'paid' );
 		}

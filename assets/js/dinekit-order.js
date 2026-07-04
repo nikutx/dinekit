@@ -534,6 +534,7 @@
 								err.classList.add( 'is-no' );
 							} else {
 								state.paid = true;
+								state.held = !! res.d.hold;
 								state.view = 'done';
 								render();
 							}
@@ -548,7 +549,7 @@
 
 		function renderDone() {
 			var box = el( 'div', 'dinekit-order__done' );
-			box.appendChild( el( 'div', 'dinekit-order__done-title', state.paid ? ( t.paid || t.placed || 'Payment received' ) : ( t.placed || 'Order placed!' ) ) );
+			box.appendChild( el( 'div', 'dinekit-order__done-title', state.held ? ( t.held || t.placed ) : state.paid ? ( t.paid || t.placed || 'Payment received' ) : ( t.placed || 'Order placed!' ) ) );
 			box.appendChild( el( 'div', 'dinekit-order__done-num', ( t.orderNumber || 'Your order number is' ) + ' #' + ( state.done && state.done.number ) ) );
 			box.appendChild( el( 'p', null, t.collectMsg || '' ) );
 			app.appendChild( box );
