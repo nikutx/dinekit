@@ -325,3 +325,13 @@
 	background: rgba( var(--dkb-accent-rgb), 0.08 );
 	color: var(--dkb-accent-dark);
 }
+
+/* Deposit payment step (Stripe Payment Element). */
+.dinekit-booking__pay-element {
+	margin: 16px 0;
+}
+.dinekit-booking__pay-error {
+	margin: 8px 0 0;
+	color: #b91c1c;
+	font-size: 14px;
+}

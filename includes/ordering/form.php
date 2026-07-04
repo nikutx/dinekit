@@ -35,16 +35,26 @@ function render( $menu_id = 0, $heading = '' ) {
 			esc_html__( 'Online ordering is currently closed.', 'dinekit' ) . '</p></div>';
 	}
 
+	// On-site card payment when Stripe is connected. Loads Stripe.js (their domain,
+	// required for PCI SAQ-A) only on this ordering page, only when payable.
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	$pay_live = \DineKit\Integrations\stripe_ready();
+	if ( $pay_live ) {
+		wp_enqueue_script( 'dinekit-stripe' );
+	}
+
 	$config = wp_json_encode(
 		array(
-			'restUrl'     => esc_url_raw( rest_url( 'dinekit/v1/' ) ),
-			'nonce'       => wp_create_nonce( 'wp_rest' ),
-			'currency'    => (string) $s['currency'],
-			'currencyPos' => 'after' === $s['currencyPosition'] ? 'after' : 'before',
-			'prepMins'    => (int) $settings['prep_mins'],
-			'minOrder'    => (float) $settings['min_order'],
-			'menu'        => \DineKit\Ordering\orderable_menu( $menu_id ),
-			'i18n'        => array(
+			'restUrl'        => esc_url_raw( rest_url( 'dinekit/v1/' ) ),
+			'nonce'          => wp_create_nonce( 'wp_rest' ),
+			'currency'       => (string) $s['currency'],
+			'currencyPos'    => 'after' === $s['currencyPosition'] ? 'after' : 'before',
+			'prepMins'       => (int) $settings['prep_mins'],
+			'minOrder'       => (float) $settings['min_order'],
+			'publishableKey' => $pay_live ? \DineKit\Integrations\active_publishable() : '',
+			'payNow'         => $pay_live,
+			'menu'           => \DineKit\Ordering\orderable_menu( $menu_id ),
+			'i18n'           => array(
 				'add'          => __( 'Add', 'dinekit' ),
 				'addToOrder'   => __( 'Add to order', 'dinekit' ),
 				'yourOrder'    => __( 'Your order', 'dinekit' ),
@@ -69,6 +79,11 @@ function render( $menu_id = 0, $heading = '' ) {
 				'remove'       => __( 'Remove', 'dinekit' ),
 				'choose'       => __( 'Choose', 'dinekit' ),
 				'optional'     => __( 'optional', 'dinekit' ),
+				'payTitle'     => __( 'Pay for your order', 'dinekit' ),
+				'payNow'       => __( 'Pay now', 'dinekit' ),
+				'paying'       => __( 'Processing…', 'dinekit' ),
+				'payError'     => __( 'Payment could not be completed. Please try again.', 'dinekit' ),
+				'paid'         => __( 'Payment received — thank you!', 'dinekit' ),
 			),
 		),
 		JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP

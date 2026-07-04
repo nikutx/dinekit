@@ -1325,13 +1325,17 @@ function public_book( $request ) {
 		$message = __( 'Thanks! Your booking request has been sent — we’ll confirm shortly.', 'dinekit' );
 	}
 
+	$needs_deposit = \DineKit\Bookings\Settings\needs_deposit( $party );
 	return rest_ensure_response(
 		array(
-			'ok'       => true,
-			'status'   => $status,
-			'waitlist' => $waitlisted,
-			'deposit'  => \DineKit\Bookings\Settings\needs_deposit( $party ),
-			'message'  => $message,
+			'ok'        => true,
+			'status'    => $status,
+			'waitlist'  => $waitlisted,
+			'deposit'   => $needs_deposit,
+			// The client needs the id to start a deposit PaymentIntent. Only a
+			// deposit-due, non-waitlisted booking should trigger the pay step.
+			'bookingId' => ( $needs_deposit && ! $waitlisted ) ? $post_id : 0,
+			'message'   => $message,
 		)
 	);
 }

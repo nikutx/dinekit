@@ -28,6 +28,15 @@ function render( $atts = array() ) {
 	wp_enqueue_style( 'dinekit-booking' );
 	wp_enqueue_script( 'dinekit-booking' );
 
+	// Take deposits on-site only when a deposit rule is set AND Stripe is
+	// connected. Stripe.js (the one external script DineKit loads, required by
+	// Stripe for PCI SAQ-A) is enqueued only then — never on a plain booking page.
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	$deposits_live = (int) $cfg['depositOver'] > 0 && \DineKit\Integrations\stripe_ready();
+	if ( $deposits_live ) {
+		wp_enqueue_script( 'dinekit-stripe' );
+	}
+
 	$heading = isset( $atts['heading'] ) ? (string) $atts['heading'] : __( 'Book a table', 'dinekit' );
 	$intro   = isset( $atts['intro'] ) && '' !== $atts['intro']
 		? (string) $atts['intro']
@@ -45,9 +54,11 @@ function render( $atts = array() ) {
 		array_merge(
 			$cfg,
 			array(
-				'restUrl' => esc_url_raw( rest_url( 'dinekit/v1/' ) ),
-				'nonce'   => wp_create_nonce( 'wp_rest' ),
-				'i18n'    => array(
+				'restUrl'        => esc_url_raw( rest_url( 'dinekit/v1/' ) ),
+				'nonce'          => wp_create_nonce( 'wp_rest' ),
+				'publishableKey' => $deposits_live ? \DineKit\Integrations\active_publishable() : '',
+				'payNow'         => $deposits_live,
+				'i18n'           => array(
 					'available'     => __( 'Available', 'dinekit' ),
 					'availableReq'  => __( 'Available — request it below', 'dinekit' ),
 					'deposit'       => __( 'deposit applies', 'dinekit' ),
@@ -62,6 +73,11 @@ function render( $atts = array() ) {
 					'requestSent'   => __( 'Request sent', 'dinekit' ),
 					'genericError'  => __( 'Sorry, something went wrong. Please try again.', 'dinekit' ),
 					'networkError'  => __( 'Network error — please try again.', 'dinekit' ),
+					'payTitle'      => __( 'Secure your table with a deposit', 'dinekit' ),
+					'payButton'     => __( 'Pay deposit', 'dinekit' ),
+					'paying'        => __( 'Processing…', 'dinekit' ),
+					'payError'      => __( 'Payment could not be completed. Please try again.', 'dinekit' ),
+					'depositPaid'   => __( 'Deposit paid — your table is confirmed!', 'dinekit' ),
 				),
 			)
 		),

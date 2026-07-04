@@ -339,3 +339,8 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Order payment step (Stripe Payment Element). */
+.dinekit-order__pay-element {
+	margin: 16px 0;
+}

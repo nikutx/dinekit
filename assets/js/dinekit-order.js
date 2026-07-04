@@ -105,6 +105,8 @@
 			app.innerHTML = '';
 			if ( state.view === 'done' ) {
 				renderDone();
+			} else if ( state.view === 'pay' ) {
+				renderPay();
 			} else if ( state.view === 'checkout' ) {
 				renderCheckout();
 			} else {
@@ -460,7 +462,8 @@
 						submit.disabled = false;
 						if ( res.ok && res.d && res.d.ok ) {
 							state.done = res.d;
-							state.view = 'done';
+							// Stripe connected + payable → collect card on-site; else done.
+							state.view = ( res.d.pay && res.d.id && cfg.publishableKey && window.Stripe ) ? 'pay' : 'done';
 							render();
 						} else {
 							result.textContent = ( res.d && res.d.message ) || t.genericError;
@@ -477,9 +480,72 @@
 			app.appendChild( box );
 		}
 
+		// Native Stripe payment step for an order. Fulfilment is webhook-driven
+		// server-side; this collects the card and confirms, then shows the receipt.
+		function renderPay() {
+			var box = el( 'div', 'dinekit-order__pay' );
+			box.appendChild( el( 'div', 'dinekit-order__done-title', t.payTitle || 'Pay for your order' ) );
+			var host = el( 'div', 'dinekit-order__pay-element' );
+			box.appendChild( host );
+			var err = el( 'p', 'dinekit-order__result' );
+			box.appendChild( err );
+			var btn = el( 'button', 'dinekit-order__place', t.payNow || 'Pay now' );
+			btn.type = 'button';
+			btn.disabled = true;
+			box.appendChild( btn );
+			app.appendChild( box );
+
+			var stripe = window.Stripe( cfg.publishableKey );
+			fetch( cfg.restUrl + 'payments/intent', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+				body: JSON.stringify( { order: state.done.id } ),
+			} )
+				.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
+				.then( function ( res ) {
+					if ( ! res.ok || ! res.d || ! res.d.clientSecret ) {
+						err.textContent = ( res.d && res.d.message ) || t.payError || '';
+						err.classList.add( 'is-no' );
+						return;
+					}
+					if ( res.d.amount ) {
+						btn.textContent = ( t.payNow || 'Pay now' ) + ' · ' + money( res.d.amount / 100 );
+					}
+					var elements = stripe.elements( { clientSecret: res.d.clientSecret } );
+					elements.create( 'payment' ).mount( host );
+					btn.disabled = false;
+					btn.addEventListener( 'click', function () {
+						btn.disabled = true;
+						err.textContent = '';
+						err.className = 'dinekit-order__result';
+						btn.textContent = t.paying || '…';
+						stripe.confirmPayment( {
+							elements: elements,
+							confirmParams: { return_url: window.location.href },
+							redirect: 'if_required',
+						} ).then( function ( result ) {
+							if ( result.error ) {
+								btn.disabled = false;
+								btn.textContent = t.payNow || 'Pay now';
+								err.textContent = result.error.message || t.payError || '';
+								err.classList.add( 'is-no' );
+							} else {
+								state.paid = true;
+								state.view = 'done';
+								render();
+							}
+						} );
+					} );
+				} )
+				.catch( function () {
+					err.textContent = t.networkError || '';
+					err.classList.add( 'is-no' );
+				} );
+		}
+
 		function renderDone() {
 			var box = el( 'div', 'dinekit-order__done' );
-			box.appendChild( el( 'div', 'dinekit-order__done-title', t.placed || 'Order placed!' ) );
+			box.appendChild( el( 'div', 'dinekit-order__done-title', state.paid ? ( t.paid || t.placed || 'Payment received' ) : ( t.placed || 'Order placed!' ) ) );
 			box.appendChild( el( 'div', 'dinekit-order__done-num', ( t.orderNumber || 'Your order number is' ) + ' #' + ( state.done && state.done.number ) ) );
 			box.appendChild( el( 'p', null, t.collectMsg || '' ) );
 			app.appendChild( box );

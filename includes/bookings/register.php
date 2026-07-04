@@ -38,6 +38,13 @@ function register_frontend() {
 	wp_register_style( 'dinekit-booking', DINEKIT_URL . 'assets/css/booking.css', array(), DINEKIT_VERSION );
 	wp_register_script( 'dinekit-booking', DINEKIT_URL . 'assets/js/dinekit-booking.js', array(), DINEKIT_VERSION, true );
 
+	// Stripe.js — the single external script DineKit loads, and only on a payable
+	// surface. Stripe requires it be served from their domain (PCI SAQ-A); it must
+	// not be bundled. Shared by bookings + ordering, so guard against re-register.
+	if ( ! wp_script_is( 'dinekit-stripe', 'registered' ) ) {
+		wp_register_script( 'dinekit-stripe', 'https://js.stripe.com/v3/', array(), null, true ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion,WordPress.WP.EnqueuedResourceParameters.NotInFooter -- Stripe requires their unversioned URL.
+	}
+
 	wp_register_script(
 		'dinekit-booking-editor',
 		DINEKIT_URL . 'assets/block/booking-editor.js',
@@ -224,6 +231,8 @@ function register() {
 		'dk_status'   => 'string',  // pending | confirmed | seated | completed | cancelled | no_show | provisional.
 		'dk_source'   => 'string',  // online | admin | phone.
 		'dk_deposit_required' => 'integer', // 1 when the party triggers a deposit rule.
+		'dk_deposit_pi'       => 'string',  // Stripe PaymentIntent id for the deposit.
+		'dk_deposit_paid'     => 'integer', // 1 once the deposit is paid (set by webhook).
 	);
 	foreach ( $booking_meta as $key => $type ) {
 		register_post_meta(

@@ -40,6 +40,11 @@ function init() {
 function register_frontend() {
 	wp_register_style( 'dinekit-order', DINEKIT_URL . 'assets/css/order.css', array(), DINEKIT_VERSION );
 	wp_register_script( 'dinekit-order', DINEKIT_URL . 'assets/js/dinekit-order.js', array(), DINEKIT_VERSION, true );
+
+	// Stripe.js (their domain, PCI SAQ-A) — shared with bookings; register once.
+	if ( ! wp_script_is( 'dinekit-stripe', 'registered' ) ) {
+		wp_register_script( 'dinekit-stripe', 'https://js.stripe.com/v3/', array(), null, true ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion,WordPress.WP.EnqueuedResourceParameters.NotInFooter -- Stripe requires their unversioned URL.
+	}
 }
 
 /**

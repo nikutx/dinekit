@@ -12,6 +12,90 @@
 	function localDate( d ) {
 		return d.getFullYear() + '-' + pad( d.getMonth() + 1 ) + '-' + pad( d.getDate() );
 	}
+	function money( cfg, pence ) {
+		return ( cfg.currency || '£' ) + ( pence / 100 ).toFixed( 2 );
+	}
+
+	// Replace the whole widget with a simple confirmation screen.
+	function renderSuccess( root, title, message ) {
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'dinekit-booking__success';
+		var h = document.createElement( 'p' );
+		h.className = 'dinekit-booking__success-title';
+		h.textContent = title;
+		var p = document.createElement( 'p' );
+		p.textContent = message || '';
+		wrap.appendChild( h );
+		wrap.appendChild( p );
+		root.innerHTML = '';
+		root.appendChild( wrap );
+	}
+
+	// Native Stripe deposit step (Payment Element, on-site). Started only when the
+	// booking needs a deposit and Stripe.js is present. Fulfilment is webhook-driven
+	// server-side; this just collects the card and confirms.
+	function startDeposit( root, cfg, t, bookingId ) {
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'dinekit-booking__pay';
+		var h = document.createElement( 'p' );
+		h.className = 'dinekit-booking__success-title';
+		h.textContent = t.payTitle || t.payButton || 'Pay deposit';
+		var host = document.createElement( 'div' );
+		host.className = 'dinekit-booking__pay-element';
+		var err = document.createElement( 'p' );
+		err.className = 'dinekit-booking__pay-error';
+		err.setAttribute( 'role', 'alert' );
+		var btn = document.createElement( 'button' );
+		btn.type = 'button';
+		btn.className = 'dinekit-booking__submit';
+		btn.textContent = t.payButton || 'Pay deposit';
+		btn.disabled = true;
+		wrap.appendChild( h );
+		wrap.appendChild( host );
+		wrap.appendChild( err );
+		wrap.appendChild( btn );
+		root.innerHTML = '';
+		root.appendChild( wrap );
+
+		var stripe = window.Stripe( cfg.publishableKey );
+		fetch( cfg.restUrl + 'payments/intent', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+			body: JSON.stringify( { booking: bookingId } ),
+		} )
+			.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
+			.then( function ( res ) {
+				if ( ! res.ok || ! res.d || ! res.d.clientSecret ) {
+					err.textContent = ( res.d && res.d.message ) ? res.d.message : ( t.payError || '' );
+					return;
+				}
+				if ( res.d.amount ) {
+					btn.textContent = ( t.payButton || 'Pay' ) + ' · ' + money( cfg, res.d.amount );
+				}
+				var elements = stripe.elements( { clientSecret: res.d.clientSecret } );
+				elements.create( 'payment' ).mount( host );
+				btn.disabled = false;
+				btn.addEventListener( 'click', function () {
+					btn.disabled = true;
+					err.textContent = '';
+					btn.textContent = t.paying || '…';
+					stripe.confirmPayment( {
+						elements: elements,
+						confirmParams: { return_url: window.location.href },
+						redirect: 'if_required',
+					} ).then( function ( result ) {
+						if ( result.error ) {
+							btn.disabled = false;
+							btn.textContent = t.payButton || 'Pay deposit';
+							err.textContent = result.error.message || t.payError || '';
+						} else {
+							renderSuccess( root, t.depositPaid || t.tableBooked, '' );
+						}
+					} );
+				} );
+			} )
+			.catch( function () { err.textContent = t.networkError || ''; } );
+	}
 
 	function setup( root ) {
 		var cfg;
@@ -172,18 +256,13 @@
 					submitEl.disabled = false;
 					submitEl.classList.remove( 'is-loading' );
 					if ( res.ok && res.d && res.d.ok ) {
+						// Deposit due + Stripe live → collect it on-site; else confirm.
+						if ( res.d.bookingId && cfg.payNow && cfg.publishableKey && window.Stripe ) {
+							startDeposit( root, cfg, t, res.d.bookingId );
+							return;
+						}
 						var title = res.d.waitlist ? t.waitlisted : ( res.d.status === 'confirmed' ? t.tableBooked : t.requestSent );
-						var wrap = document.createElement( 'div' );
-						wrap.className = 'dinekit-booking__success';
-						var h = document.createElement( 'p' );
-						h.className = 'dinekit-booking__success-title';
-						h.textContent = title;
-						var p = document.createElement( 'p' );
-						p.textContent = res.d.message || '';
-						wrap.appendChild( h );
-						wrap.appendChild( p );
-						root.innerHTML = '';
-						root.appendChild( wrap );
+						renderSuccess( root, title, res.d.message || '' );
 					} else {
 						say( resultEl, ( res.d && res.d.message ) ? res.d.message : t.genericError, 'is-no' );
 					}

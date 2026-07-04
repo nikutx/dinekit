@@ -71,7 +71,7 @@ function register_routes() {
 		'/payments/intent',
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
-			'callback'            => __NAMESPACE__ . '\\create_order_intent',
+			'callback'            => __NAMESPACE__ . '\\create_intent',
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -82,6 +82,86 @@ function register_routes() {
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\handle_webhook',
 			'permission_callback' => '__return_true', // Authenticated by Stripe signature, not WP.
+		)
+	);
+}
+
+/**
+ * POST /payments/intent — one entry point for both payable surfaces. Dispatches
+ * on the params: `booking` → a table deposit, otherwise `order` → an online
+ * order. Either way the amount is computed server-side, never trusted from the
+ * client.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_intent( $request ) {
+	if ( absint( $request->get_param( 'booking' ) ) > 0 ) {
+		return create_booking_intent( $request );
+	}
+	return create_order_intent( $request );
+}
+
+/**
+ * The deposit due for a booking, in the smallest currency unit (pence), or 0 if
+ * no deposit applies. Computed from the deposit rule × the party size.
+ *
+ * @param int $booking_id Booking post id.
+ * @return int
+ */
+function booking_deposit_pence( $booking_id ) {
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$party = (int) get_post_meta( $booking_id, 'dk_party', true );
+	if ( ! \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
+		return 0;
+	}
+	$per = (int) \DineKit\Bookings\Settings\get()['deposit_amount']; // Whole units per guest.
+	return max( 0, $per * 100 * $party );
+}
+
+/**
+ * Start a PaymentIntent for a booking deposit. Amount is derived from the
+ * deposit rule and the stored party size, never the client.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function create_booking_intent( $request ) {
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	$booking_id = absint( $request->get_param( 'booking' ) );
+	if ( ! $booking_id || 'dk_booking' !== get_post_type( $booking_id ) ) {
+		return new \WP_Error( 'dinekit_pay_booking', __( 'Booking not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	$pence = booking_deposit_pence( $booking_id );
+	if ( $pence < 1 ) {
+		return new \WP_Error( 'dinekit_pay_nodep', __( 'No deposit is required for this booking.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	if ( '1' === (string) get_post_meta( $booking_id, 'dk_deposit_paid', true ) ) {
+		return new \WP_Error( 'dinekit_pay_paid', __( 'This deposit has already been paid.', 'dinekit' ), array( 'status' => 409 ) );
+	}
+
+	$intent = stripe_post(
+		'payment_intents',
+		array(
+			'amount'                             => $pence,
+			'currency'                           => 'gbp',
+			'automatic_payment_methods[enabled]' => 'true',
+			'metadata[booking_id]'               => (string) $booking_id,
+			'metadata[kind]'                     => 'deposit',
+			'metadata[site]'                     => home_url(),
+		)
+	);
+	if ( is_wp_error( $intent ) ) {
+		return $intent;
+	}
+
+	update_post_meta( $booking_id, 'dk_deposit_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
+
+	return rest_ensure_response(
+		array(
+			'clientSecret'   => (string) ( $intent['client_secret'] ?? '' ),
+			'publishableKey' => \DineKit\Integrations\active_publishable(),
+			'amount'         => $pence,
 		)
 	);
 }
@@ -195,9 +275,18 @@ function handle_webhook( $request ) {
 	}
 
 	if ( 'payment_intent.succeeded' === $type ) {
-		$order_id = isset( $event['data']['object']['metadata']['order_id'] ) ? absint( $event['data']['object']['metadata']['order_id'] ) : 0;
+		$meta       = isset( $event['data']['object']['metadata'] ) && is_array( $event['data']['object']['metadata'] ) ? $event['data']['object']['metadata'] : array();
+		$order_id   = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
+		$booking_id = isset( $meta['booking_id'] ) ? absint( $meta['booking_id'] ) : 0;
 		if ( $order_id && 'dk_order' === get_post_type( $order_id ) ) {
 			update_post_meta( $order_id, 'dk_order_payment', 'paid' );
+		}
+		if ( $booking_id && 'dk_booking' === get_post_type( $booking_id ) ) {
+			update_post_meta( $booking_id, 'dk_deposit_paid', 1 );
+			// A paid deposit secures the table — promote a pending request to confirmed.
+			if ( 'pending' === (string) get_post_meta( $booking_id, 'dk_status', true ) ) {
+				update_post_meta( $booking_id, 'dk_status', 'confirmed' );
+			}
 		}
 	}
 

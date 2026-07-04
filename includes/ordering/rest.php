@@ -331,8 +331,13 @@ function place_order( $request ) {
 	update_post_meta( $post_id, 'dk_order_phone', $phone );
 	update_post_meta( $post_id, 'dk_order_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 	update_post_meta( $post_id, 'dk_order_when', $when );
-	update_post_meta( $post_id, 'dk_order_payment', 'on_collection' );
 	update_post_meta( $post_id, 'dk_order_source', 'online' );
+
+	// When Stripe is connected and there's something to charge, hold the order as
+	// awaiting payment (the webhook flips it to 'paid'); otherwise pay-on-collection.
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	$pay = \DineKit\Integrations\stripe_ready() && $computed['total'] > 0;
+	update_post_meta( $post_id, 'dk_order_payment', $pay ? 'pending' : 'on_collection' );
 
 	require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 	\DineKit\Ordering\Emails\new_order( $post_id );
@@ -340,9 +345,13 @@ function place_order( $request ) {
 	return rest_ensure_response(
 		array(
 			'ok'      => true,
+			'id'      => $pay ? $post_id : 0,
+			'pay'     => $pay,
 			'number'  => $number,
 			'total'   => number_format( $computed['total'], 2, '.', '' ),
-			'message' => __( 'Order placed! We’ll have it ready for collection.', 'dinekit' ),
+			'message' => $pay
+				? __( 'Almost there — please pay to confirm your order.', 'dinekit' )
+				: __( 'Order placed! We’ll have it ready for collection.', 'dinekit' ),
 		)
 	);
 }
