@@ -2,24 +2,44 @@
  * DineKit public booking widget — scoped, self-contained, no dependencies.
  */
 .dinekit-booking {
-	--dkb-accent: #3b82f6;
-	--dkb-accent-dark: #2563eb;
+	--dkb-accent: #4f46e5;
+	--dkb-accent-dark: #4338ca;
+	--dkb-accent-rgb: 79, 70, 229;
 	--dkb-ink: #0f172a;
 	--dkb-muted: #64748b;
 	--dkb-border: #e2e8f0;
 	--dkb-soft: #f8fafc;
+	--dkb-surface: #fff;
 	--dkb-green: #16a34a;
 	--dkb-red: #dc2626;
+	--dkb-radius: 16px;
+	--dkb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	max-width: 640px;
 	margin: 0 auto;
 	padding: 24px;
-	background: #fff;
+	background: var(--dkb-surface);
 	border: 1px solid var(--dkb-border);
-	border-radius: 16px;
+	border-radius: var(--dkb-radius);
 	box-shadow: 0 1px 2px rgba( 15, 23, 42, 0.04 );
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-family: var(--dkb-font);
 	color: var(--dkb-ink);
 	box-sizing: border-box;
+}
+/* Dark style — chosen in Bookings → Settings → Widget appearance. */
+.dinekit-booking--dark {
+	--dkb-ink: #f1f5f9;
+	--dkb-muted: #94a3b8;
+	--dkb-border: #334155;
+	--dkb-soft: #1e293b;
+	--dkb-surface: #0f172a;
+	--dkb-green: #4ade80;
+	--dkb-red: #f87171;
+}
+.dinekit-booking--dark .dinekit-booking__field input,
+.dinekit-booking--dark .dinekit-booking__field select,
+.dinekit-booking--dark .dinekit-booking__field textarea {
+	background: var(--dkb-soft);
+	color-scheme: dark;
 }
 .dinekit-booking *,
 .dinekit-booking *::before,
@@ -63,18 +83,18 @@
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid var(--dkb-border);
-	border-radius: 10px;
+	border-radius: calc( var(--dkb-radius) - 6px );
 	font-size: 15px;
 	font-family: inherit;
 	color: var(--dkb-ink);
-	background: #fff;
+	background: var(--dkb-surface);
 }
 .dinekit-booking__field input:focus,
 .dinekit-booking__field select:focus,
 .dinekit-booking__field textarea:focus {
 	outline: none;
 	border-color: var(--dkb-accent);
-	box-shadow: 0 0 0 3px rgba( 59, 130, 246, 0.15 );
+	box-shadow: 0 0 0 3px rgba( var(--dkb-accent-rgb), 0.15 );
 }
 .dinekit-booking__availability {
 	min-height: 20px;
@@ -110,7 +130,7 @@
 	font-size: 16px;
 	font-weight: 700;
 	font-family: inherit;
-	border-radius: 10px;
+	border-radius: calc( var(--dkb-radius) - 6px );
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -225,6 +245,6 @@
 }
 .dinekit-event__chip:has( input:checked ) {
 	border-color: var(--dkb-accent);
-	background: #eff6ff;
+	background: rgba( var(--dkb-accent-rgb), 0.08 );
 	color: var(--dkb-accent-dark);
 }

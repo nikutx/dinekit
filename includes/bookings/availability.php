@@ -17,21 +17,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Default sitting length in minutes (filterable).
+ * Sitting length in minutes — from booking settings ("turn time"), filterable.
  *
  * @return int
  */
 function duration() {
-	return (int) apply_filters( 'dinekit_booking_duration', 120 );
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$turn = (int) \DineKit\Bookings\Settings\get()['turn_time'];
+	return (int) apply_filters( 'dinekit_booking_duration', $turn > 0 ? $turn : 120 );
 }
 
 /**
- * Buffer between sittings on the same table, in minutes (filterable).
+ * Buffer between sittings on the same table, in minutes — from booking
+ * settings, filterable.
  *
  * @return int
  */
 function buffer() {
-	return (int) apply_filters( 'dinekit_booking_buffer', 0 );
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	return (int) apply_filters( 'dinekit_booking_buffer', (int) \DineKit\Bookings\Settings\get()['buffer'] );
 }
 
 /**
@@ -337,10 +341,8 @@ function available_combos( $date, $time, $party, $exclude_id = 0 ) {
  * @return bool
  */
 function table_is_free( $table_id, $date, $time, $exclude_id = 0 ) {
-	foreach ( available_tables( $date, $time, 1, $exclude_id ) as $table ) {
-		if ( $table['id'] === (int) $table_id ) {
-			return true;
-		}
-	}
-	return false;
+	// Occupancy only — party-fit is the caller's concern (a min_party 2 table
+	// must still count as free when checking occupancy).
+	$occupied = occupied_ids( $date, $time, $exclude_id );
+	return empty( $occupied[ (int) $table_id ] );
 }

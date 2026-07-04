@@ -588,16 +588,23 @@ function delete_table( $request ) {
  */
 function get_availability( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
 	$date   = sanitize_text_field( (string) $request->get_param( 'date' ) );
 	$time   = sanitize_text_field( (string) $request->get_param( 'time' ) );
 	$party  = absint( $request->get_param( 'party' ) );
 	$free   = Availability\available_tables( $date, $time, $party );
 	$combos = Availability\available_combos( $date, $time, $party );
+
+	// The public widget hard-blocks on the covers-per-hour pacing cap; staff can
+	// override it, so surface it as a warning flag rather than "unavailable".
+	$cap = (int) \DineKit\Bookings\Settings\get()['covers_per_hour'];
+
 	return rest_ensure_response(
 		array(
 			'available' => ! empty( $free ) || ! empty( $combos ),
 			'tables'    => $free,
 			'combos'    => $combos,
+			'overCap'   => ! Availability\within_hour_capacity( $date, $time, $party, $cap ),
 		)
 	);
 }
@@ -997,7 +1004,7 @@ function validate_when( $date, $time, $party, $cfg ) {
 	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! preg_match( '/^\d{1,2}:\d{2}$/', $time ) ) {
 		return 'invalid';
 	}
-	if ( $party < 1 || $party > (int) $cfg['max_party'] ) {
+	if ( $party < max( 1, (int) $cfg['min_party'] ) || $party > (int) $cfg['max_party'] ) {
 		return 'party';
 	}
 	$ts = strtotime( $date . ' ' . $time . ':00' );

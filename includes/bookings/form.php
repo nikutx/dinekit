@@ -66,9 +66,11 @@ function render( $atts = array() ) {
 		JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
 	);
 
+	$min_party     = max( 1, (int) $cfg['minParty'] );
+	$default_party = min( max( 2, $min_party ), (int) $cfg['maxParty'] );
 	$party_options = '';
-	for ( $i = 1; $i <= (int) $cfg['maxParty']; $i++ ) {
-		$party_options .= '<option value="' . esc_attr( (string) $i ) . '"' . ( 2 === $i ? ' selected' : '' ) . '>' .
+	for ( $i = $min_party; $i <= (int) $cfg['maxParty']; $i++ ) {
+		$party_options .= '<option value="' . esc_attr( (string) $i ) . '"' . ( $default_party === $i ? ' selected' : '' ) . '>' .
 			/* translators: %d: number of guests. */
 			esc_html( sprintf( _n( '%d guest', '%d guests', $i, 'dinekit' ), $i ) ) . '</option>';
 	}
@@ -86,9 +88,17 @@ function render( $atts = array() ) {
 		) . '</p>';
 	}
 
+	// Widget branding — inline CSS-var overrides + optional dark style.
+	$settings   = \DineKit\Bookings\Settings\get();
+	$style_vars = \DineKit\Bookings\Settings\widget_style_vars();
+	$classes    = 'dinekit-booking';
+	if ( 'dark' === $settings['widget_style'] ) {
+		$classes .= ' dinekit-booking--dark';
+	}
+
 	ob_start();
 	?>
-	<div class="dinekit-booking" data-dinekit-booking="<?php echo esc_attr( $config ); ?>">
+	<div class="<?php echo esc_attr( $classes ); ?>" style="<?php echo esc_attr( $style_vars ); ?>" data-dinekit-booking="<?php echo esc_attr( $config ); ?>">
 		<?php if ( '' !== $heading ) : ?>
 			<h3 class="dinekit-booking__heading"><?php echo esc_html( $heading ); ?></h3>
 		<?php endif; ?>

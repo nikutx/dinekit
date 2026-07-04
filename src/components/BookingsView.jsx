@@ -14,8 +14,6 @@ import {
 	Divider,
 	Collapse,
 	Alert,
-	Switch,
-	Snackbar,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -25,7 +23,6 @@ import EventSeatIcon from '@mui/icons-material/EventSeat';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import JoinFullIcon from '@mui/icons-material/JoinFull';
 import TuneIcon from '@mui/icons-material/Tune';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PrintIcon from '@mui/icons-material/Print';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import { tokens } from '../theme';
@@ -37,6 +34,7 @@ import PageHeader from './ui/PageHeader';
 import Card from './ui/Card';
 import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
+import BookingSettingsView from './BookingSettingsView';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -161,6 +159,14 @@ export default function BookingsView() {
 		}
 	};
 
+	if ( settingsOpen ) {
+		return (
+			<Page width={ 900 }>
+				<BookingSettingsView onBack={ () => setSettingsOpen( false ) } />
+			</Page>
+		);
+	}
+
 	return (
 		<Page width={ 900 }>
 			<PageHeader
@@ -182,10 +188,6 @@ export default function BookingsView() {
 					</>
 				}
 			/>
-
-			<Collapse in={ settingsOpen } unmountOnExit>
-				<BookingSettings />
-			</Collapse>
 
 			<Collapse in={ adding } unmountOnExit>
 				<NewBooking initialDate={ date } onCreated={ onCreated } onCancel={ () => setAdding( false ) } />
@@ -564,6 +566,16 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 						guest confirms later, or you shuffle tables.
 					</Alert>
 				) }
+
+				{ ! checking && avail && avail.overCap && (
+					<Alert
+						severity="info"
+						sx={ { mt: noTables ? 1 : 0, py: 0, '& .MuiAlert-message': { fontSize: 13 } } }
+					>
+						Over your covers-per-hour cap for this time — the online widget would offer the
+						waitlist here. You can still book it in.
+					</Alert>
+				) }
 			</Box>
 
 			{ error && (
@@ -596,139 +608,6 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 					</Button>
 				) }
 			</Stack>
-		</Box>
-	);
-}
-
-function BookingSettings() {
-	const [ cfg, setCfg ] = useState( null );
-	const [ saveState, setSaveState ] = useState( 'idle' );
-	const [ copied, setCopied ] = useState( false );
-	const debounce = useRef( null );
-
-	useEffect( () => {
-		api.getBookingSettings().then( setCfg );
-	}, [] );
-
-	const patch = ( p ) => {
-		const next = { ...cfg, ...p };
-		setCfg( next );
-		clearTimeout( debounce.current );
-		setSaveState( 'saving' );
-		debounce.current = setTimeout( () => {
-			api.saveBookingSettings( next ).then( () => setSaveState( 'saved' ) ).catch( () => setSaveState( 'error' ) );
-		}, 500 );
-	};
-
-	if ( ! cfg ) {
-		return (
-			<Box sx={ { display: 'flex', justifyContent: 'center', py: 3 } }>
-				<CircularProgress size={ 22 } />
-			</Box>
-		);
-	}
-
-	const num = ( label, key, min, max, help ) => (
-		<TextField
-			label={ label }
-			type="number"
-			size="small"
-			value={ cfg[ key ] }
-			onChange={ ( e ) => patch( { [ key ]: Math.max( min, Math.min( max, parseInt( e.target.value, 10 ) || min ) ) } ) }
-			inputProps={ { min, max } }
-			helperText={ help }
-			sx={ { width: 150 } }
-		/>
-	);
-
-	const copyShortcode = () => {
-		const text = '[dinekit_booking]';
-		if ( navigator.clipboard ) {
-			navigator.clipboard.writeText( text ).then( () => setCopied( true ) );
-		}
-	};
-
-	return (
-		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5, mb: 2 } }>
-			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
-				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Booking settings</Typography>
-				<Typography sx={ { fontSize: 12, color: tokens.muted, minWidth: 50 } }>
-					{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
-				</Typography>
-			</Stack>
-
-			<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
-					<Switch checked={ cfg.online_enabled } onChange={ ( e ) => patch( { online_enabled: e.target.checked } ) } />
-					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Accept online bookings</Typography>
-				</Stack>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
-					<Switch checked={ cfg.auto_confirm } onChange={ ( e ) => patch( { auto_confirm: e.target.checked } ) } />
-					<Tooltip title="On: booked instantly. Off: comes in as a request you confirm.">
-						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Auto-confirm</Typography>
-					</Tooltip>
-				</Stack>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
-					<Switch checked={ cfg.allow_waitlist } onChange={ ( e ) => patch( { allow_waitlist: e.target.checked } ) } />
-					<Tooltip title="When a slot is full, let diners join the waitlist (penciled in) instead of being turned away.">
-						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Waitlist when full</Typography>
-					</Tooltip>
-				</Stack>
-			</Stack>
-
-			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
-				{ num( 'Max party', 'max_party', 1, 100 ) }
-				{ num( 'Notice (hours)', 'min_notice', 0, 720 ) }
-				{ num( 'Book up to (days)', 'max_days_ahead', 1, 730 ) }
-				{ num( 'Slot gap (min)', 'slot_interval', 15, 240 ) }
-			</Stack>
-			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mt: 1.5 } }>
-				<TextField label="Opens" type="time" size="small" value={ cfg.open_time } onChange={ ( e ) => patch( { open_time: e.target.value } ) } sx={ { width: 130 } } />
-				<TextField label="Last booking" type="time" size="small" value={ cfg.close_time } onChange={ ( e ) => patch( { close_time: e.target.value } ) } sx={ { width: 130 } } />
-				{ num( 'Covers / hour', 'covers_per_hour', 0, 1000, '0 = no limit' ) }
-				{ num( 'Deposit over (guests)', 'deposit_over', 0, 100, '0 = never' ) }
-				{ num( 'Deposit / guest', 'deposit_amount', 0, 100000 ) }
-			</Stack>
-
-			<Stack direction="row" spacing={ 2 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 2 } }>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
-					<Switch checked={ cfg.emails_enabled } onChange={ ( e ) => patch( { emails_enabled: e.target.checked } ) } />
-					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Email notifications</Typography>
-				</Stack>
-				<TextField
-					label="Notify email (staff)"
-					type="email"
-					size="small"
-					placeholder="Defaults to site admin"
-					value={ cfg.notify_email }
-					onChange={ ( e ) => patch( { notify_email: e.target.value } ) }
-					sx={ { width: 260 } }
-				/>
-			</Stack>
-
-			<Divider sx={ { my: 2 } } />
-			<Stack direction="row" alignItems="center" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
-				<Typography sx={ { fontSize: 13, color: tokens.muted } }>
-					Add the booking form to any page with the <strong>DineKit Booking Form</strong> block, or this shortcode:
-				</Typography>
-				<Chip
-					label="[dinekit_booking]"
-					onClick={ copyShortcode }
-					onDelete={ copyShortcode }
-					deleteIcon={ <ContentCopyIcon /> }
-					sx={ { fontFamily: 'monospace', fontWeight: 700, bgcolor: tokens.soft } }
-				/>
-			</Stack>
-			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
-				Deposit amounts are collected once you connect Stripe in Integrations (coming with payments).
-			</Typography>
-			<Snackbar
-				open={ copied }
-				autoHideDuration={ 1800 }
-				onClose={ () => setCopied( false ) }
-				message="Shortcode copied"
-				anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } }
-			/>
 		</Box>
 	);
 }
