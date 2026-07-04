@@ -310,7 +310,10 @@ function log_event( $id, $event ) {
 function capture_payment( $id ) {
 	$pi  = (string) get_post_meta( $id, 'dk_order_pi', true );
 	$pay = (string) get_post_meta( $id, 'dk_order_payment', true );
-	if ( '' === $pi || 'authorized' !== $pay ) {
+	// 'authorized' = webhook confirmed the hold; 'pending' = hold placed but the
+	// webhook may not have landed yet — capture is safe either way (Stripe errors
+	// harmlessly if there's nothing to capture).
+	if ( '' === $pi || ! in_array( $pay, array( 'authorized', 'pending' ), true ) ) {
 		return;
 	}
 	require_once DINEKIT_DIR . 'includes/payments.php';
@@ -339,7 +342,7 @@ function release_or_refund( $id ) {
 	}
 	require_once DINEKIT_DIR . 'includes/payments.php';
 
-	if ( 'authorized' === $pay ) {
+	if ( 'authorized' === $pay || 'pending' === $pay ) {
 		$res = \DineKit\Payments\stripe_post( 'payment_intents/' . rawurlencode( $pi ) . '/cancel', array() );
 		if ( ! is_wp_error( $res ) ) {
 			update_post_meta( $id, 'dk_order_payment', 'released' );
