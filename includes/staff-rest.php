@@ -117,6 +117,16 @@ function register_routes() {
 		)
 	);
 
+	register_rest_route(
+		$ns,
+		'/staff/ops',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_ops',
+			'permission_callback' => $perm,
+		)
+	);
+
 	// Holiday / leave.
 	register_rest_route(
 		$ns,
@@ -621,6 +631,21 @@ function delete_staff( $request ) {
 	}
 	wp_delete_post( $id, true );
 	return rest_ensure_response( array( 'deleted' => true ) );
+}
+
+/**
+ * GET /staff/ops?date — the operations snapshot for a day.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_ops( $request ) {
+	require_once DINEKIT_DIR . 'includes/staff.php';
+	$date = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+		$date = current_time( 'Y-m-d' );
+	}
+	return rest_ensure_response( Staff\ops( $date ) );
 }
 
 /**

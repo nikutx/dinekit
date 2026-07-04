@@ -118,6 +118,7 @@ export const api = {
 	createShift: ( data ) => request( 'POST', 'shifts', data ),
 	updateShift: ( id, data ) => request( 'PATCH', `shifts/${ id }`, data ),
 	deleteShift: ( id ) => request( 'DELETE', `shifts/${ id }` ),
+	getStaffOps: ( date ) => request( 'GET', 'staff/ops?date=' + encodeURIComponent( date ) ),
 	getLeave: () => request( 'GET', 'leave' ),
 	createLeave: ( data ) => request( 'POST', 'leave', data ),
 	updateLeave: ( id, data ) => request( 'PATCH', `leave/${ id }`, data ),

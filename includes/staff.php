@@ -247,3 +247,93 @@ function all_staff( $active_only = false ) {
 		)
 	);
 }
+
+/**
+ * Operations snapshot for a day: covers booked vs capacity, and staff on vs the
+ * staff the covers imply. Reuses DineKit's own bookings + floor — the edge a
+ * standalone scheduler can't match.
+ *
+ * @param string $date Y-m-d.
+ * @return array<string,mixed>
+ */
+function ops( $date ) {
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$cfg = settings();
+
+	// Covers booked (active bookings on the day).
+	$covers = 0;
+	foreach ( \DineKit\Bookings\Availability\bookings_on( $date ) as $b ) {
+		$covers += (int) $b['party'];
+	}
+
+	// Seats + service window + turn time drive the theoretical capacity.
+	$seats = 0;
+	foreach ( \DineKit\Bookings\Availability\all_tables() as $t ) {
+		$seats += (int) $t['seats'];
+	}
+	$service_min = 0;
+	foreach ( \DineKit\Bookings\Availability\service_periods( $date ) as $p ) {
+		$open  = \DineKit\Bookings\Availability\to_minutes( $p['open'] );
+		$close = \DineKit\Bookings\Availability\to_minutes( $p['close'] );
+		if ( $close <= $open ) {
+			$close += 1440;
+		}
+		$service_min += ( $close - $open );
+	}
+	$turn = max( 1, (int) \DineKit\Bookings\Settings\get()['turn_time'] );
+	$util = max( 0.1, min( 1.0, (int) $cfg['utilisation'] / 100 ) );
+
+	$theoretical  = ( $service_min > 0 ) ? (int) round( $seats * ( $service_min / $turn ) * $util ) : 0;
+	$capacity_pct = $theoretical > 0 ? (int) round( $covers / $theoretical * 100 ) : 0;
+
+	// Staff scheduled today + the servers the covers imply.
+	$cps         = max( 1, (int) $cfg['covers_per_server'] );
+	$required    = (int) ceil( $covers / $cps );
+	$staff_on    = 0;
+	$servers_on  = 0;
+	$labour_cost = 0.0;
+	$shifts      = get_posts(
+		array(
+			'post_type'      => 'dk_shift',
+			'post_status'    => 'publish',
+			'posts_per_page' => 500, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- one day's shifts.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'meta_key'       => 'dk_shift_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value'     => $date, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+		)
+	);
+	foreach ( $shifts as $sid ) {
+		++$staff_on;
+		$role = (string) get_post_meta( $sid, 'dk_shift_role', true );
+		if ( 'boh' !== area_for_role( $role ) ) {
+			++$servers_on;
+		}
+		$start = \DineKit\Bookings\Availability\to_minutes( (string) get_post_meta( $sid, 'dk_shift_start', true ) );
+		$end   = \DineKit\Bookings\Availability\to_minutes( (string) get_post_meta( $sid, 'dk_shift_end', true ) );
+		$mins  = $end - $start;
+		if ( $mins <= 0 ) {
+			$mins += 1440;
+		}
+		$staff_id     = (int) get_post_meta( $sid, 'dk_shift_staff', true );
+		$labour_cost += ( $mins / 60 ) * (float) get_post_meta( $staff_id, 'dk_rate', true );
+	}
+	$over_under = $required > 0 ? (int) round( ( $servers_on - $required ) / $required * 100 ) : 0;
+
+	return array(
+		'date'            => $date,
+		'covers'          => $covers,
+		'seats'           => $seats,
+		'serviceHours'    => round( $service_min / 60, 1 ),
+		'turnTime'        => $turn,
+		'theoretical'     => $theoretical,
+		'capacityPct'     => $capacity_pct,
+		'coversPerServer' => $cps,
+		'required'        => $required,
+		'serversOn'       => $servers_on,
+		'staffOn'         => $staff_on,
+		'overUnderPct'    => $over_under,
+		'labourCost'      => round( $labour_cost, 2 ),
+	);
+}
