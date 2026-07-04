@@ -385,6 +385,15 @@ function available_tables( $date, $time, $party, $exclude_id = 0 ) {
 			$free[] = $table;
 		}
 	}
+	// Best-fit: smallest fitting table first, so a party of 2 doesn't take a
+	// 6-top and burn capacity for a later big booking. Auto-assign uses [0].
+	usort(
+		$free,
+		static function ( $a, $b ) {
+			$by_seats = $a['seats'] <=> $b['seats'];
+			return 0 !== $by_seats ? $by_seats : ( $a['order'] <=> $b['order'] );
+		}
+	);
 	return $free;
 }
 
@@ -432,6 +441,15 @@ function available_combos( $date, $time, $party, $exclude_id = 0 ) {
 			$free[] = $combo;
 		}
 	}
+	// Smallest adequate join first, so a party of 5 takes a 6-seat combo over an
+	// 8-seat one — same best-fit principle as single tables.
+	usort(
+		$free,
+		static function ( $a, $b ) {
+			$by_seats = $a['seats'] <=> $b['seats'];
+			return 0 !== $by_seats ? $by_seats : ( $a['priority'] <=> $b['priority'] );
+		}
+	);
 	return $free;
 }
 
