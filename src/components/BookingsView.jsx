@@ -14,6 +14,7 @@ import {
 	Divider,
 	Collapse,
 	Alert,
+	Snackbar,
 	ToggleButton,
 	ToggleButtonGroup,
 } from '@mui/material';
@@ -31,6 +32,7 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
@@ -96,6 +98,13 @@ export default function BookingsView() {
 	const eventCovers = ( e ) =>
 		( e.groups || [] ).reduce( ( s, g ) => s + ( g.size || 0 ), 0 ) || e.capacity || e.guestCount || 0;
 	const eventsToday = events.filter( ( e ) => e.date === date );
+
+	const [ reviewMsg, setReviewMsg ] = useState( '' );
+	const askReview = ( id ) => {
+		api.requestReview( id )
+			.then( () => setReviewMsg( 'Review request sent ✓' ) )
+			.catch( ( e ) => setReviewMsg( e.message || 'Could not send the request' ) );
+	};
 
 	const setStatus = ( id, status ) => {
 		setBookings( ( bs ) => bs.map( ( b ) => ( b.id === id ? { ...b, status } : b ) ) );
@@ -392,6 +401,7 @@ export default function BookingsView() {
 												booking={ b }
 												onStatus={ ( s ) => setStatus( b.id, s ) }
 												onDelete={ () => remove( b.id ) }
+												onRequestReview={ () => askReview( b.id ) }
 											/>
 										) ) }
 									</Stack>
@@ -402,11 +412,18 @@ export default function BookingsView() {
 			) }
 			</>
 			) }
+			<Snackbar
+				open={ !! reviewMsg }
+				autoHideDuration={ 2500 }
+				onClose={ () => setReviewMsg( '' ) }
+				message={ reviewMsg }
+				anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } }
+			/>
 		</Page>
 	);
 }
 
-function BookingRow( { booking, onStatus, onDelete } ) {
+function BookingRow( { booking, onStatus, onDelete, onRequestReview } ) {
 	const meta = statusMeta( booking.status );
 	return (
 		<Stack
@@ -462,6 +479,13 @@ function BookingRow( { booking, onStatus, onDelete } ) {
 					</MenuItem>
 				) ) }
 			</Select>
+			{ booking.email && (
+				<Tooltip title="Ask this guest for a review">
+					<IconButton size="small" onClick={ onRequestReview } sx={ { color: tokens.muted2 } }>
+						<StarBorderIcon fontSize="small" />
+					</IconButton>
+				</Tooltip>
+			) }
 			<Tooltip title="Delete booking">
 				<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted2 } }>
 					<DeleteOutlineIcon fontSize="small" />

@@ -6,6 +6,7 @@ import {
 	TextField,
 	Switch,
 	Tooltip,
+	Chip,
 	CircularProgress,
 	Alert,
 } from '@mui/material';
@@ -21,11 +22,13 @@ import Card from './ui/Card';
 // this screen only tunes destinations, messaging and the win-back offer.
 export default function ReviewsView() {
 	const [ cfg, setCfg ] = useState( null );
+	const [ feedback, setFeedback ] = useState( [] );
 	const [ saveState, setSaveState ] = useState( 'idle' );
 	const debounce = useRef( null );
 
 	useEffect( () => {
 		api.getReviews().then( setCfg );
+		api.getFeedback().then( ( f ) => setFeedback( f || [] ) ).catch( () => {} );
 	}, [] );
 
 	const patch = ( p ) => {
@@ -85,6 +88,33 @@ export default function ReviewsView() {
 			</Alert>
 
 			<Stack spacing={ 2 }>
+				{ feedback.length > 0 && (
+					<Card sx={ { p: 2.5 } }>
+						{ section( 'Recent feedback', 'Private ratings diners have left. Low ones also email you an alert.' ) }
+						<Stack spacing={ 1 }>
+							{ feedback.slice( 0, 12 ).map( ( f ) => {
+								const low = f.rating <= ( cfg.low_threshold || 3 );
+								return (
+									<Stack key={ f.id } direction="row" alignItems="center" spacing={ 1.5 } sx={ { bgcolor: tokens.soft, borderRadius: 2, p: 1.25 } }>
+										<Box sx={ { width: 96, flexShrink: 0 } }>
+											<Typography sx={ { fontSize: 15, color: low ? tokens.red : '#f59e0b', letterSpacing: '1px' } }>
+												{ '★★★★★'.slice( 0, f.rating ) }<span style={ { color: tokens.border2 } }>{ '★★★★★'.slice( f.rating ) }</span>
+											</Typography>
+										</Box>
+										<Box sx={ { flex: 1, minWidth: 0 } }>
+											<Typography sx={ { fontWeight: 650, fontSize: 13.5, color: tokens.ink } } noWrap>
+												{ f.name || 'Guest' }{ f.date ? ` · ${ f.date }` : '' }
+											</Typography>
+											{ f.comment && <Typography sx={ { fontSize: 13, color: tokens.muted } }>{ f.comment }</Typography> }
+										</Box>
+										{ low && <Chip label="Needs follow-up" size="small" sx={ { bgcolor: tokens.redSoft, color: tokens.red, fontWeight: 600 } } /> }
+									</Stack>
+								);
+							} ) }
+						</Stack>
+					</Card>
+				) }
+
 				<Card sx={ { p: 2.5 } }>
 					{ section( 'Post-visit review request', 'Ask for feedback a few hours after the visit.' ) }
 					<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>

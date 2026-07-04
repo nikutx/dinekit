@@ -133,6 +133,61 @@
 .dinekit-booking__suggest:hover {
 	background: rgba( var(--dkb-accent-rgb), 0.16 );
 }
+/* First-party feedback page — star rating + public-review links. */
+.dinekit-feedback__stars {
+	display: flex;
+	gap: 4px;
+	margin: 4px 0 16px;
+}
+.dinekit-feedback__star {
+	cursor: pointer;
+	font-size: 30px;
+	line-height: 1;
+	color: var(--dkb-border);
+	transition: color 0.1s ease;
+}
+.dinekit-feedback__star input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+.dinekit-feedback__star.is-on {
+	color: #f59e0b;
+}
+.dinekit-feedback__public {
+	margin-top: 18px;
+	padding-top: 16px;
+	border-top: 1px solid var(--dkb-border);
+}
+.dinekit-feedback__public-label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--dkb-muted);
+	margin: 0 0 8px;
+}
+.dinekit-feedback__link {
+	display: inline-block;
+	margin: 0 8px 8px 0;
+	padding: 8px 14px;
+	border: 1px solid var(--dkb-accent);
+	border-radius: calc( var(--dkb-radius) - 6px );
+	color: var(--dkb-accent-dark);
+	background: rgba( var(--dkb-accent-rgb), 0.06 );
+	font-size: 14px;
+	font-weight: 700;
+	text-decoration: none;
+}
+.dinekit-feedback__link:hover {
+	background: rgba( var(--dkb-accent-rgb), 0.14 );
+}
+.screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect( 1px, 1px, 1px, 1px );
+}
 .dinekit-booking__note {
 	margin: 4px 0 12px;
 	padding: 8px 12px;
