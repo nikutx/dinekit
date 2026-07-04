@@ -569,6 +569,38 @@ function create_table( $request ) {
 }
 
 /**
+ * Remove a table from every combo (join) it belongs to. Combos left with fewer
+ * than two tables are deleted (a join needs ≥2). Keeps combo data consistent
+ * when a table is deleted or moved out of its join.
+ *
+ * @param int $table_id Table id.
+ * @return void
+ */
+function detach_table_from_combos( $table_id ) {
+	$table_id = (int) $table_id;
+	$combos   = get_posts(
+		array(
+			'post_type'   => 'dk_table_combo',
+			'post_status' => 'publish',
+			// A venue has a handful of joins; we need them all to detach a table.
+			'numberposts' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_numberposts
+		)
+	);
+	foreach ( $combos as $combo ) {
+		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $combo->ID, 'dk_combo_tables', true ) ) ) );
+		if ( ! in_array( $table_id, $ids, true ) ) {
+			continue;
+		}
+		$ids = array_values( array_diff( $ids, array( $table_id ) ) );
+		if ( count( $ids ) < 2 ) {
+			wp_delete_post( $combo->ID, true );
+		} else {
+			update_post_meta( $combo->ID, 'dk_combo_tables', implode( ',', $ids ) );
+		}
+	}
+}
+
+/**
  * PATCH /bookings/tables/:id.
  *
  * @param \WP_REST_Request $request Request.
@@ -576,6 +608,10 @@ function create_table( $request ) {
  */
 function update_table( $request ) {
 	$id = (int) $request['id'];
+	// Moving a table out of its zone breaks any join it's part of, when asked.
+	if ( $request->get_param( 'breakJoins' ) ) {
+		detach_table_from_combos( $id );
+	}
 	apply_table_fields( $id, $request );
 	return rest_ensure_response( table_response( $id ) );
 }
@@ -587,7 +623,9 @@ function update_table( $request ) {
  * @return \WP_REST_Response
  */
 function delete_table( $request ) {
-	wp_delete_post( (int) $request['id'], true );
+	$id = (int) $request['id'];
+	detach_table_from_combos( $id ); // Keep joins consistent — no dangling members.
+	wp_delete_post( $id, true );
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
 

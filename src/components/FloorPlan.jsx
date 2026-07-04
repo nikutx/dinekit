@@ -152,12 +152,54 @@ export default function FloorPlan() {
 		}
 	};
 
+	// Combos (joins) a table belongs to — used to warn before delete/move.
+	const combosForTable = ( id ) => combos.filter( ( c ) => c.tables.includes( id ) );
+
+	// Remove a table from its joins locally, mirroring the server: drop the id,
+	// and drop any join left with fewer than two tables.
+	const detachLocally = ( id ) =>
+		setCombos( ( cs ) =>
+			cs
+				.map( ( c ) => ( { ...c, tables: c.tables.filter( ( x ) => x !== id ) } ) )
+				.filter( ( c ) => c.tables.length >= 2 )
+		);
+
 	const removeTable = async ( id ) => {
+		const joins = combosForTable( id );
+		if ( joins.length ) {
+			// eslint-disable-next-line no-alert
+			const okDelete = window.confirm(
+				( byId[ id ]?.name || 'This table' ) + ' is joined in ' + joins.map( ( c ) => c.name ).join( ', ' ) +
+					'. Deleting it will break that join. Continue?'
+			);
+			if ( ! okDelete ) {
+				return;
+			}
+		}
 		await api.deleteTable( id );
 		setTables( ( t ) => t.filter( ( x ) => x.id !== id ) );
-		// Drop any combo that referenced it (server keeps the combo but it's now invalid); refresh locally.
-		setCombos( ( cs ) => cs.filter( ( c ) => ! c.tables.includes( id ) ) );
+		detachLocally( id );
 		setSelectedId( null );
+	};
+
+	// Change a table's zone. If it's joined, moving zones breaks the join — ask
+	// first, then detach it (server-side too, via breakJoins).
+	const changeTableZone = ( id, areaId ) => {
+		const joins = combosForTable( id );
+		if ( joins.length ) {
+			// eslint-disable-next-line no-alert
+			const okMove = window.confirm(
+				( byId[ id ]?.name || 'This table' ) + ' is joined in ' + joins.map( ( c ) => c.name ).join( ', ' ) +
+					'. Moving it to another zone will break that join. Continue?'
+			);
+			if ( ! okMove ) {
+				return;
+			}
+			detachLocally( id );
+			patchTable( id, { area: areaId, breakJoins: true } );
+			return;
+		}
+		patchTable( id, { area: areaId } );
 	};
 
 	/* ---- join / combos ---- */
@@ -536,6 +578,7 @@ export default function FloorPlan() {
 							table={ selected }
 							areas={ areas }
 							onChange={ ( patch ) => patchTable( selected.id, patch ) }
+							onChangeZone={ ( areaId ) => changeTableZone( selected.id, areaId ) }
 							onDelete={ () => removeTable( selected.id ) }
 							onClose={ () => setSelectedId( null ) }
 						/>
@@ -553,7 +596,7 @@ export default function FloorPlan() {
 	);
 }
 
-function TableProps( { table, areas, onChange, onDelete, onClose } ) {
+function TableProps( { table, areas, onChange, onChangeZone, onDelete, onClose } ) {
 	const num = ( label, key, min = 1 ) => (
 		<TextField
 			label={ label }
@@ -604,7 +647,7 @@ function TableProps( { table, areas, onChange, onDelete, onClose } ) {
 						label="Zone"
 						size="small"
 						value={ table.areaId || 0 }
-						onChange={ ( e ) => onChange( { area: Number( e.target.value ) } ) }
+						onChange={ ( e ) => onChangeZone( Number( e.target.value ) ) }
 						sx={ { flex: 1 } }
 					>
 						<MenuItem value={ 0 }>Unzoned</MenuItem>
