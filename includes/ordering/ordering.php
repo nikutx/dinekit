@@ -211,6 +211,7 @@ function register() {
 		'dk_order_archived'   => 'integer', // 1 = archived (never hard-deleted).
 		'dk_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
 		'dk_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
+		'dk_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -360,6 +361,33 @@ function release_or_refund( $id ) {
 			log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Refund failed (needs manual action): %s', 'dinekit' ), $res->get_error_message() ) );
 		}
 	}
+}
+
+/**
+ * Record an email send attempt against an order (so failures are visible in the
+ * admin rather than lost).
+ *
+ * @param int    $id   Order id.
+ * @param string $to   Recipient.
+ * @param string $type What was sent (e.g. 'confirmation', 'kitchen').
+ * @param bool   $ok   Whether wp_mail reported success.
+ * @return void
+ */
+function log_email( $id, $to, $type, $ok ) {
+	$log = json_decode( (string) get_post_meta( $id, 'dk_order_email_log', true ), true );
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
+	$log[] = array(
+		't'    => current_time( 'c' ),
+		'to'   => (string) $to,
+		'type' => (string) $type,
+		'ok'   => $ok ? 1 : 0,
+	);
+	if ( count( $log ) > 50 ) {
+		$log = array_slice( $log, -50 );
+	}
+	update_post_meta( $id, 'dk_order_email_log', wp_json_encode( $log ) );
 }
 
 /**

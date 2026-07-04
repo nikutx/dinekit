@@ -17,7 +17,13 @@ import {
 	Collapse,
 	Divider,
 	Snackbar,
+	Drawer,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArchiveIcon from '@mui/icons-material/ArchiveOutlined';
 import UnarchiveIcon from '@mui/icons-material/UnarchiveOutlined';
@@ -96,6 +102,7 @@ export default function OrdersView() {
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
 	const [ adding, setAdding ] = useState( false );
+	const [ detail, setDetail ] = useState( null ); // Order shown in the detail drawer.
 
 	useEffect( () => {
 		Promise.all( [ api.getOrders(), api.getSettings() ] )
@@ -141,6 +148,14 @@ export default function OrdersView() {
 		setArchived( ( a ) => ( a || [] ).filter( ( o ) => o.id !== id ) );
 		api.updateOrder( id, { archived: false } ).then( () => api.getOrders().then( ( l ) => setOrders( l || [] ) ) );
 	};
+	const resend = ( id ) => {
+		api.updateOrder( id, { action: 'resend' } ).then( ( o ) => {
+			if ( o ) {
+				patchLocal( id, o );
+				setDetail( ( d ) => ( d && d.id === id ? o : d ) );
+			}
+		} );
+	};
 
 	const filtered = useMemo( () => {
 		if ( tab === 'archived' ) {
@@ -157,7 +172,6 @@ export default function OrdersView() {
 
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
 	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) ).length;
-	const newCount = orders.filter( ( o ) => o.status === 'new' ).length;
 
 	const printTicket = ( o ) => {
 		let body = '<h1>Order #' + o.number + '</h1>';
@@ -301,6 +315,9 @@ export default function OrdersView() {
 														) ) }
 													</Select>
 												) }
+												<Tooltip title="Details">
+													<IconButton size="small" onClick={ () => setDetail( o ) } sx={ { color: tokens.muted } }><InfoOutlinedIcon fontSize="small" /></IconButton>
+												</Tooltip>
 												<Tooltip title="Print ticket">
 													<IconButton size="small" onClick={ () => printTicket( o ) } sx={ { color: tokens.muted } }><PrintIcon fontSize="small" /></IconButton>
 												</Tooltip>
@@ -340,6 +357,9 @@ export default function OrdersView() {
 					) ) }
 				</Stack>
 			) }
+			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
+				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } /> }
+			</Drawer>
 		</Page>
 	);
 }
@@ -554,6 +574,118 @@ function OrderSettings() {
 				auto-accept off, a customer's card is held and only charged when you accept.
 			</Typography>
 			<Snackbar open={ copied } autoHideDuration={ 1800 } onClose={ () => setCopied( false ) } message="Shortcode copied" anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } } />
+		</Box>
+	);
+}
+
+function DSection( { title, action, children } ) {
+	return (
+		<Box sx={ { mb: 2.5 } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 0.75 } }>
+				<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2 } }>{ title }</Typography>
+				{ action || null }
+			</Stack>
+			{ children }
+		</Box>
+	);
+}
+
+function DRow( { label, value, mono } ) {
+	return (
+		<Stack direction="row" justifyContent="space-between" sx={ { py: 0.25 } }>
+			<Typography sx={ { color: tokens.muted, fontSize: 13.5 } }>{ label }</Typography>
+			<Typography sx={ { color: tokens.ink, fontSize: 13.5, fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-all', textAlign: 'right', ml: 2 } }>{ value }</Typography>
+		</Stack>
+	);
+}
+
+// Full order detail: customer, items, payment (+Stripe id), receipt email log
+// with resend, and the status/payment history trail.
+function OrderDetail( { order, money, onClose, onResend } ) {
+	const m = O_STATUS.find( ( s ) => s.key === order.status ) || O_STATUS[ 0 ];
+	const pay = PAYMENT[ order.payment ];
+	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
+	return (
+		<Box sx={ { p: 3 } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
+				<Typography variant="h6" sx={ { fontSize: 18 } }>Order #{ order.number }</Typography>
+				<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
+			</Stack>
+			<Stack direction="row" spacing={ 1 } sx={ { mb: 2 } }>
+				<Chip label={ m.label } size="small" sx={ { fontWeight: 600, color: m.fg, bgcolor: m.bg } } />
+				{ pay && <Chip label={ pay.label } size="small" sx={ { fontWeight: 600, color: pay.fg, bgcolor: pay.bg } } /> }
+			</Stack>
+
+			{ order.refundDue && (
+				<Box sx={ { mb: 2, p: 1.5, borderRadius: 2, bgcolor: tokens.redSoft } }>
+					<Typography sx={ { fontSize: 13, color: tokens.red, fontWeight: 600 } }>A refund is owed but could not be processed automatically — refund the customer in Stripe.</Typography>
+				</Box>
+			) }
+
+			<DSection title="Customer">
+				<DRow label="Name" value={ order.name || '—' } />
+				{ order.phone && <DRow label="Phone" value={ order.phone } /> }
+				{ order.email && <DRow label="Email" value={ order.email } /> }
+				<DRow label="Collection" value={ order.when === 'asap' ? 'ASAP' : order.when } />
+				{ order.source && <DRow label="Source" value={ order.source } /> }
+			</DSection>
+
+			<DSection title="Items">
+				<Stack spacing={ 0.75 }>
+					{ order.items.map( ( li, i ) => {
+						const extra = [ li.priceLabel ].concat( ( li.chosen || [] ).map( ( c ) => c.label ) ).concat( ( li.removed || [] ).map( ( r ) => `no ${ r }` ) ).filter( Boolean );
+						return (
+							<Stack key={ i } direction="row" justifyContent="space-between" spacing={ 2 }>
+								<Typography sx={ { fontSize: 13.5 } }>{ li.qty }× { li.title }{ extra.length ? ` (${ extra.join( ', ' ) })` : '' }</Typography>
+								<Typography sx={ { fontSize: 13.5, fontWeight: 650, whiteSpace: 'nowrap' } }>{ money( li.lineTotal ) }</Typography>
+							</Stack>
+						);
+					} ) }
+					<Divider sx={ { my: 0.5 } } />
+					<Stack direction="row" justifyContent="space-between" sx={ { fontWeight: 700 } }>
+						<span>Total</span><span>{ money( order.total ) }</span>
+					</Stack>
+				</Stack>
+			</DSection>
+
+			{ order.notes && (
+				<DSection title="Notes">
+					<Typography sx={ { fontSize: 13, fontStyle: 'italic', color: tokens.ink2 } }>“{ order.notes }”</Typography>
+				</DSection>
+			) }
+
+			<DSection title="Payment">
+				<DRow label="Status" value={ pay ? pay.label : ( order.payment || '—' ) } />
+				{ order.pi && <DRow label="Stripe ID" value={ order.pi } mono /> }
+			</DSection>
+
+			<DSection title="Receipt email" action={ order.email ? <Button size="small" startIcon={ <ReplayIcon /> } onClick={ onResend }>Resend</Button> : null }>
+				{ ( order.emailLog || [] ).length === 0 ? (
+					<Typography sx={ { fontSize: 13, color: tokens.muted } }>No emails sent yet.</Typography>
+				) : (
+					<Stack spacing={ 0.5 }>
+						{ order.emailLog.map( ( e, i ) => (
+							<Stack key={ i } direction="row" alignItems="center" spacing={ 1 } sx={ { color: tokens.muted } }>
+								{ e.ok ? <CheckCircleIcon sx={ { fontSize: 15, color: tokens.green } } /> : <ErrorOutlineIcon sx={ { fontSize: 15, color: tokens.red } } /> }
+								<Typography sx={ { fontSize: 12.5 } }>{ e.type } → { e.to || '—' }</Typography>
+								<Box sx={ { flex: 1 } } />
+								<Typography sx={ { fontSize: 12 } }>{ fmt( e.t ) }</Typography>
+							</Stack>
+						) ) }
+					</Stack>
+				) }
+			</DSection>
+
+			<DSection title="History">
+				<Stack spacing={ 0.5 }>
+					{ ( order.history || [] ).map( ( h, i ) => (
+						<Stack key={ i } direction="row" spacing={ 1 }>
+							<Typography sx={ { color: tokens.muted2, minWidth: 130, fontSize: 12 } }>{ fmt( h.t ) }</Typography>
+							<Typography sx={ { color: tokens.ink2, fontSize: 12.5 } }>{ h.e }</Typography>
+						</Stack>
+					) ) }
+				</Stack>
+			</DSection>
 		</Box>
 	);
 }

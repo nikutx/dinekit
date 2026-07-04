@@ -114,25 +114,28 @@ function register_routes() {
  * @return array<string,mixed>
  */
 function order_response( $id ) {
-	$items   = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
-	$history = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
+	$items    = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
+	$history  = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
+	$emaillog = json_decode( (string) get_post_meta( $id, 'dk_order_email_log', true ), true );
 	return array(
-		'id'       => (int) $id,
-		'number'   => (int) get_post_meta( $id, 'dk_order_number', true ),
-		'items'    => is_array( $items ) ? $items : array(),
-		'total'    => (string) get_post_meta( $id, 'dk_order_total', true ),
-		'status'   => (string) get_post_meta( $id, 'dk_order_status', true ),
-		'name'     => (string) get_post_meta( $id, 'dk_order_name', true ),
-		'email'    => (string) get_post_meta( $id, 'dk_order_email', true ),
-		'phone'    => (string) get_post_meta( $id, 'dk_order_phone', true ),
-		'notes'    => (string) get_post_meta( $id, 'dk_order_notes', true ),
-		'when'     => (string) get_post_meta( $id, 'dk_order_when', true ),
-		'payment'  => (string) get_post_meta( $id, 'dk_order_payment', true ),
-		'source'   => (string) get_post_meta( $id, 'dk_order_source', true ),
-		'pi'       => (string) get_post_meta( $id, 'dk_order_pi', true ),
-		'archived' => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
-		'history'  => is_array( $history ) ? $history : array(),
-		'placed'   => (string) get_post_time( 'c', false, $id ),
+		'id'        => (int) $id,
+		'number'    => (int) get_post_meta( $id, 'dk_order_number', true ),
+		'items'     => is_array( $items ) ? $items : array(),
+		'total'     => (string) get_post_meta( $id, 'dk_order_total', true ),
+		'status'    => (string) get_post_meta( $id, 'dk_order_status', true ),
+		'name'      => (string) get_post_meta( $id, 'dk_order_name', true ),
+		'email'     => (string) get_post_meta( $id, 'dk_order_email', true ),
+		'phone'     => (string) get_post_meta( $id, 'dk_order_phone', true ),
+		'notes'     => (string) get_post_meta( $id, 'dk_order_notes', true ),
+		'when'      => (string) get_post_meta( $id, 'dk_order_when', true ),
+		'payment'   => (string) get_post_meta( $id, 'dk_order_payment', true ),
+		'source'    => (string) get_post_meta( $id, 'dk_order_source', true ),
+		'pi'        => (string) get_post_meta( $id, 'dk_order_pi', true ),
+		'archived'  => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
+		'refundDue' => '1' === (string) get_post_meta( $id, 'dk_order_refund_due', true ),
+		'history'   => is_array( $history ) ? $history : array(),
+		'emailLog'  => is_array( $emaillog ) ? $emaillog : array(),
+		'placed'    => (string) get_post_time( 'c', false, $id ),
 	);
 }
 
@@ -256,6 +259,10 @@ function update_order( $request ) {
 		update_post_meta( $id, 'dk_order_status', 'cancelled' );
 		Ordering\log_event( $id, __( 'Rejected & cancelled', 'dinekit' ) );
 		Ordering\release_or_refund( $id ); // Releases the hold, or refunds if already captured.
+	} elseif ( 'resend' === $action ) {
+		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+		$sent = Ordering\Emails\resend_confirmation( $id );
+		Ordering\log_event( $id, $sent ? __( 'Receipt re-sent to customer', 'dinekit' ) : __( 'Receipt resend failed', 'dinekit' ) );
 	}
 
 	$status = (string) $request->get_param( 'status' );

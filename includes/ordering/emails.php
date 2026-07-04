@@ -96,7 +96,7 @@ function render( $lead, $d ) {
 		foreach ( (array) ( $line['removed'] ?? array() ) as $r ) {
 			$mods[] = 'no ' . $r;
 		}
-		$name = $line['qty'] . '× ' . $line['title'] . ( ! empty( $line['priceLabel'] ) ? ' (' . $line['priceLabel'] . ')' : '' );
+		$name  = $line['qty'] . '× ' . $line['title'] . ( ! empty( $line['priceLabel'] ) ? ' (' . $line['priceLabel'] . ')' : '' );
 		$html .= '<tr><td style="padding:6px 10px;border-bottom:1px solid #e2e8f0">' .
 			'<strong>' . esc_html( $name ) . '</strong>' .
 			( $mods ? '<br><span style="color:#64748b;font-size:13px">' . esc_html( implode( ', ', $mods ) ) . '</span>' : '' ) .
@@ -114,22 +114,42 @@ function render( $lead, $d ) {
 }
 
 /**
- * Send an HTML email.
+ * Send an HTML email. Returns whether wp_mail reported success (so callers can
+ * log delivery status).
  *
  * @param string $to      Recipient.
  * @param string $subject Subject.
  * @param string $body    HTML body.
- * @return void
+ * @return bool
  */
 function send( $to, $subject, $body ) {
 	if ( ! is_email( $to ) ) {
-		return;
+		return false;
 	}
-	wp_mail( $to, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
+	return (bool) wp_mail( $to, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
 }
 
 /**
- * Notify the customer + kitchen about a new order.
+ * The customer confirmation email for an order (subject + body). Shared by the
+ * initial send and the admin "resend receipt" action.
+ *
+ * @param array<string,mixed> $d Order data.
+ * @return array{subject:string,body:string}
+ */
+function confirmation( $d ) {
+	$site = get_bloginfo( 'name' );
+	/* translators: %s: customer name. */
+	$lead = sprintf( __( 'Thanks %s — we’ve got your order and we’ll have it ready for collection.', 'dinekit' ), $d['name'] );
+	/* translators: 1: order number, 2: site name. */
+	$subject = sprintf( __( 'Order #%1$d confirmed — %2$s', 'dinekit' ), $d['number'], $site );
+	return array(
+		'subject' => $subject,
+		'body'    => render( $lead, $d ),
+	);
+}
+
+/**
+ * Notify the customer + kitchen about a new order, logging each send.
  *
  * @param int $id Order id.
  * @return void
@@ -138,18 +158,35 @@ function new_order( $id ) {
 	if ( ! enabled() ) {
 		return;
 	}
-	$d    = order_data( $id );
-	$site = get_bloginfo( 'name' );
+	$d = order_data( $id );
 
 	if ( is_email( $d['email'] ) ) {
-		/* translators: %s: customer name. */
-		$lead = sprintf( __( 'Thanks %s — we’ve got your order and we’ll have it ready for collection.', 'dinekit' ), $d['name'] );
-		/* translators: 1: order number, 2: site name. */
-		$subject = sprintf( __( 'Order #%1$d confirmed — %2$s', 'dinekit' ), $d['number'], $site );
-		send( $d['email'], $subject, render( $lead, $d ) );
+		$mail = confirmation( $d );
+		$ok   = send( $d['email'], $mail['subject'], $mail['body'] );
+		Ordering\log_email( $id, $d['email'], 'confirmation', $ok );
 	}
 
 	/* translators: %d: order number. */
 	$subject = sprintf( __( 'New order #%d', 'dinekit' ), $d['number'] );
-	send( admin_recipient(), $subject, render( __( 'A new order has come in:', 'dinekit' ), $d ) );
+	$to      = admin_recipient();
+	$ok      = send( $to, $subject, render( __( 'A new order has come in:', 'dinekit' ), $d ) );
+	Ordering\log_email( $id, $to, 'kitchen', $ok );
+}
+
+/**
+ * Resend the customer confirmation (admin "resend receipt"). Logs the result.
+ *
+ * @param int $id Order id.
+ * @return bool True if sent.
+ */
+function resend_confirmation( $id ) {
+	$d = order_data( $id );
+	if ( ! is_email( $d['email'] ) ) {
+		Ordering\log_email( $id, $d['email'], 'resend', false );
+		return false;
+	}
+	$mail = confirmation( $d );
+	$ok   = send( $d['email'], $mail['subject'], $mail['body'] );
+	Ordering\log_email( $id, $d['email'], 'resend', $ok );
+	return $ok;
 }
