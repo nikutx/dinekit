@@ -11,10 +11,16 @@ import {
 	Tooltip,
 	Divider,
 	Switch,
+	Collapse,
+	ToggleButton,
+	ToggleButtonGroup,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import BuildIcon from '@mui/icons-material/Build';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import GridViewIcon from '@mui/icons-material/GridView';
+import ViewListIcon from '@mui/icons-material/ViewList';
 import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import Rotate90DegreesCwIcon from '@mui/icons-material/Rotate90DegreesCw';
@@ -66,6 +72,7 @@ export default function FloorPlan() {
 	const [ busy, setBusy ] = useState( false );
 	const [ joinMode, setJoinMode ] = useState( false );
 	const [ joinSel, setJoinSel ] = useState( [] ); // table ids selected to join
+	const [ viewMode, setViewMode ] = useState( 'plan' ); // 'plan' (canvas) | 'list'
 
 	const canvasRef = useRef( null );
 	const drag = useRef( null );
@@ -307,10 +314,21 @@ export default function FloorPlan() {
 							label={ `${ totalSeats } covers` }
 							sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600 } }
 						/>
+						<ToggleButtonGroup
+							exclusive
+							size="small"
+							value={ viewMode }
+							onChange={ ( e, v ) => v && setViewMode( v ) }
+						>
+							<ToggleButton value="plan"><GridViewIcon sx={ { fontSize: 16, mr: 0.5 } } /> Plan</ToggleButton>
+							<ToggleButton value="list"><ViewListIcon sx={ { fontSize: 17, mr: 0.5 } } /> List</ToggleButton>
+						</ToggleButtonGroup>
 					</>
 				}
 			/>
 
+			{ viewMode === 'plan' && (
+			<>
 			{ /* Zone tabs + management */ }
 			<Stack direction="row" alignItems="center" gap={ 1 } flexWrap="wrap" sx={ { mt: 2, mb: 1.5 } }>
 				{ zones.map( ( z ) => {
@@ -585,6 +603,26 @@ export default function FloorPlan() {
 					) }
 				</Stack>
 			) }
+			</>
+			) }
+
+			{ viewMode === 'list' && (
+				<Stack direction="row" spacing={ 2 } alignItems="flex-start">
+					<Box sx={ { flex: 1, minWidth: 0 } }>
+						<FloorListView zones={ zones } tables={ tables } combos={ combos } selectedId={ selectedId } onSelect={ setSelectedId } />
+					</Box>
+					{ selected && (
+						<TableProps
+							table={ selected }
+							areas={ areas }
+							onChange={ ( patch ) => patchTable( selected.id, patch ) }
+							onChangeZone={ ( areaId ) => changeTableZone( selected.id, areaId ) }
+							onDelete={ () => removeTable( selected.id ) }
+							onClose={ () => setSelectedId( null ) }
+						/>
+					) }
+				</Stack>
+			) }
 
 			<Divider sx={ { my: 3 } } />
 			<Typography sx={ { fontSize: 13, color: tokens.muted } }>
@@ -593,6 +631,79 @@ export default function FloorPlan() {
 				top). A booked join blocks all its tables.
 			</Typography>
 		</Page>
+	);
+}
+
+// Section → tables list: each zone is a collapsible group (like menu sections →
+// dishes), for quickly scanning/finding tables without the spatial canvas.
+function FloorListView( { zones, tables, combos, selectedId, onSelect } ) {
+	const [ collapsed, setCollapsed ] = useState( {} );
+	const joinedIds = new Set( combos.flatMap( ( c ) => c.tables ) );
+	const toggle = ( id ) => setCollapsed( ( c ) => ( { ...c, [ id ]: ! c[ id ] } ) );
+
+	if ( ! zones.length ) {
+		return <Typography sx={ { fontSize: 13, color: tokens.muted } }>Add a zone and some tables to see them here.</Typography>;
+	}
+
+	return (
+		<Stack spacing={ 1.5 }>
+			{ zones.map( ( z ) => {
+				const zt = tables.filter( ( t ) => ( t.areaId || 0 ) === z.id );
+				const seats = zt.reduce( ( s, t ) => s + ( t.seats || 0 ), 0 );
+				const open = ! collapsed[ z.id ];
+				return (
+					<Box key={ z.id } sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '12px', overflow: 'hidden', bgcolor: tokens.surface } }>
+						<Stack
+							direction="row"
+							alignItems="center"
+							spacing={ 1 }
+							onClick={ () => toggle( z.id ) }
+							sx={ { px: 1.5, py: 1.25, cursor: 'pointer', bgcolor: tokens.soft } }
+						>
+							<KeyboardArrowDownIcon sx={ { fontSize: 20, color: tokens.muted, transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' } } />
+							<Typography sx={ { fontWeight: 700, color: tokens.ink, flex: 1 } }>{ z.name }</Typography>
+							<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>
+								{ zt.length } table{ zt.length === 1 ? '' : 's' } · { seats } covers
+							</Typography>
+						</Stack>
+						<Collapse in={ open } unmountOnExit>
+							{ zt.length === 0 ? (
+								<Typography sx={ { fontSize: 13, color: tokens.muted2, px: 2, py: 1.5 } }>No tables in this zone.</Typography>
+							) : (
+								zt.map( ( t ) => (
+									<Stack
+										key={ t.id }
+										direction="row"
+										alignItems="center"
+										spacing={ 1.5 }
+										onClick={ () => onSelect( t.id ) }
+										sx={ {
+											px: 2,
+											py: 1,
+											cursor: 'pointer',
+											borderTop: `1px solid ${ tokens.border }`,
+											bgcolor: t.id === selectedId ? tokens.accentSoft : 'transparent',
+											'&:hover': { bgcolor: t.id === selectedId ? tokens.accentSoft : tokens.soft },
+										} }
+									>
+										<Typography sx={ { fontWeight: 650, color: tokens.ink, width: 90 } }>{ t.name }</Typography>
+										<Typography sx={ { fontSize: 13, color: tokens.muted, flex: 1 } }>
+											{ t.seats } seats · party { t.min }–{ t.max } · { ( SHAPES[ t.shape ] || SHAPES.round ).label }
+										</Typography>
+										{ joinedIds.has( t.id ) && (
+											<Chip icon={ <LinkIcon sx={ { fontSize: 14 } } /> } label="Joined" size="small" sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600, height: 22 } } />
+										) }
+										{ 'maintenance' === t.status && (
+											<Chip icon={ <BuildIcon sx={ { fontSize: 13 } } /> } label="Out of service" size="small" sx={ { bgcolor: tokens.amberSoft, color: tokens.amber, fontWeight: 600, height: 22 } } />
+										) }
+									</Stack>
+								) )
+							) }
+						</Collapse>
+					</Box>
+				);
+			} ) }
+		</Stack>
 	);
 }
 
