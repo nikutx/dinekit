@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import { saveBus } from '../lib/saveBus';
 import { useToast } from '../components/Toast';
 
 // Central data store for the app: loads /state once, then applies optimistic
@@ -10,8 +11,20 @@ export function useDineKit() {
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
 	const [ saveStatus, setSaveStatus ] = useState( 'idle' );
-	const savingCount = useRef( 0 );
+	const savedTimer = useRef( null );
 	const toast = useToast();
+
+	// Reflect every mutating API call (from any view, incl. settings toggles) in
+	// the topbar pill; settle back to idle shortly after a successful save.
+	useEffect( () => {
+		return saveBus.subscribe( ( status ) => {
+			clearTimeout( savedTimer.current );
+			setSaveStatus( status );
+			if ( 'saved' === status || 'error' === status ) {
+				savedTimer.current = setTimeout( () => setSaveStatus( 'idle' ), 'error' === status ? 4000 : 1600 );
+			}
+		} );
+	}, [] );
 
 	useEffect( () => {
 		let alive = true;
@@ -34,21 +47,12 @@ export function useDineKit() {
 		};
 	}, [] );
 
-	// Wrap any persistence promise so the save indicator reflects it.
+	// The API client already drives the save-status pill (via saveBus); track()
+	// now just surfaces a toast + keeps the promise chain for optimistic updates.
 	const track = useCallback( async ( promise ) => {
-		savingCount.current += 1;
-		setSaveStatus( 'saving' );
 		try {
-			const result = await promise;
-			savingCount.current -= 1;
-			if ( savingCount.current <= 0 ) {
-				savingCount.current = 0;
-				setSaveStatus( 'saved' );
-			}
-			return result;
+			return await promise;
 		} catch ( e ) {
-			savingCount.current = Math.max( 0, savingCount.current - 1 );
-			setSaveStatus( 'error' );
 			setError( e.message );
 			toast.error( 'Couldn’t save that change', e.message );
 			throw e;

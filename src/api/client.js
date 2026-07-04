@@ -1,35 +1,50 @@
 // Thin REST client for the dinekit/v1 API. Reads config injected by PHP
 // (window.DINEKIT) — restUrl + nonce.
+import { saveBus } from '../lib/saveBus';
+
 const cfg = window.DINEKIT || {};
 
 async function request( method, path, body ) {
-	const res = await fetch( cfg.restUrl + path.replace( /^\//, '' ), {
-		method,
-		credentials: 'same-origin',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-WP-Nonce': cfg.nonce,
-		},
-		body: body ? JSON.stringify( body ) : undefined,
-	} );
+	// Any write drives the global save-status pill so nothing saves silently.
+	const mutating = method !== 'GET' && method !== 'HEAD';
+	if ( mutating ) {
+		saveBus.begin();
+	}
+	let ok = false;
+	try {
+		const res = await fetch( cfg.restUrl + path.replace( /^\//, '' ), {
+			method,
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': cfg.nonce,
+			},
+			body: body ? JSON.stringify( body ) : undefined,
+		} );
 
-	if ( ! res.ok ) {
-		let message = `Request failed (${ res.status })`;
-		try {
-			const data = await res.json();
-			if ( data && data.message ) {
-				message = data.message;
+		if ( ! res.ok ) {
+			let message = `Request failed (${ res.status })`;
+			try {
+				const data = await res.json();
+				if ( data && data.message ) {
+					message = data.message;
+				}
+			} catch ( e ) {
+				// keep default
 			}
-		} catch ( e ) {
-			// keep default
+			throw new Error( message );
 		}
-		throw new Error( message );
-	}
 
-	if ( res.status === 204 ) {
-		return null;
+		ok = true;
+		if ( res.status === 204 ) {
+			return null;
+		}
+		return await res.json();
+	} finally {
+		if ( mutating ) {
+			saveBus.finish( ok );
+		}
 	}
-	return res.json();
 }
 
 export const api = {
