@@ -226,6 +226,15 @@ function register_routes() {
 			'permission_callback' => '__return_true',
 		)
 	);
+	register_rest_route(
+		$ns,
+		'/book/slots',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\public_slots',
+			'permission_callback' => '__return_true',
+		)
+	);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1007,6 +1016,9 @@ function validate_when( $date, $time, $party, $cfg ) {
 	if ( $party < max( 1, (int) $cfg['min_party'] ) || $party > (int) $cfg['max_party'] ) {
 		return 'party';
 	}
+	if ( ! Availability\time_in_service( $date, $time ) ) {
+		return 'closed'; // Outside the day's service periods (or a closed day).
+	}
 	$ts = strtotime( $date . ' ' . $time . ':00' );
 	if ( ! $ts ) {
 		return 'invalid';
@@ -1019,6 +1031,34 @@ function validate_when( $date, $time, $party, $cfg ) {
 		return 'toofar';
 	}
 	return '';
+}
+
+/**
+ * GET /book/slots — bookable times for a date, from the restaurant's service
+ * periods (Opening Hours). Empty list = closed that day. No auth: read-only,
+ * leaks nothing table-specific.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function public_slots( $request ) {
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	$date = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+		return rest_ensure_response(
+			array(
+				'slots'  => array(),
+				'closed' => true,
+			)
+		);
+	}
+	$slots = Availability\slots_for( $date );
+	return rest_ensure_response(
+		array(
+			'slots'  => $slots,
+			'closed' => empty( $slots ),
+		)
+	);
 }
 
 /**

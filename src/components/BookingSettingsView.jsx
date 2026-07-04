@@ -144,6 +144,11 @@ export default function BookingSettingsView( { onBack } ) {
 						{ num( 'Turn time (min)', 'turn_time', 15, 480, 'How long a table is held' ) }
 						{ num( 'Buffer (min)', 'buffer', 0, 120, 'Gap between sittings' ) }
 					</Stack>
+					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
+						Bookable times follow your <strong>Opening Hours</strong> — set separate lunch &amp; dinner
+						services, closed days and holidays there and the widget updates automatically. First/Last
+						booking above are only used as a fallback until you&rsquo;ve set your Opening Hours.
+					</Typography>
 				</Card>
 
 				{ /* ---- Capacity & deposits ---- */ }

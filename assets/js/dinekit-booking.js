@@ -9,13 +9,6 @@
 	function pad( n ) {
 		return ( n < 10 ? '0' : '' ) + n;
 	}
-	function toMin( t ) {
-		var p = String( t ).split( ':' );
-		return parseInt( p[ 0 ], 10 ) * 60 + parseInt( p[ 1 ], 10 );
-	}
-	function fromMin( m ) {
-		return pad( Math.floor( m / 60 ) ) + ':' + pad( m % 60 );
-	}
 	function localDate( d ) {
 		return d.getFullYear() + '-' + pad( d.getMonth() + 1 ) + '-' + pad( d.getDate() );
 	}
@@ -49,23 +42,36 @@
 			dateEl.value = today;
 		}
 
-		function buildSlots() {
-			var open = toMin( cfg.openTime || '12:00' );
-			var close = toMin( cfg.closeTime || '22:00' );
-			var step = cfg.slotInterval || 30;
-			var floor = -1;
-			if ( dateEl.value === today ) {
-				var now = new Date();
-				floor = now.getHours() * 60 + now.getMinutes() + ( cfg.minNotice || 0 ) * 60;
+		// Slots come from the server (service periods = Opening Hours), so lunch/
+		// dinner services, closed days and min-notice are all honoured centrally.
+		function loadSlots() {
+			if ( ! dateEl.value ) {
+				return;
 			}
-			var html = '';
-			for ( var m = open; m <= close; m += step ) {
-				if ( m < floor ) {
-					continue;
-				}
-				html += '<option value="' + fromMin( m ) + '">' + fromMin( m ) + '</option>';
-			}
-			timeEl.innerHTML = html;
+			var url = cfg.restUrl + 'book/slots?date=' + encodeURIComponent( dateEl.value );
+			fetch( url, { headers: { 'X-WP-Nonce': cfg.nonce } } )
+				.then( function ( r ) { return r.json(); } )
+				.then( function ( d ) {
+					var slots = ( d && d.slots ) || [];
+					var keep = timeEl.value;
+					if ( ! slots.length ) {
+						timeEl.innerHTML = '';
+						submitEl.disabled = true;
+						say( availEl, '✗ ' + ( t.closedDay || 'Sorry, we’re closed that day.' ), 'is-no' );
+						return;
+					}
+					submitEl.disabled = false;
+					var html = '';
+					for ( var i = 0; i < slots.length; i++ ) {
+						html += '<option value="' + slots[ i ] + '">' + slots[ i ] + '</option>';
+					}
+					timeEl.innerHTML = html;
+					if ( keep && slots.indexOf( keep ) !== -1 ) {
+						timeEl.value = keep;
+					}
+					check();
+				} )
+				.catch( function () {} );
 		}
 
 		function say( elm, msg, cls ) {
@@ -109,7 +115,7 @@
 			}, 300 );
 		}
 
-		dateEl.addEventListener( 'change', function () { buildSlots(); check(); } );
+		dateEl.addEventListener( 'change', loadSlots );
 		timeEl.addEventListener( 'change', check );
 		partyEl.addEventListener( 'change', check );
 
@@ -167,7 +173,7 @@
 				} );
 		} );
 
-		buildSlots();
+		loadSlots();
 	}
 
 	function init() {

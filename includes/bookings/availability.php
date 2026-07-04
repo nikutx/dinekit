@@ -61,6 +61,110 @@ function to_minutes( $time ) {
 }
 
 /**
+ * Service periods (bookable open→close windows) for a given date, taken from the
+ * restaurant's Opening Hours — so a day can have separate lunch and dinner
+ * services, closed days, and per-date holiday overrides. Falls back to the
+ * booking-settings open/close window only when Opening Hours have never been
+ * configured, so bookings still work out of the box.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int,array{open:string,close:string}>
+ */
+function service_periods( $date ) {
+	require_once DINEKIT_DIR . 'includes/hours.php';
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$hours = \DineKit\Hours\get();
+
+	// Has the owner set any Opening Hours at all?
+	$configured = ! empty( $hours['holidays'] );
+	if ( ! $configured && ! empty( $hours['week'] ) ) {
+		foreach ( $hours['week'] as $periods ) {
+			if ( ! empty( $periods ) ) {
+				$configured = true;
+				break;
+			}
+		}
+	}
+
+	if ( ! $configured ) {
+		$s = \DineKit\Bookings\Settings\get();
+		return array(
+			array(
+				'open'  => (string) $s['open_time'],
+				'close' => (string) $s['close_time'],
+			),
+		);
+	}
+
+	// Per-date holiday override wins over the weekly pattern.
+	if ( ! empty( $hours['holidays'] ) ) {
+		foreach ( $hours['holidays'] as $holiday ) {
+			if ( isset( $holiday['date'] ) && $holiday['date'] === $date ) {
+				return empty( $holiday['closed'] ) ? array_values( (array) $holiday['periods'] ) : array();
+			}
+		}
+	}
+
+	$dt      = \DateTimeImmutable::createFromFormat( 'Y-m-d', $date, wp_timezone() );
+	$day_key = $dt ? substr( strtolower( $dt->format( 'D' ) ), 0, 3 ) : '';
+	return ( $day_key && isset( $hours['week'][ $day_key ] ) ) ? array_values( (array) $hours['week'][ $day_key ] ) : array();
+}
+
+/**
+ * Bookable time slots (H:i) for a date — service periods sliced by the slot
+ * interval, honouring min-notice lead time for today. Empty = closed that day.
+ *
+ * @param string $date         Y-m-d.
+ * @param bool   $ignore_floor Skip the min-notice/today floor (used for validation).
+ * @return string[]
+ */
+function slots_for( $date, $ignore_floor = false ) {
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$s    = \DineKit\Bookings\Settings\get();
+	$step = max( 5, (int) $s['slot_interval'] );
+
+	$floor = -1;
+	if ( ! $ignore_floor ) {
+		$now = new \DateTimeImmutable( 'now', wp_timezone() );
+		if ( $now->format( 'Y-m-d' ) === $date ) {
+			$floor = (int) $now->format( 'H' ) * 60 + (int) $now->format( 'i' ) + (int) $s['min_notice'] * 60;
+		}
+	}
+
+	$by_label = array(); // label => absolute minutes (for correct over-midnight ordering).
+	foreach ( service_periods( $date ) as $p ) {
+		$open  = to_minutes( $p['open'] );
+		$close = to_minutes( $p['close'] );
+		if ( $close <= $open ) {
+			$close += 1440; // Over-midnight service (e.g. 18:00 → 01:00).
+		}
+		for ( $m = $open; $m <= $close; $m += $step ) {
+			if ( $m < $floor ) {
+				continue;
+			}
+			$wrapped = $m % 1440;
+			$label   = sprintf( '%02d:%02d', (int) floor( $wrapped / 60 ), $wrapped % 60 );
+			if ( ! isset( $by_label[ $label ] ) ) {
+				$by_label[ $label ] = $m;
+			}
+		}
+	}
+	asort( $by_label );
+	return array_keys( $by_label );
+}
+
+/**
+ * Does a requested time fall on the service-slot grid for that date?
+ *
+ * @param string $date Y-m-d.
+ * @param string $time H:i.
+ * @return bool
+ */
+function time_in_service( $date, $time ) {
+	return in_array( $time, slots_for( $date, true ), true );
+}
+
+/**
  * All tables with their capacity + area.
  *
  * @return array<int,array<string,mixed>>
