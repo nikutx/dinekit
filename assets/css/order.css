@@ -1,18 +1,23 @@
 /**
- * DineKit online ordering — scoped, self-contained.
+ * DineKit online ordering — scoped, self-contained. Premium, mobile-first.
  */
 .dinekit-order {
-	--dko-accent: #3b82f6;
-	--dko-accent-dark: #2563eb;
+	--dko-accent: #4f46e5;
+	--dko-accent-dark: #4338ca;
+	--dko-accent-soft: #eef2ff;
 	--dko-ink: #0f172a;
+	--dko-ink2: #334155;
 	--dko-muted: #64748b;
-	--dko-border: #e2e8f0;
+	--dko-border: #e6e8ee;
 	--dko-soft: #f8fafc;
 	--dko-red: #dc2626;
+	--dko-radius: 16px;
+	--dko-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	color: var(--dko-ink);
-	max-width: 1000px;
+	max-width: 1040px;
 	margin: 0 auto;
+	line-height: 1.5;
 }
 .dinekit-order *,
 .dinekit-order *::before,
@@ -20,31 +25,45 @@
 	box-sizing: border-box;
 }
 .dinekit-order__heading {
-	font-size: 26px;
+	font-size: 30px;
 	font-weight: 800;
-	letter-spacing: -0.02em;
-	margin: 0 0 16px;
+	letter-spacing: -0.03em;
+	margin: 0 0 20px;
 }
 .dinekit-order__grid {
 	display: grid;
-	grid-template-columns: 1fr 320px;
-	gap: 24px;
+	grid-template-columns: 1fr 340px;
+	gap: 28px;
 	align-items: start;
 }
+
+/* Menu */
 .dinekit-order__section {
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 800;
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
+	letter-spacing: 0.08em;
 	color: var(--dko-muted);
-	margin: 20px 0 8px;
+	margin: 26px 0 12px;
+}
+.dinekit-order__section:first-child {
+	margin-top: 0;
 }
 .dinekit-order__item {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	padding: 12px 0;
-	border-bottom: 1px solid var(--dko-soft);
+	gap: 16px;
+	padding: 16px;
+	margin-bottom: 10px;
+	background: #fff;
+	border: 1px solid var(--dko-border);
+	border-radius: var(--dko-radius);
+	transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+.dinekit-order__item:hover {
+	box-shadow: var(--dko-shadow);
+	border-color: #d7dbe6;
+	transform: translateY(-1px);
 }
 .dinekit-order__item-info {
 	flex: 1;
@@ -53,63 +72,69 @@
 .dinekit-order__item-name {
 	font-weight: 700;
 	font-size: 16px;
+	letter-spacing: -0.01em;
 }
 .dinekit-order__item-desc {
-	font-size: 13px;
+	font-size: 13.5px;
 	color: var(--dko-muted);
-	margin-top: 2px;
+	margin-top: 3px;
 }
 .dinekit-order__item-price {
 	font-size: 14px;
-	color: var(--dko-ink);
-	font-weight: 600;
-	margin-top: 4px;
+	color: var(--dko-ink2);
+	font-weight: 700;
+	margin-top: 6px;
 }
 .dinekit-order__add {
 	flex-shrink: 0;
-	border: 1px solid var(--dko-accent);
-	background: #fff;
+	border: 0;
+	background: var(--dko-accent-soft);
 	color: var(--dko-accent-dark);
 	font-weight: 700;
 	font-size: 14px;
-	padding: 8px 16px;
+	padding: 10px 18px;
 	border-radius: 999px;
 	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
 }
 .dinekit-order__add:hover {
 	background: var(--dko-accent);
 	color: #fff;
 }
+
 /* Cart */
 .dinekit-order__cart {
 	position: sticky;
 	top: 16px;
 	background: #fff;
 	border: 1px solid var(--dko-border);
-	border-radius: 16px;
-	padding: 18px;
+	border-radius: var(--dko-radius);
+	padding: 20px;
+	box-shadow: var(--dko-shadow);
 }
 .dinekit-order__cart-title {
-	margin: 0 0 12px;
-	font-size: 17px;
+	margin: 0 0 14px;
+	font-size: 18px;
 	font-weight: 800;
+	letter-spacing: -0.01em;
 }
 .dinekit-order__cart-empty {
 	color: var(--dko-muted);
 	font-size: 14px;
 	margin: 0;
+	padding: 8px 0 4px;
 }
 .dinekit-order__cart-line,
 .dinekit-order__sum-line {
 	display: flex;
 	justify-content: space-between;
 	gap: 10px;
-	padding: 8px 0;
+	padding: 12px 0;
 	border-bottom: 1px solid var(--dko-soft);
 	font-size: 14px;
 }
 .dinekit-order__cart-name {
-	font-weight: 600;
+	font-weight: 700;
 }
 .dinekit-order__cart-opts {
 	font-size: 12px;
@@ -123,18 +148,24 @@
 .dinekit-order__qty {
 	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	margin-top: 4px;
+	gap: 10px;
+	margin-top: 6px;
 }
 .dinekit-order__qty button {
-	width: 26px;
-	height: 26px;
+	width: 28px;
+	height: 28px;
 	border: 1px solid var(--dko-border);
 	background: #fff;
 	border-radius: 8px;
 	font-size: 16px;
 	line-height: 1;
 	cursor: pointer;
+	color: var(--dko-ink2);
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+.dinekit-order__qty button:hover {
+	border-color: var(--dko-accent);
+	background: var(--dko-accent-soft);
 }
 .dinekit-order__qty span {
 	min-width: 18px;
@@ -144,9 +175,9 @@
 .dinekit-order__subtotal {
 	display: flex;
 	justify-content: space-between;
-	font-size: 16px;
+	font-size: 17px;
 	font-weight: 800;
-	padding: 12px 0;
+	padding: 14px 0;
 }
 .dinekit-order__checkout,
 .dinekit-order__place,
@@ -157,39 +188,49 @@
 	color: #fff;
 	font-size: 16px;
 	font-weight: 700;
-	padding: 13px 18px;
-	border-radius: 10px;
+	padding: 14px 18px;
+	border-radius: 12px;
 	cursor: pointer;
+	transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+	box-shadow: 0 6px 16px rgba(79, 70, 229, 0.24);
 }
 .dinekit-order__checkout:hover,
 .dinekit-order__place:hover {
 	background: var(--dko-accent-dark);
 }
+.dinekit-order__checkout:active,
+.dinekit-order__place:active {
+	transform: translateY(1px);
+}
 .dinekit-order__checkout:disabled,
 .dinekit-order__place:disabled {
-	opacity: 0.6;
+	opacity: 0.55;
 	cursor: default;
 	background: var(--dko-muted);
+	box-shadow: none;
 }
 .dinekit-order__modal-add {
 	width: auto;
 	flex: 1;
 }
+
 /* Configurator modal */
 .dinekit-order__overlay {
 	/* The modal is appended to <body>, outside .dinekit-order, so it must carry
 	   its own palette or every var()-based style (incl. the Add button) breaks. */
-	--dko-accent: #3b82f6;
-	--dko-accent-dark: #2563eb;
+	--dko-accent: #4f46e5;
+	--dko-accent-dark: #4338ca;
+	--dko-accent-soft: #eef2ff;
 	--dko-ink: #0f172a;
 	--dko-muted: #64748b;
-	--dko-border: #e2e8f0;
+	--dko-border: #e6e8ee;
 	--dko-soft: #f8fafc;
 	--dko-red: #dc2626;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	position: fixed;
 	inset: 0;
-	background: rgba( 15, 23, 42, 0.5 );
+	background: rgba( 15, 23, 42, 0.55 );
+	backdrop-filter: blur( 2px );
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -199,17 +240,19 @@
 .dinekit-order__modal {
 	position: relative;
 	background: #fff;
-	border-radius: 16px;
-	padding: 22px;
+	border-radius: 18px;
+	padding: 24px;
 	width: 100%;
-	max-width: 440px;
+	max-width: 460px;
 	max-height: 88vh;
 	overflow-y: auto;
+	box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
 .dinekit-order__modal h3 {
 	margin: 0 8px 2px 0;
-	font-size: 20px;
+	font-size: 21px;
 	font-weight: 800;
+	letter-spacing: -0.01em;
 }
 .dinekit-order__modal-desc {
 	color: var(--dko-muted);
@@ -218,37 +261,47 @@
 }
 .dinekit-order__modal-close {
 	position: absolute;
-	top: 12px;
-	right: 12px;
+	top: 14px;
+	right: 14px;
 	border: 0;
 	background: var(--dko-soft);
-	width: 30px;
-	height: 30px;
+	width: 32px;
+	height: 32px;
 	border-radius: 50%;
 	font-size: 20px;
 	line-height: 1;
 	cursor: pointer;
 	color: var(--dko-muted);
+	transition: background 0.15s ease;
+}
+.dinekit-order__modal-close:hover {
+	background: var(--dko-border);
 }
 .dinekit-order__group {
 	border-top: 1px solid var(--dko-soft);
-	padding: 12px 0;
+	padding: 14px 0;
 }
 .dinekit-order__group-label {
 	font-size: 12px;
 	font-weight: 800;
 	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.05em;
 	color: var(--dko-muted);
-	margin-bottom: 6px;
+	margin-bottom: 8px;
 }
 .dinekit-order__opt {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 7px 2px;
+	padding: 9px 10px;
+	margin: 0 -10px;
 	font-size: 15px;
 	cursor: pointer;
+	border-radius: 10px;
+	transition: background 0.12s ease;
+}
+.dinekit-order__opt:hover {
+	background: var(--dko-soft);
 }
 .dinekit-order__opt input {
 	width: 18px;
@@ -259,14 +312,22 @@
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	margin-top: 14px;
+	margin-top: 16px;
 	border-top: 1px solid var(--dko-soft);
-	padding-top: 14px;
+	padding-top: 16px;
 }
-/* Checkout */
-.dinekit-order__checkout-box {
-	max-width: 520px;
+
+/* Checkout + payment */
+.dinekit-order__checkout-box,
+.dinekit-order__pay,
+.dinekit-order__done {
+	max-width: 560px;
 	margin: 0 auto;
+	background: #fff;
+	border: 1px solid var(--dko-border);
+	border-radius: var(--dko-radius);
+	box-shadow: var(--dko-shadow);
+	padding: 24px;
 }
 .dinekit-order__back {
 	border: 0;
@@ -275,7 +336,10 @@
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
-	padding: 0 0 12px;
+	padding: 0 0 14px;
+}
+.dinekit-order__back:hover {
+	color: var(--dko-ink);
 }
 .dinekit-order__form {
 	margin-top: 12px;
@@ -283,8 +347,8 @@
 .dinekit-order__field {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
-	margin-bottom: 12px;
+	gap: 5px;
+	margin-bottom: 14px;
 	font-size: 13px;
 	font-weight: 600;
 	color: var(--dko-muted);
@@ -293,12 +357,21 @@
 .dinekit-order__field select,
 .dinekit-order__field textarea {
 	width: 100%;
-	padding: 10px 12px;
+	padding: 11px 13px;
 	border: 1px solid var(--dko-border);
 	border-radius: 10px;
 	font-size: 15px;
 	font-family: inherit;
 	color: var(--dko-ink);
+	background: #fff;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dinekit-order__field input:focus,
+.dinekit-order__field select:focus,
+.dinekit-order__field textarea:focus {
+	outline: none;
+	border-color: var(--dko-accent);
+	box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 .dinekit-order__form-row {
 	display: grid;
@@ -306,7 +379,7 @@
 	gap: 12px;
 }
 .dinekit-order__result {
-	margin: 10px 0 0;
+	margin: 12px 0 0;
 	font-size: 14px;
 	font-weight: 600;
 	text-align: center;
@@ -321,24 +394,46 @@
 	height: 1px;
 	overflow: hidden;
 }
+
+/* Success / receipt */
 .dinekit-order__done {
 	text-align: center;
-	padding: 40px 16px;
+	padding: 44px 24px;
 }
 .dinekit-order__done-title {
 	font-size: 24px;
 	font-weight: 800;
-	color: var(--dko-accent-dark);
+	letter-spacing: -0.01em;
+	color: var(--dko-ink);
+}
+.dinekit-order__done-title::before {
+	content: "";
+	display: block;
+	width: 56px;
+	height: 56px;
+	margin: 0 auto 16px;
+	border-radius: 50%;
+	background: #dcfce7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / 28px no-repeat;
 }
 .dinekit-order__done-num {
 	font-size: 18px;
 	font-weight: 700;
-	margin: 8px 0;
+	margin: 10px 0;
+	color: var(--dko-accent-dark);
 }
 .dinekit-order--off p {
 	color: var(--dko-muted);
 }
+
+/* Order payment step (Stripe Payment Element). */
+.dinekit-order__pay-element {
+	margin: 18px 0;
+}
+
 @media ( max-width: 720px ) {
+	.dinekit-order__heading {
+		font-size: 24px;
+	}
 	.dinekit-order__grid {
 		grid-template-columns: 1fr;
 	}
@@ -348,9 +443,4 @@
 	.dinekit-order__form-row {
 		grid-template-columns: 1fr;
 	}
-}
-
-/* Order payment step (Stripe Payment Element). */
-.dinekit-order__pay-element {
-	margin: 16px 0;
 }
