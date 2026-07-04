@@ -101,8 +101,32 @@ final class Plugin {
 			}
 		}
 
+		// Cache-bust our own JS/CSS by file mtime so every deploy is picked up even
+		// behind aggressive host/CDN static caches — no manual version bumps.
+		add_filter( 'style_loader_src', array( $this, 'cache_bust_asset' ) );
+		add_filter( 'script_loader_src', array( $this, 'cache_bust_asset' ) );
+
 		// Upgrade routine (option-based, cheap).
 		add_action( 'admin_init', array( $this, 'maybe_upgrade' ) );
+	}
+
+	/**
+	 * Append the file's modification time as the asset version, for DineKit's own
+	 * assets only. Ensures updated CSS/JS bypass stale caches after a deploy.
+	 *
+	 * @param string $src Asset URL.
+	 * @return string
+	 */
+	public function cache_bust_asset( $src ) {
+		if ( ! is_string( $src ) || 0 !== strpos( $src, DINEKIT_URL ) ) {
+			return $src;
+		}
+		$rel  = preg_replace( '/\?.*$/', '', substr( $src, strlen( DINEKIT_URL ) ) );
+		$path = DINEKIT_DIR . $rel;
+		if ( is_readable( $path ) ) {
+			$src = add_query_arg( 'ver', (string) filemtime( $path ), $src );
+		}
+		return $src;
 	}
 
 	/**
