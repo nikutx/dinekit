@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import PaletteIcon from '@mui/icons-material/Palette';
@@ -72,6 +72,7 @@ function visibleNav( businessType ) {
 export default function App() {
 	const { view, itemId, navigate } = useRoute();
 	const store = useDineKit();
+	const [ navCollapsed, setNavCollapsed ] = useState( false );
 
 	// First run: guide the owner through the setup wizard before anything else.
 	if ( ! store.loading && store.data && ! store.data.onboarded ) {
@@ -87,7 +88,13 @@ export default function App() {
 
 	return (
 		<Box sx={ { display: 'flex', minHeight: 'calc(100vh - 32px)', bgcolor: tokens.bg } }>
-			<Sidebar nav={ nav } view={ activeView } onChange={ ( key ) => navigate( key ) } />
+			<Sidebar
+				nav={ nav }
+				view={ activeView }
+				onChange={ ( key ) => navigate( key ) }
+				collapsed={ navCollapsed }
+				onToggleCollapse={ () => setNavCollapsed( ( v ) => ! v ) }
+			/>
 
 			<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>
 				<Topbar

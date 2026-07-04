@@ -1,17 +1,20 @@
 import React from 'react';
-import { Box, Typography, Stack, Chip } from '@mui/material';
+import { Box, Typography, Stack, Chip, Tooltip, IconButton } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { tokens } from '../theme';
 
 // App sidebar — dark shell, grouped nav. Active item = soft indigo tint +
-// accent rail (not a heavy solid pill), Linear-style.
-export default function Sidebar( { nav, view, onChange } ) {
+// accent rail (not a heavy solid pill), Linear-style. Collapses to an icon rail
+// ("focus mode") for more running-screen on the full-width service views.
+export default function Sidebar( { nav, view, onChange, collapsed, onToggleCollapse } ) {
 	const version = ( window.DINEKIT && window.DINEKIT.version ) || '';
 	return (
 		<Box
 			sx={ {
-				width: 248,
+				width: collapsed ? 64 : 248,
 				flexShrink: 0,
 				bgcolor: tokens.sidebar,
 				color: tokens.sidebarText,
@@ -22,10 +25,11 @@ export default function Sidebar( { nav, view, onChange } ) {
 				alignSelf: 'flex-start',
 				display: 'flex',
 				flexDirection: 'column',
+				transition: 'width .18s ease',
 			} }
 		>
 			{ /* Logo lockup */ }
-			<Stack direction="row" spacing={ 1.25 } alignItems="center" sx={ { px: 3, mb: 3.5 } }>
+			<Stack direction="row" spacing={ 1.25 } alignItems="center" sx={ { px: collapsed ? 0 : 3, mb: 3.5, justifyContent: collapsed ? 'center' : 'flex-start' } }>
 				<Box
 					sx={ {
 						width: 32,
@@ -41,21 +45,25 @@ export default function Sidebar( { nav, view, onChange } ) {
 				>
 					<RestaurantIcon sx={ { fontSize: 17, color: '#fff' } } />
 				</Box>
-				<Box>
-					<Typography sx={ { fontWeight: 700, fontSize: 16.5, letterSpacing: '-0.02em', color: '#fff', lineHeight: 1.15 } }>
-						DineKit
-					</Typography>
-					<Typography sx={ { fontSize: 10.5, color: '#6b6b76', letterSpacing: '0.02em' } }>
-						by Web Level Up
-					</Typography>
-				</Box>
+				{ ! collapsed && (
+					<Box>
+						<Typography sx={ { fontWeight: 700, fontSize: 16.5, letterSpacing: '-0.02em', color: '#fff', lineHeight: 1.15 } }>
+							DineKit
+						</Typography>
+						<Typography sx={ { fontSize: 10.5, color: '#6b6b76', letterSpacing: '0.02em' } }>
+							by Web Level Up
+						</Typography>
+					</Box>
+				) }
 			</Stack>
 
 			{ /* Nav */ }
 			<Stack spacing={ 0.25 } sx={ { px: 1.5, flex: 1, overflowY: 'auto' } }>
 				{ nav.map( ( item, i ) => {
 					if ( item.group ) {
-						return (
+						return collapsed ? (
+							<Box key={ `group-${ i }` } sx={ { height: '1px', bgcolor: '#1c1c22', mx: 1, my: 1 } } />
+						) : (
 							<Typography
 								key={ `group-${ i }` }
 								sx={ {
@@ -74,16 +82,16 @@ export default function Sidebar( { nav, view, onChange } ) {
 						);
 					}
 					const active = item.key === view;
-					return (
+					const row = (
 						<Box
-							key={ item.key }
 							onClick={ () => onChange( item.key ) }
 							sx={ {
 								position: 'relative',
 								display: 'flex',
 								alignItems: 'center',
-								gap: 1.25,
-								px: 1.5,
+								gap: collapsed ? 0 : 1.25,
+								justifyContent: collapsed ? 'center' : 'flex-start',
+								px: collapsed ? 0 : 1.5,
 								height: 36,
 								borderRadius: 2,
 								cursor: 'pointer',
@@ -94,8 +102,7 @@ export default function Sidebar( { nav, view, onChange } ) {
 								bgcolor: active ? 'rgba(99,102,241,0.16)' : 'transparent',
 								transition: 'background .15s ease, color .15s ease',
 								'&:hover': { bgcolor: active ? 'rgba(99,102,241,0.16)' : tokens.sidebarHover, color: '#e4e4e7' },
-								// Accent rail.
-								'&::before': active
+								'&::before': active && ! collapsed
 									? {
 										content: '""',
 										position: 'absolute',
@@ -113,8 +120,8 @@ export default function Sidebar( { nav, view, onChange } ) {
 							} }
 						>
 							{ item.icon }
-							<span style={ { flex: 1 } }>{ item.label }</span>
-							{ item.soon && (
+							{ ! collapsed && <span style={ { flex: 1 } }>{ item.label }</span> }
+							{ ! collapsed && item.soon && (
 								<Chip
 									label="Soon"
 									size="small"
@@ -123,36 +130,52 @@ export default function Sidebar( { nav, view, onChange } ) {
 							) }
 						</Box>
 					);
+					return collapsed ? (
+						<Tooltip key={ item.key } title={ item.label } placement="right">
+							{ row }
+						</Tooltip>
+					) : (
+						<React.Fragment key={ item.key }>{ row }</React.Fragment>
+					);
 				} ) }
 			</Stack>
 
 			{ /* Footer */ }
-			<Box sx={ { borderTop: '1px solid #1c1c22', px: 3, py: 2, mt: 2 } }>
-				<Stack direction="row" alignItems="center" justifyContent="space-between">
-					<Box
-						component="a"
-						href="https://weblevelup.co.uk"
-						target="_blank"
-						rel="noreferrer"
-						sx={ {
-							display: 'flex',
-							alignItems: 'center',
-							gap: 0.75,
-							fontSize: 12,
-							fontWeight: 550,
-							color: '#6b6b76',
-							textDecoration: 'none',
-							'&:hover': { color: '#9d9da8' },
-						} }
-					>
-						<HelpOutlineIcon sx={ { fontSize: 15 } } />
-						Help &amp; support
-					</Box>
-					{ version && (
-						<Typography sx={ { fontSize: 10.5, color: '#4a4a55', fontVariantNumeric: 'tabular-nums' } }>
-							v{ version }
-						</Typography>
+			<Box sx={ { borderTop: '1px solid #1c1c22', px: collapsed ? 0.5 : 3, py: 2, mt: 2 } }>
+				<Stack direction="row" alignItems="center" justifyContent={ collapsed ? 'center' : 'space-between' }>
+					{ ! collapsed && (
+						<Box
+							component="a"
+							href="https://weblevelup.co.uk"
+							target="_blank"
+							rel="noreferrer"
+							sx={ {
+								display: 'flex',
+								alignItems: 'center',
+								gap: 0.75,
+								fontSize: 12,
+								fontWeight: 550,
+								color: '#6b6b76',
+								textDecoration: 'none',
+								'&:hover': { color: '#9d9da8' },
+							} }
+						>
+							<HelpOutlineIcon sx={ { fontSize: 15 } } />
+							Help &amp; support
+						</Box>
 					) }
+					<Stack direction="row" alignItems="center" spacing={ 1 }>
+						{ ! collapsed && version && (
+							<Typography sx={ { fontSize: 10.5, color: '#4a4a55', fontVariantNumeric: 'tabular-nums' } }>
+								v{ version }
+							</Typography>
+						) }
+						<Tooltip title={ collapsed ? 'Expand menu' : 'Collapse menu (focus mode)' } placement="right">
+							<IconButton size="small" onClick={ onToggleCollapse } sx={ { color: '#6b6b76', '&:hover': { color: '#e4e4e7', bgcolor: tokens.sidebarHover } } }>
+								{ collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" /> }
+							</IconButton>
+						</Tooltip>
+					</Stack>
 				</Stack>
 			</Box>
 		</Box>
