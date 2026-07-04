@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Stack, Typography, Button, Chip, LinearProgress } from '@mui/material';
+import { Box, Stack, Typography, Button, Chip, LinearProgress, IconButton, CircularProgress } from '@mui/material';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PaymentsIcon from '@mui/icons-material/Payments';
@@ -9,6 +9,9 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { prettyDate, statusMeta } from '../lib/bookings';
@@ -18,21 +21,50 @@ import StatTile from './ui/StatTile';
 import Card from './ui/Card';
 import { TilesSkeleton, ListSkeleton } from './ui/Skeletons';
 
+// Getting-started steps. `view` navigates; `create` auto-creates (or finds) the
+// customer-facing page for that shortcode and opens it. `types` limits a step to
+// certain business types (absent = all). Order = the natural setup journey.
 const CHECKLIST = [
-	{ key: 'menu', label: 'Build your menu', view: 'builder' },
-	{ key: 'hours', label: 'Set your opening hours', view: 'hours' },
-	{ key: 'page', label: 'Publish your menu page', view: 'qr' },
-	{ key: 'floor', label: 'Lay out your floor plan', view: 'floor', types: [ 'dinein', 'both' ] },
-	{ key: 'booking', label: 'Take your first booking', view: 'bookings', types: [ 'dinein', 'both' ] },
+	{ key: 'menu', label: 'Build your menu', hint: 'Add your dishes, prices & allergens', view: 'builder' },
+	{ key: 'hours', label: 'Set your opening hours', hint: 'So guests know when you’re open', view: 'hours' },
+	{ key: 'page', label: 'Publish your menu page', hint: 'A live page guests can view', create: 'menu' },
+	{ key: 'ordering', label: 'Turn on online ordering', hint: 'Accept collection & delivery orders', view: 'orders', types: [ 'takeaway', 'both' ] },
+	{ key: 'stripe', label: 'Connect Stripe for payments', hint: 'Take card payments securely', view: 'integrations', types: [ 'takeaway', 'both' ] },
+	{ key: 'orderpage', label: 'Publish your ordering page', hint: 'Where customers place orders', create: 'order', types: [ 'takeaway', 'both' ] },
+	{ key: 'floor', label: 'Lay out your floor plan', hint: 'Add your tables & areas', view: 'floor', types: [ 'dinein', 'both' ] },
+	{ key: 'bookpage', label: 'Publish your booking page', hint: 'Let guests reserve online', create: 'booking', types: [ 'dinein', 'both' ] },
+	{ key: 'booking', label: 'Take your first booking', hint: 'You’re ready for guests', view: 'bookings', types: [ 'dinein', 'both' ] },
 ];
 
 export default function DashboardView( { navigate } ) {
 	const [ d, setD ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
+	const [ busy, setBusy ] = useState( '' );
 
 	useEffect( () => {
 		api.getDashboard().then( setD ).finally( () => setLoading( false ) );
 	}, [] );
+
+	// Act on a getting-started step: create-and-open a page, or jump to a view.
+	const onStep = async ( c ) => {
+		if ( d.checklist[ c.key ] ) {
+			return;
+		}
+		if ( c.create ) {
+			setBusy( c.key );
+			try {
+				const res = await api.createSetupPage( c.create );
+				if ( res && res.url ) {
+					window.open( res.url, '_blank', 'noopener' );
+				}
+				setD( await api.getDashboard() );
+			} finally {
+				setBusy( '' );
+			}
+			return;
+		}
+		navigate( c.view );
+	};
 
 	const greeting = useMemo( () => {
 		const h = new Date().getHours();
@@ -171,34 +203,14 @@ export default function DashboardView( { navigate } ) {
 
 				{ /* Right: setup checklist + events */ }
 				<Box sx={ { width: { xs: '100%', md: 320 }, flexShrink: 0 } }>
-					{ ! setupComplete && (
-						<Card feature sx={ { p: 2.25, mb: 3 } }>
-							<Typography sx={ { fontWeight: 650, fontSize: 15, mb: 0.5 } }>Get set up</Typography>
-							<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1.5 } }>{ doneCount } of { checklist.length } done</Typography>
-							<LinearProgress variant="determinate" value={ ( doneCount / checklist.length ) * 100 } sx={ { mb: 1.5, height: 6 } } />
-							<Stack spacing={ 0.5 }>
-								{ checklist.map( ( c ) => {
-									const done = d.checklist[ c.key ];
-									return (
-										<Stack
-											key={ c.key }
-											direction="row"
-											alignItems="center"
-											spacing={ 1 }
-											onClick={ () => ! done && navigate( c.view ) }
-											sx={ { py: 0.75, cursor: done ? 'default' : 'pointer', color: done ? tokens.muted2 : tokens.ink } }
-										>
-											{ done
-												? <CheckCircleIcon sx={ { fontSize: 18, color: tokens.green } } />
-												: <RadioButtonUncheckedIcon sx={ { fontSize: 18, color: tokens.border2 } } /> }
-											<Typography sx={ { fontSize: 14, flex: 1, textDecoration: done ? 'line-through' : 'none' } }>{ c.label }</Typography>
-											{ ! done && <ArrowForwardIcon sx={ { fontSize: 15, color: tokens.muted2 } } /> }
-										</Stack>
-									);
-								} ) }
-							</Stack>
-						</Card>
-					) }
+					<GettingStarted
+						d={ d }
+						checklist={ checklist }
+						doneCount={ doneCount }
+						setupComplete={ setupComplete }
+						busy={ busy }
+						onStep={ onStep }
+					/>
 
 					<Card sx={ { p: 2.25 } }>
 						<Typography sx={ { fontWeight: 650, fontSize: 15, mb: 1.5 } }>Upcoming events</Typography>
@@ -218,6 +230,103 @@ export default function DashboardView( { navigate } ) {
 				</Box>
 			</Stack>
 		</Page>
+	);
+}
+
+// Nurture onboarding guide — a non-intrusive, always-available, skippable
+// checklist. Progress is auto-detected server-side (so it resumes wherever the
+// user left off); "skip" just collapses it, and it can be reopened any time.
+const DISMISS_KEY = 'dinekit_setup_dismissed';
+
+function GettingStarted( { d, checklist, doneCount, setupComplete, busy, onStep } ) {
+	const total = checklist.length;
+	const [ open, setOpen ] = useState( () => {
+		try {
+			return localStorage.getItem( DISMISS_KEY ) !== '1';
+		} catch ( e ) {
+			return true;
+		}
+	} );
+
+	const dismiss = () => {
+		try {
+			localStorage.setItem( DISMISS_KEY, '1' );
+		} catch ( e ) {} // eslint-disable-line no-empty
+		setOpen( false );
+	};
+
+	if ( ! open ) {
+		return (
+			<Card sx={ { p: 1.75, mb: 3, cursor: 'pointer' } } onClick={ () => setOpen( true ) }>
+				<Stack direction="row" alignItems="center" spacing={ 1 }>
+					<PlaylistAddCheckIcon sx={ { fontSize: 18, color: tokens.accent } } />
+					<Typography sx={ { fontSize: 14, fontWeight: 600, flex: 1 } }>
+						{ setupComplete ? 'Setup guide' : `Setup guide · ${ doneCount }/${ total }` }
+					</Typography>
+					<ArrowForwardIcon sx={ { fontSize: 15, color: tokens.muted2 } } />
+				</Stack>
+			</Card>
+		);
+	}
+
+	return (
+		<Card feature sx={ { p: 2.25, mb: 3 } }>
+			<Stack direction="row" alignItems="flex-start" spacing={ 1 }>
+				<Box sx={ { flex: 1, minWidth: 0 } }>
+					<Typography sx={ { fontWeight: 650, fontSize: 15, mb: 0.25 } }>
+						{ setupComplete ? 'You’re all set 🎉' : 'Get set up' }
+					</Typography>
+					<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1.5 } }>
+						{ setupComplete ? 'Everything’s ready — review anytime.' : `${ doneCount } of ${ total } done` }
+					</Typography>
+				</Box>
+				<IconButton size="small" onClick={ dismiss } aria-label="Hide setup guide" sx={ { mt: -0.75, mr: -0.75 } }>
+					<CloseIcon sx={ { fontSize: 18 } } />
+				</IconButton>
+			</Stack>
+			{ ! setupComplete && (
+				<LinearProgress variant="determinate" value={ ( doneCount / total ) * 100 } sx={ { mb: 1.5, height: 6, borderRadius: 999 } } />
+			) }
+			<Stack spacing={ 0.25 }>
+				{ checklist.map( ( c ) => {
+					const done = d.checklist[ c.key ];
+					const loading = busy === c.key;
+					return (
+						<Stack
+							key={ c.key }
+							direction="row"
+							alignItems="center"
+							spacing={ 1 }
+							onClick={ () => ! done && ! loading && onStep( c ) }
+							sx={ {
+								py: 0.75,
+								px: 0.5,
+								mx: -0.5,
+								borderRadius: 1.5,
+								cursor: done ? 'default' : 'pointer',
+								color: done ? tokens.muted2 : tokens.ink,
+								'&:hover': done ? {} : { bgcolor: tokens.soft },
+							} }
+						>
+							{ done
+								? <CheckCircleIcon sx={ { fontSize: 18, color: tokens.green } } />
+								: <RadioButtonUncheckedIcon sx={ { fontSize: 18, color: tokens.border2 } } /> }
+							<Box sx={ { flex: 1, minWidth: 0 } }>
+								<Typography sx={ { fontSize: 14, fontWeight: 550, textDecoration: done ? 'line-through' : 'none' } }>{ c.label }</Typography>
+								{ ! done && c.hint && (
+									<Typography sx={ { fontSize: 12, color: tokens.muted2 } }>{ c.hint }</Typography>
+								) }
+							</Box>
+							{ ! done && ( loading
+								? <CircularProgress size={ 14 } />
+								: c.create
+									? <OpenInNewIcon sx={ { fontSize: 15, color: tokens.muted2 } } />
+									: <ArrowForwardIcon sx={ { fontSize: 15, color: tokens.muted2 } } /> ) }
+						</Stack>
+					);
+				} ) }
+			</Stack>
+		</Card>
 	);
 }
 

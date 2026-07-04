@@ -79,6 +79,7 @@ export const api = {
 	setup: ( name ) => request( 'POST', 'setup', { name } ),
 	runWizard: ( data ) => request( 'POST', 'wizard', data ),
 	createMenuPage: () => request( 'POST', 'menu-page' ),
+	createSetupPage: ( type ) => request( 'POST', 'setup-page', { type } ),
 	getPreview: ( params ) => request( 'GET', 'preview?' + new URLSearchParams( params ).toString() ),
 	getSettings: () => request( 'GET', 'settings' ),
 	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),

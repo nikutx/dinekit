@@ -167,12 +167,49 @@ function seed_menu() {
 }
 
 /**
- * Find a published page that already shows the DineKit menu (block or
+ * Config for the three customer-facing page types DineKit can auto-create.
+ * Each entry knows the block + shortcode to detect, the default page title,
+ * and the content to insert when creating a fresh page.
+ *
+ * @param string $type One of menu|order|booking.
+ * @return array{block:string,shortcode:string,title:string,content:string}|null
+ */
+function page_type( $type ) {
+	$types = array(
+		'menu'    => array(
+			'block'     => 'dinekit/menu',
+			'shortcode' => '[dinekit_menu',
+			'title'     => __( 'Menu', 'dinekit' ),
+			'content'   => '<!-- wp:dinekit/menu /-->',
+		),
+		'order'   => array(
+			'block'     => 'dinekit/order',
+			'shortcode' => '[dinekit_order',
+			'title'     => __( 'Order Online', 'dinekit' ),
+			'content'   => '[dinekit_order]',
+		),
+		'booking' => array(
+			'block'     => 'dinekit/booking',
+			'shortcode' => '[dinekit_booking',
+			'title'     => __( 'Book a Table', 'dinekit' ),
+			'content'   => '[dinekit_booking]',
+		),
+	);
+	return isset( $types[ $type ] ) ? $types[ $type ] : null;
+}
+
+/**
+ * Find a published page that already shows a given DineKit surface (block or
  * shortcode).
  *
+ * @param string $type One of menu|order|booking.
  * @return array{url:string,title:string,id:int}|null
  */
-function find_menu_page() {
+function find_page( $type = 'menu' ) {
+	$cfg = page_type( $type );
+	if ( ! $cfg ) {
+		return null;
+	}
 	$pages = get_posts(
 		array(
 			'post_type'      => 'page',
@@ -182,7 +219,7 @@ function find_menu_page() {
 		)
 	);
 	foreach ( $pages as $page ) {
-		if ( has_block( 'dinekit/menu', $page ) || false !== strpos( $page->post_content, '[dinekit_menu' ) ) {
+		if ( has_block( $cfg['block'], $page ) || false !== strpos( $page->post_content, $cfg['shortcode'] ) ) {
 			return array(
 				'url'   => (string) get_permalink( $page ),
 				'title' => get_the_title( $page ),
@@ -194,12 +231,21 @@ function find_menu_page() {
 }
 
 /**
- * Ensure a published "Menu" page with the DineKit block exists; return it.
+ * Ensure a published page for a given DineKit surface exists; return it.
  *
+ * @param string $type One of menu|order|booking.
  * @return array{url:string,title:string,id:int}
  */
-function ensure_menu_page() {
-	$found = find_menu_page();
+function ensure_page( $type = 'menu' ) {
+	$cfg = page_type( $type );
+	if ( ! $cfg ) {
+		return array(
+			'url'   => '',
+			'title' => '',
+			'id'    => 0,
+		);
+	}
+	$found = find_page( $type );
 	if ( $found ) {
 		return $found;
 	}
@@ -207,18 +253,40 @@ function ensure_menu_page() {
 		array(
 			'post_type'    => 'page',
 			'post_status'  => 'publish',
-			'post_title'   => __( 'Menu', 'dinekit' ),
-			'post_content' => '<!-- wp:dinekit/menu /-->',
+			'post_title'   => $cfg['title'],
+			'post_content' => $cfg['content'],
 		)
 	);
 	if ( is_wp_error( $page_id ) ) {
-		return array( 'url' => '', 'title' => '', 'id' => 0 );
+		return array(
+			'url'   => '',
+			'title' => '',
+			'id'    => 0,
+		);
 	}
 	return array(
 		'url'   => (string) get_permalink( $page_id ),
 		'title' => get_the_title( $page_id ),
 		'id'    => (int) $page_id,
 	);
+}
+
+/**
+ * Find a published page that already shows the DineKit menu.
+ *
+ * @return array{url:string,title:string,id:int}|null
+ */
+function find_menu_page() {
+	return find_page( 'menu' );
+}
+
+/**
+ * Ensure a published "Menu" page with the DineKit block exists; return it.
+ *
+ * @return array{url:string,title:string,id:int}
+ */
+function ensure_menu_page() {
+	return ensure_page( 'menu' );
 }
 
 /**

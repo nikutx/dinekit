@@ -315,6 +315,19 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/setup-page',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\create_setup_page',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			'args'                => array(
+				'type' => array( 'type' => 'string' ),
+			),
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/setup',
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
@@ -566,6 +579,22 @@ function get_preview( $request ) {
 function create_menu_page() {
 	require_once DINEKIT_DIR . 'includes/sample.php';
 	return rest_ensure_response( \DineKit\Sample\ensure_menu_page() );
+}
+
+/**
+ * POST /setup-page — create (or find) a customer-facing page for a given
+ * DineKit surface (menu|order|booking) and return its link.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function create_setup_page( $request ) {
+	require_once DINEKIT_DIR . 'includes/sample.php';
+	$type = (string) $request->get_param( 'type' );
+	if ( ! in_array( $type, array( 'menu', 'order', 'booking' ), true ) ) {
+		$type = 'menu';
+	}
+	return rest_ensure_response( \DineKit\Sample\ensure_page( $type ) );
 }
 
 /**

@@ -155,12 +155,19 @@ function data() {
 	$events = array_slice( $events, 0, 4 );
 
 	/* ---- Setup checklist ---- */
-	$items      = (int) wp_count_posts( 'dk_menu_item' )->publish;
-	$tables     = (int) wp_count_posts( 'dk_table' )->publish;
-	$bookings   = (int) wp_count_posts( 'dk_booking' )->publish;
-	$hours      = get_option( 'dinekit_hours' );
-	$has_hours  = is_array( $hours ) && ! empty( $hours['week'] );
-	$menu_page  = \DineKit\Sample\find_menu_page();
+	require_once DINEKIT_DIR . 'includes/integrations.php';
+	require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+	$items       = (int) wp_count_posts( 'dk_menu_item' )->publish;
+	$tables      = (int) wp_count_posts( 'dk_table' )->publish;
+	$bookings    = (int) wp_count_posts( 'dk_booking' )->publish;
+	$hours       = get_option( 'dinekit_hours' );
+	$has_hours   = is_array( $hours ) && ! empty( $hours['week'] );
+	$menu_page   = \DineKit\Sample\find_page( 'menu' );
+	$order_page  = \DineKit\Sample\find_page( 'order' );
+	$book_page   = \DineKit\Sample\find_page( 'booking' );
+	$order_set   = \DineKit\Ordering\get_settings();
+	$ordering_on = ! empty( $order_set['enabled'] );
+	$stripe_on   = \DineKit\Integrations\stripe_ready();
 
 	return array(
 		'today'          => $today,
@@ -183,11 +190,15 @@ function data() {
 		'upcomingEvents' => $events,
 		'recentOrders'   => $recent_orders,
 		'checklist'      => array(
-			'menu'    => $items > 0,
-			'hours'   => $has_hours,
-			'floor'   => $tables > 0,
-			'booking' => $bookings > 0,
-			'page'    => ! empty( $menu_page['id'] ),
+			'menu'      => $items > 0,
+			'hours'     => $has_hours,
+			'floor'     => $tables > 0,
+			'booking'   => $bookings > 0,
+			'page'      => ! empty( $menu_page['id'] ),
+			'ordering'  => $ordering_on,
+			'orderpage' => ! empty( $order_page['id'] ),
+			'bookpage'  => ! empty( $book_page['id'] ),
+			'stripe'    => $stripe_on,
 		),
 	);
 }
