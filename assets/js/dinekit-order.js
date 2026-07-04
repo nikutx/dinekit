@@ -103,6 +103,9 @@
 		/* ---- render ---- */
 		function render() {
 			app.innerHTML = '';
+			// The "Order online" heading is redundant once we're on the receipt.
+			var heading = root.querySelector( '.dinekit-order__heading' );
+			if ( heading ) { heading.style.display = state.view === 'done' ? 'none' : ''; }
 			if ( state.view === 'done' ) {
 				renderDone();
 			} else if ( state.view === 'pay' ) {
