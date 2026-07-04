@@ -259,6 +259,8 @@ function update_order( $request ) {
 		update_post_meta( $id, 'dk_order_status', 'cancelled' );
 		Ordering\log_event( $id, __( 'Rejected & cancelled', 'dinekit' ) );
 		Ordering\release_or_refund( $id ); // Releases the hold, or refunds if already captured.
+		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+		Ordering\Emails\cancelled( $id );
 	} elseif ( 'resend' === $action ) {
 		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 		$sent = Ordering\Emails\resend_confirmation( $id );
@@ -274,6 +276,8 @@ function update_order( $request ) {
 		// refund/release the payment — not just via the Reject action.
 		if ( 'cancelled' === $status && 'reject' !== $action ) {
 			Ordering\release_or_refund( $id );
+			require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+			Ordering\Emails\cancelled( $id );
 		}
 	}
 

@@ -68,15 +68,13 @@ function booking_data( $id ) {
 }
 
 /**
- * Build a simple, inline-styled HTML email body.
+ * The booking's core details as HTML (no header/lead — the branded shell adds
+ * those). Facts stay intact regardless of the venue's branding + wording.
  *
- * @param string              $lead Opening line.
- * @param array<string,mixed> $d    Booking data.
- * @param string              $foot Closing note (optional).
+ * @param array<string,mixed> $d Booking data.
  * @return string
  */
-function render( $lead, $d, $foot = '' ) {
-	$site = get_bloginfo( 'name' );
+function booking_inner( $d ) {
 	$rows = array(
 		__( 'Name', 'dinekit' )   => $d['name'],
 		__( 'Date', 'dinekit' )   => $d['dateFmt'],
@@ -93,10 +91,7 @@ function render( $lead, $d, $foot = '' ) {
 		$rows[ __( 'Notes', 'dinekit' ) ] = $d['notes'];
 	}
 
-	$html  = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">';
-	$html .= '<h2 style="font-size:20px;margin:0 0 4px">' . esc_html( $site ) . '</h2>';
-	$html .= '<p style="font-size:15px;color:#334155;margin:0 0 16px">' . esc_html( $lead ) . '</p>';
-	$html .= '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+	$html = '<table style="width:100%;border-collapse:collapse;font-size:14px">';
 	foreach ( $rows as $label => $value ) {
 		$html .= '<tr>' .
 			'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;width:110px">' . esc_html( $label ) . '</td>' .
@@ -107,26 +102,22 @@ function render( $lead, $d, $foot = '' ) {
 	if ( $d['deposit'] ) {
 		$html .= '<p style="font-size:13px;color:#d97706;margin:14px 0 0">' . esc_html__( 'A deposit may be required for this booking.', 'dinekit' ) . '</p>';
 	}
-	if ( $foot ) {
-		$html .= '<p style="font-size:13px;color:#64748b;margin:16px 0 0">' . esc_html( $foot ) . '</p>';
-	}
-	$html .= '</div>';
 	return $html;
 }
 
 /**
- * Send an HTML email.
+ * Template placeholders for a booking.
  *
- * @param string $to      Recipient.
- * @param string $subject Subject.
- * @param string $body    HTML body.
- * @return void
+ * @param array<string,mixed> $d Booking data.
+ * @return array<string,string>
  */
-function send( $to, $subject, $body ) {
-	if ( ! is_email( $to ) ) {
-		return;
-	}
-	wp_mail( $to, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
+function booking_vars( $d ) {
+	return array(
+		'name' => (string) $d['name'],
+		'site' => (string) get_bloginfo( 'name' ),
+		'date' => (string) ( $d['dateFmt'] ? $d['dateFmt'] : $d['date'] ),
+		'time' => (string) $d['time'],
+	);
 }
 
 /**
@@ -140,28 +131,29 @@ function new_booking( $id, $notify_staff = true ) {
 	if ( ! enabled() ) {
 		return;
 	}
-	$d    = booking_data( $id );
-	$site = get_bloginfo( 'name' );
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	$d     = booking_data( $id );
+	$site  = get_bloginfo( 'name' );
+	$inner = booking_inner( $d );
 
 	// Diner.
 	if ( is_email( $d['email'] ) ) {
 		if ( 'provisional' === $d['status'] ) {
 			/* translators: %s: guest name. */
-			$lead    = sprintf( __( 'Hi %s, you’re on our waitlist — we’ll be in touch if a table frees up.', 'dinekit' ), $d['name'] );
+			$intro = sprintf( __( 'Hi %s, you’re on our waitlist — we’ll be in touch if a table frees up.', 'dinekit' ), $d['name'] );
 			/* translators: %s: site name. */
 			$subject = sprintf( __( 'You’re on the waitlist at %s', 'dinekit' ), $site );
 		} elseif ( 'confirmed' === $d['status'] ) {
-			/* translators: %s: guest name. */
-			$lead    = sprintf( __( 'Hi %s, your table is booked — see you then!', 'dinekit' ), $d['name'] );
-			/* translators: %s: site name. */
-			$subject = sprintf( __( 'Your booking at %s', 'dinekit' ), $site );
+			$t       = \DineKit\Emails\template( 'booking_confirmation', booking_vars( $d ) );
+			$intro   = $t['intro'];
+			$subject = $t['subject'];
 		} else {
 			/* translators: %s: guest name. */
-			$lead    = sprintf( __( 'Hi %s, thanks for your booking request — we’ll confirm shortly.', 'dinekit' ), $d['name'] );
+			$intro = sprintf( __( 'Hi %s, thanks for your booking request — we’ll confirm shortly.', 'dinekit' ), $d['name'] );
 			/* translators: %s: site name. */
 			$subject = sprintf( __( 'Your booking request at %s', 'dinekit' ), $site );
 		}
-		send( $d['email'], $subject, render( $lead, $d, __( 'Need to change it? Just reply to this email.', 'dinekit' ) ) );
+		\DineKit\Emails\send( $d['email'], $subject, $inner, $intro );
 	}
 
 	// Staff.
@@ -176,8 +168,7 @@ function new_booking( $id, $notify_staff = true ) {
 		$d['time'],
 		$d['party']
 	);
-	$foot = admin_url( 'admin.php?page=dinekit#/bookings' );
-	send( admin_recipient(), $subject, render( __( 'A new booking has come in:', 'dinekit' ), $d, $foot ) );
+	\DineKit\Emails\send( admin_recipient(), $subject, $inner, __( 'A new booking has come in:', 'dinekit' ) );
 }
 
 /**
@@ -191,23 +182,18 @@ function status_changed( $id, $status ) {
 	if ( ! enabled() ) {
 		return;
 	}
+	require_once DINEKIT_DIR . 'includes/emails.php';
 	$d = booking_data( $id );
 	if ( ! is_email( $d['email'] ) ) {
 		return;
 	}
-	$site = get_bloginfo( 'name' );
+	$inner = booking_inner( $d );
 
 	if ( 'confirmed' === $status ) {
-		/* translators: %s: guest name. */
-		$lead    = sprintf( __( 'Good news %s — your booking is confirmed.', 'dinekit' ), $d['name'] );
-		/* translators: %s: site name. */
-		$subject = sprintf( __( 'Booking confirmed — %s', 'dinekit' ), $site );
-		send( $d['email'], $subject, render( $lead, $d, __( 'We look forward to seeing you.', 'dinekit' ) ) );
+		$t = \DineKit\Emails\template( 'booking_confirmation', booking_vars( $d ) );
+		\DineKit\Emails\send( $d['email'], $t['subject'], $inner, $t['intro'] );
 	} elseif ( 'cancelled' === $status ) {
-		/* translators: %s: guest name. */
-		$lead    = sprintf( __( 'Hi %s, your booking has been cancelled.', 'dinekit' ), $d['name'] );
-		/* translators: %s: site name. */
-		$subject = sprintf( __( 'Booking cancelled — %s', 'dinekit' ), $site );
-		send( $d['email'], $subject, render( $lead, $d, __( 'If this was a mistake, please get in touch.', 'dinekit' ) ) );
+		$t = \DineKit\Emails\template( 'booking_cancelled', booking_vars( $d ) );
+		\DineKit\Emails\send( $d['email'], $t['subject'], $inner, $t['intro'] );
 	}
 }

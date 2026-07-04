@@ -269,6 +269,32 @@ function register_routes() {
 
 	register_rest_route(
 		'dinekit/v1',
+		'/emails',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\get_emails',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => __NAMESPACE__ . '\\save_emails',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+		)
+	);
+	register_rest_route(
+		'dinekit/v1',
+		'/emails/preview',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\preview_email',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
 		'/preview',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -454,6 +480,39 @@ function register_stripe_webhook() {
 	$result             = \DineKit\Integrations\register_webhook();
 	$result['settings'] = \DineKit\Integrations\get_public();
 	return rest_ensure_response( $result );
+}
+
+/**
+ * GET /emails — branding + editable templates.
+ *
+ * @return \WP_REST_Response
+ */
+function get_emails() {
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	return rest_ensure_response( \DineKit\Emails\get() );
+}
+
+/**
+ * POST /emails — save branding + templates.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function save_emails( $request ) {
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	return rest_ensure_response( \DineKit\Emails\save( (array) $request->get_json_params() ) );
+}
+
+/**
+ * POST /emails/preview — rendered preview (subject + HTML) of one template.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function preview_email( $request ) {
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	$key = sanitize_key( (string) $request->get_param( 'key' ) );
+	return rest_ensure_response( \DineKit\Emails\preview( $key ) );
 }
 
 /**

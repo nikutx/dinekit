@@ -33,6 +33,8 @@ import GuestsView from './components/GuestsView';
 import ReviewsView from './components/ReviewsView';
 import StaffView from './components/StaffView';
 import OrdersView from './components/OrdersView';
+import EmailsView from './components/EmailsView';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import DashboardView from './components/DashboardView';
 import ReportsView from './components/ReportsView';
 import Wizard from './components/Wizard';
@@ -56,6 +58,7 @@ const NAV = [
 	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
 	{ group: 'Setup' },
 	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
+	{ key: 'emails', label: 'Emails', icon: <MailOutlineIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
@@ -145,6 +148,7 @@ export default function App() {
 							{ activeView === 'reviews' && <ReviewsView /> }
 							{ activeView === 'staff' && <StaffView /> }
 							{ activeView === 'integrations' && <IntegrationsView /> }
+							{ activeView === 'emails' && <EmailsView /> }
 							{ activeView === 'settings' && <SettingsView /> }
 						</>
 					) }

@@ -72,21 +72,17 @@ function order_data( $id ) {
 }
 
 /**
- * Build the order email HTML body.
+ * The order's core details as HTML (items + total + collection + notes). The
+ * branded shell + intro are added by the shared email module, so venues can
+ * rebrand + reword without breaking these facts.
  *
- * @param string              $lead Opening line.
- * @param array<string,mixed> $d    Order data.
+ * @param array<string,mixed> $d Order data.
  * @return string
  */
-function render( $lead, $d ) {
-	$site = get_bloginfo( 'name' );
+function order_inner( $d ) {
 	$when = 'asap' === $d['when'] ? __( 'As soon as possible', 'dinekit' ) : $d['when'];
-
-	$html  = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">';
-	$html .= '<h2 style="font-size:20px;margin:0 0 2px">' . esc_html( $site ) . '</h2>';
 	/* translators: %d: order number. */
-	$html .= '<p style="font-size:14px;color:#64748b;margin:0 0 14px">' . esc_html( sprintf( __( 'Order #%d', 'dinekit' ), $d['number'] ) ) . '</p>';
-	$html .= '<p style="font-size:15px;color:#334155;margin:0 0 16px">' . esc_html( $lead ) . '</p>';
+	$html  = '<p style="font-size:14px;color:#64748b;margin:0 0 12px">' . esc_html( sprintf( __( 'Order #%d', 'dinekit' ), $d['number'] ) ) . '</p>';
 	$html .= '<table style="width:100%;border-collapse:collapse;font-size:14px">';
 	foreach ( $d['items'] as $line ) {
 		$mods = array();
@@ -109,42 +105,20 @@ function render( $lead, $d ) {
 	if ( $d['notes'] ) {
 		$html .= '<p style="font-size:13px;color:#64748b;margin:6px 0 0">' . esc_html( $d['notes'] ) . '</p>';
 	}
-	$html .= '</div>';
 	return $html;
 }
 
 /**
- * Send an HTML email. Returns whether wp_mail reported success (so callers can
- * log delivery status).
- *
- * @param string $to      Recipient.
- * @param string $subject Subject.
- * @param string $body    HTML body.
- * @return bool
- */
-function send( $to, $subject, $body ) {
-	if ( ! is_email( $to ) ) {
-		return false;
-	}
-	return (bool) wp_mail( $to, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
-}
-
-/**
- * The customer confirmation email for an order (subject + body). Shared by the
- * initial send and the admin "resend receipt" action.
+ * Template placeholders for an order.
  *
  * @param array<string,mixed> $d Order data.
- * @return array{subject:string,body:string}
+ * @return array<string,string>
  */
-function confirmation( $d ) {
-	$site = get_bloginfo( 'name' );
-	/* translators: %s: customer name. */
-	$lead = sprintf( __( 'Thanks %s — we’ve got your order and we’ll have it ready for collection.', 'dinekit' ), $d['name'] );
-	/* translators: 1: order number, 2: site name. */
-	$subject = sprintf( __( 'Order #%1$d confirmed — %2$s', 'dinekit' ), $d['number'], $site );
+function order_vars( $d ) {
 	return array(
-		'subject' => $subject,
-		'body'    => render( $lead, $d ),
+		'name'   => (string) $d['name'],
+		'number' => (string) $d['number'],
+		'site'   => (string) get_bloginfo( 'name' ),
 	);
 }
 
@@ -158,19 +132,41 @@ function new_order( $id ) {
 	if ( ! enabled() ) {
 		return;
 	}
-	$d = order_data( $id );
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	$d     = order_data( $id );
+	$inner = order_inner( $d );
 
 	if ( is_email( $d['email'] ) ) {
-		$mail = confirmation( $d );
-		$ok   = send( $d['email'], $mail['subject'], $mail['body'] );
+		$t  = \DineKit\Emails\template( 'order_confirmation', order_vars( $d ) );
+		$ok = \DineKit\Emails\send( $d['email'], $t['subject'], $inner, $t['intro'] );
 		Ordering\log_email( $id, $d['email'], 'confirmation', $ok );
 	}
 
 	/* translators: %d: order number. */
 	$subject = sprintf( __( 'New order #%d', 'dinekit' ), $d['number'] );
 	$to      = admin_recipient();
-	$ok      = send( $to, $subject, render( __( 'A new order has come in:', 'dinekit' ), $d ) );
+	$ok      = \DineKit\Emails\send( $to, $subject, $inner, __( 'A new order has come in:', 'dinekit' ) );
 	Ordering\log_email( $id, $to, 'kitchen', $ok );
+}
+
+/**
+ * Email the customer that their order was cancelled (with any refund note).
+ *
+ * @param int $id Order id.
+ * @return void
+ */
+function cancelled( $id ) {
+	if ( ! enabled() ) {
+		return;
+	}
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	$d = order_data( $id );
+	if ( ! is_email( $d['email'] ) ) {
+		return;
+	}
+	$t  = \DineKit\Emails\template( 'order_cancelled', order_vars( $d ) );
+	$ok = \DineKit\Emails\send( $d['email'], $t['subject'], order_inner( $d ), $t['intro'] );
+	Ordering\log_email( $id, $d['email'], 'cancelled', $ok );
 }
 
 /**
@@ -180,13 +176,14 @@ function new_order( $id ) {
  * @return bool True if sent.
  */
 function resend_confirmation( $id ) {
+	require_once DINEKIT_DIR . 'includes/emails.php';
 	$d = order_data( $id );
 	if ( ! is_email( $d['email'] ) ) {
 		Ordering\log_email( $id, $d['email'], 'resend', false );
 		return false;
 	}
-	$mail = confirmation( $d );
-	$ok   = send( $d['email'], $mail['subject'], $mail['body'] );
+	$t  = \DineKit\Emails\template( 'order_confirmation', order_vars( $d ) );
+	$ok = \DineKit\Emails\send( $d['email'], $t['subject'], order_inner( $d ), $t['intro'] );
 	Ordering\log_email( $id, $d['email'], 'resend', $ok );
 	return $ok;
 }
