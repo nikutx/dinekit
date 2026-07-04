@@ -35,6 +35,7 @@ import Page from './ui/Page';
 import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
+import PageTour from './PageTour';
 
 // Canvas geometry.
 const CANVAS_H = 560;
@@ -325,6 +326,17 @@ export default function FloorPlan() {
 						</ToggleButtonGroup>
 					</>
 				}
+			/>
+
+			<PageTour
+				id="floor"
+				title="Designing your floor"
+				points={ [
+					'Add a zone (a room or area), then “Add table” and drag tables to match your real layout.',
+					'Click a table to set seats, party sizes, shape and zone — or mark it Out of service.',
+					'“Join tables” groups tables that push together for bigger parties.',
+					'Switch to List view for a quick overview; availability is worked out from all this.',
+				] }
 			/>
 
 			{ viewMode === 'plan' && (

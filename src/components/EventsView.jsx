@@ -30,6 +30,7 @@ import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
+import PageTour from './PageTour';
 
 export default function EventsView() {
 	const [ events, setEvents ] = useState( [] );
@@ -143,6 +144,17 @@ export default function EventsView() {
 						New event
 					</Button>
 				}
+			/>
+
+			<PageTour
+				id="events"
+				title="Set-menu events with pre-orders"
+				points={ [
+					'Create an event, link a menu as its set menu, then publish to activate the share link.',
+					'Split one event into companies/teams — each gets its own link and guests are tagged to it.',
+					'Guests pick courses + flag allergens; you get one consolidated kitchen prep sheet.',
+					'Events also show in the Bookings diary for that day, with call-in availability.',
+				] }
 			/>
 
 			{ events.length === 0 ? (

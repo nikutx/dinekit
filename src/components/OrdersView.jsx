@@ -32,6 +32,7 @@ import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
+import PageTour from './PageTour';
 
 const O_STATUS = [
 	{ key: 'new', label: 'New', fg: tokens.accentDark, bg: tokens.accentSoft },
@@ -142,6 +143,16 @@ export default function OrdersView() {
 						</Button>
 					</>
 				}
+			/>
+
+			<PageTour
+				id="orders"
+				title="Commission-free takeaway orders"
+				points={ [
+					'Orders from your site land here live; move them New → Preparing → Ready → Completed.',
+					'“New order” takes a phone/walk-in order; print a kitchen ticket from each card.',
+					'The gear opens ordering settings & the public order page. You keep 100% — no commission.',
+				] }
 			/>
 
 			<Collapse in={ settingsOpen } unmountOnExit>

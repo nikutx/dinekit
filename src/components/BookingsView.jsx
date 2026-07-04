@@ -44,6 +44,7 @@ import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
 import BookingSettingsView from './BookingSettingsView';
 import ServiceTimeline from './ServiceTimeline';
+import PageTour from './PageTour';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -244,6 +245,17 @@ export default function BookingsView() {
 						</Button>
 					</>
 				}
+			/>
+
+			<PageTour
+				id="bookings"
+				title="Your booking diary"
+				points={ [
+					'Step through days with the arrows; “New booking” takes one over the phone.',
+					'Availability follows your Opening Hours + tables; full slots suggest the next free time.',
+					'Switch to Timeline for a full-width tables-vs-clock view of the service.',
+					'The gear opens booking rules & the public widget; the ★ asks a guest for a review.',
+				] }
 			/>
 
 			<Collapse in={ adding } unmountOnExit>
