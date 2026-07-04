@@ -188,7 +188,8 @@ function all_tables() {
 		$areas = get_the_terms( $post, 'dk_area' );
 		$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
 
-		$shape = (string) get_post_meta( $post->ID, 'dk_shape', true );
+		$shape  = (string) get_post_meta( $post->ID, 'dk_shape', true );
+		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
 
 		$tables[] = array(
 			'id'       => (int) $post->ID,
@@ -203,6 +204,7 @@ function all_tables() {
 			'y'        => (int) get_post_meta( $post->ID, 'dk_pos_y', true ),
 			'rotation' => (int) get_post_meta( $post->ID, 'dk_rotation', true ),
 			'shape'    => $shape ? $shape : 'round',
+			'status'   => 'maintenance' === $status ? 'maintenance' : 'active',
 		);
 	}
 	return $tables;
@@ -378,6 +380,9 @@ function available_tables( $date, $time, $party, $exclude_id = 0 ) {
 
 	$free = array();
 	foreach ( all_tables() as $table ) {
+		if ( 'maintenance' === $table['status'] ) {
+			continue; // Out of service — not bookable.
+		}
 		if ( $party < $table['min'] || $party > $table['max'] ) {
 			continue; // Party doesn't fit this table.
 		}
@@ -424,8 +429,8 @@ function available_combos( $date, $time, $party, $exclude_id = 0 ) {
 		$all_free = true;
 		$seats    = 0;
 		foreach ( $combo['tables'] as $tid ) {
-			if ( ! isset( $by_id[ $tid ] ) || ! empty( $occupied[ $tid ] ) ) {
-				$all_free = false;
+			if ( ! isset( $by_id[ $tid ] ) || ! empty( $occupied[ $tid ] ) || 'maintenance' === $by_id[ $tid ]['status'] ) {
+				$all_free = false; // Missing, booked, or a member is out of service.
 				break;
 			}
 			$seats += $by_id[ $tid ]['seats'];

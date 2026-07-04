@@ -10,9 +10,11 @@ import {
 	MenuItem,
 	Tooltip,
 	Divider,
+	Switch,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import BuildIcon from '@mui/icons-material/Build';
 import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import Rotate90DegreesCwIcon from '@mui/icons-material/Rotate90DegreesCw';
@@ -380,6 +382,7 @@ export default function FloorPlan() {
 								const isSel = ! joinMode && t.id === selectedId;
 								const isPicked = joinMode && joinSel.includes( t.id );
 								const inCombo = joinedIds.has( t.id );
+								const isMaint = 'maintenance' === t.status;
 								return (
 									<Box
 										key={ t.id }
@@ -395,8 +398,9 @@ export default function FloorPlan() {
 											height: s.h,
 											transform: `rotate(${ t.rotation || 0 }deg)`,
 											borderRadius: s.radius,
-											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : tokens.surface,
-											border: `${ isPicked ? '2px dashed' : isSel ? '2px solid' : '1.5px solid' } ${ isPicked || isSel ? tokens.accent : tokens.border2 }`,
+											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : isMaint ? tokens.soft : tokens.surface,
+											border: `${ isPicked ? '2px dashed' : isSel ? '2px solid' : isMaint ? '1.5px dashed' : '1.5px solid' } ${ isPicked || isSel ? tokens.accent : isMaint ? tokens.amber : tokens.border2 }`,
+											opacity: isMaint && ! isSel ? 0.72 : 1,
 											boxShadow: isPicked
 												? '0 4px 12px rgba(79,70,229,.35)'
 												: isSel
@@ -437,6 +441,25 @@ export default function FloorPlan() {
 												} }
 											>
 												<LinkIcon sx={ { fontSize: 9, color: '#fff' } } />
+											</Box>
+										) }
+										{ isMaint && (
+											<Box
+												sx={ {
+													position: 'absolute',
+													top: -5,
+													left: -5,
+													width: 16,
+													height: 16,
+													borderRadius: '50%',
+													bgcolor: tokens.amber,
+													border: '1.5px solid #fff',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+												} }
+											>
+												<BuildIcon sx={ { fontSize: 9, color: '#fff' } } />
 											</Box>
 										) }
 									</Box>
@@ -595,6 +618,17 @@ function TableProps( { table, areas, onChange, onDelete, onClose } ) {
 							<Rotate90DegreesCwIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
+				</Stack>
+				<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { bgcolor: tokens.soft, borderRadius: 2, px: 1.25, py: 0.5 } }>
+					<Stack direction="row" alignItems="center" spacing={ 0.75 }>
+						<BuildIcon sx={ { fontSize: 16, color: 'maintenance' === table.status ? tokens.amber : tokens.muted2 } } />
+						<Typography sx={ { fontSize: 13, fontWeight: 600, color: tokens.ink2 } }>Out of service</Typography>
+					</Stack>
+					<Switch
+						size="small"
+						checked={ 'maintenance' === table.status }
+						onChange={ ( e ) => onChange( { status: e.target.checked ? 'maintenance' : 'active' } ) }
+					/>
 				</Stack>
 				<Button
 					color="error"

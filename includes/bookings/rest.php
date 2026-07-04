@@ -474,11 +474,12 @@ function delete_area( $request ) {
  * @return array<string,mixed>
  */
 function table_response( $id ) {
-	$post  = get_post( $id );
-	$seats = (int) get_post_meta( $id, 'dk_seats', true );
-	$areas = get_the_terms( $post, 'dk_area' );
-	$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
-	$shape = (string) get_post_meta( $id, 'dk_shape', true );
+	$post   = get_post( $id );
+	$seats  = (int) get_post_meta( $id, 'dk_seats', true );
+	$areas  = get_the_terms( $post, 'dk_area' );
+	$area   = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
+	$shape  = (string) get_post_meta( $id, 'dk_shape', true );
+	$status = (string) get_post_meta( $id, 'dk_status', true );
 	return array(
 		'id'       => (int) $id,
 		'name'     => $post->post_title,
@@ -492,6 +493,7 @@ function table_response( $id ) {
 		'y'        => (int) get_post_meta( $id, 'dk_pos_y', true ),
 		'rotation' => (int) get_post_meta( $id, 'dk_rotation', true ),
 		'shape'    => $shape ? $shape : 'round',
+		'status'   => 'maintenance' === $status ? 'maintenance' : 'active',
 	);
 }
 
@@ -526,6 +528,10 @@ function apply_table_fields( $id, $request ) {
 	}
 	if ( null !== $request->get_param( 'shape' ) ) {
 		update_post_meta( $id, 'dk_shape', sanitize_key( (string) $request->get_param( 'shape' ) ) );
+	}
+	if ( null !== $request->get_param( 'status' ) ) {
+		$status = sanitize_key( (string) $request->get_param( 'status' ) );
+		update_post_meta( $id, 'dk_status', 'maintenance' === $status ? 'maintenance' : 'active' );
 	}
 	if ( null !== $request->get_param( 'area' ) ) {
 		$area = (int) $request->get_param( 'area' );

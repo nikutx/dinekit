@@ -175,6 +175,21 @@ function register() {
 		)
 	);
 
+	// Table availability status: 'active' or 'maintenance' (out of service).
+	register_post_meta(
+		'dk_table',
+		'dk_status',
+		array(
+			'type'              => 'string',
+			'description'       => __( 'Table status: active or maintenance.', 'dinekit' ),
+			'single'            => true,
+			'default'           => 'active',
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'sanitize_key',
+			'auth_callback'     => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+
 	// --- Bookings ---
 	register_post_type(
 		'dk_booking',
