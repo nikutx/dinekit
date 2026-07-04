@@ -19,6 +19,8 @@ import {
 	Snackbar,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ArchiveIcon from '@mui/icons-material/ArchiveOutlined';
+import UnarchiveIcon from '@mui/icons-material/UnarchiveOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import PrintIcon from '@mui/icons-material/Print';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
@@ -43,8 +45,52 @@ const O_STATUS = [
 ];
 const meta = ( k ) => O_STATUS.find( ( s ) => s.key === k ) || O_STATUS[ 0 ];
 
+// Payment status → label + tint for the card chip.
+const PAYMENT = {
+	paid: { label: 'Paid', fg: tokens.green, bg: tokens.greenSoft },
+	authorized: { label: 'Card held', fg: tokens.amber, bg: tokens.amberSoft },
+	pending: { label: 'Awaiting payment', fg: tokens.muted, bg: tokens.soft },
+	refunded: { label: 'Refunded', fg: tokens.red, bg: tokens.redSoft },
+	released: { label: 'Hold released', fg: tokens.muted, bg: tokens.soft },
+	on_collection: { label: 'Pay on collection', fg: tokens.muted2, bg: tokens.soft },
+	unpaid: { label: 'Unpaid', fg: tokens.muted2, bg: tokens.soft },
+};
+
+// Group orders (already newest-first) under Today / Yesterday / date headings.
+const dayLabel = ( iso ) => {
+	if ( ! iso ) {
+		return 'Earlier';
+	}
+	const d = new Date( iso );
+	const now = new Date();
+	const y = new Date( now );
+	y.setDate( now.getDate() - 1 );
+	const same = ( a, b ) => a.toDateString() === b.toDateString();
+	if ( same( d, now ) ) {
+		return 'Today';
+	}
+	if ( same( d, y ) ) {
+		return 'Yesterday';
+	}
+	return d.toLocaleDateString( undefined, { weekday: 'short', day: 'numeric', month: 'short' } );
+};
+const groupByDay = ( list ) => {
+	const groups = [];
+	let last = null;
+	list.forEach( ( o ) => {
+		const label = dayLabel( o.placed );
+		if ( ! last || last.label !== label ) {
+			last = { label, orders: [] };
+			groups.push( last );
+		}
+		last.orders.push( o );
+	} );
+	return groups;
+};
+
 export default function OrdersView() {
 	const [ orders, setOrders ] = useState( [] );
+	const [ archived, setArchived ] = useState( null ); // Loaded lazily when the tab opens.
 	const [ loading, setLoading ] = useState( true );
 	const [ tab, setTab ] = useState( 'active' );
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
@@ -60,21 +106,46 @@ export default function OrdersView() {
 			.finally( () => setLoading( false ) );
 	}, [] );
 
+	useEffect( () => {
+		if ( tab === 'archived' && archived === null ) {
+			api.getOrders( true ).then( ( list ) => setArchived( list || [] ) );
+		}
+	}, [ tab, archived ] );
+
 	const money = ( n ) => {
 		const v = Number( n || 0 ).toFixed( 2 );
 		return cur.position === 'after' ? `${ v }${ cur.symbol }` : `${ cur.symbol }${ v }`;
 	};
 
+	const patchLocal = ( id, changes ) =>
+		setOrders( ( os ) => os.map( ( o ) => ( o.id === id ? { ...o, ...changes } : o ) ) );
+
 	const setStatus = ( id, status ) => {
-		setOrders( ( os ) => os.map( ( o ) => ( o.id === id ? { ...o, status } : o ) ) );
+		patchLocal( id, { status } );
 		api.updateOrder( id, { status } );
 	};
-	const remove = async ( id ) => {
-		await api.deleteOrder( id );
+	const accept = ( id ) => {
+		patchLocal( id, { status: 'preparing' } );
+		api.updateOrder( id, { action: 'accept' } ).then( ( o ) => o && patchLocal( id, o ) );
+	};
+	const reject = ( id ) => {
+		patchLocal( id, { status: 'cancelled' } );
+		api.updateOrder( id, { action: 'reject' } ).then( ( o ) => o && patchLocal( id, o ) );
+	};
+	const archive = ( id ) => {
 		setOrders( ( os ) => os.filter( ( o ) => o.id !== id ) );
+		setArchived( ( a ) => ( a === null ? a : null ) ); // Force reload next time the tab opens.
+		api.updateOrder( id, { archived: true } );
+	};
+	const restore = ( id ) => {
+		setArchived( ( a ) => ( a || [] ).filter( ( o ) => o.id !== id ) );
+		api.updateOrder( id, { archived: false } ).then( () => api.getOrders().then( ( l ) => setOrders( l || [] ) ) );
 	};
 
 	const filtered = useMemo( () => {
+		if ( tab === 'archived' ) {
+			return archived || [];
+		}
 		if ( tab === 'active' ) {
 			return orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) );
 		}
@@ -82,9 +153,11 @@ export default function OrdersView() {
 			return orders.filter( ( o ) => [ 'completed', 'cancelled' ].includes( o.status ) );
 		}
 		return orders;
-	}, [ orders, tab ] );
+	}, [ orders, archived, tab ] );
 
+	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
 	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) ).length;
+	const newCount = orders.filter( ( o ) => o.status === 'new' ).length;
 
 	const printTicket = ( o ) => {
 		let body = '<h1>Order #' + o.number + '</h1>';
@@ -171,69 +244,100 @@ export default function OrdersView() {
 				<ToggleButton value="active">Active</ToggleButton>
 				<ToggleButton value="done">Completed</ToggleButton>
 				<ToggleButton value="all">All</ToggleButton>
+				<ToggleButton value="archived">Archived</ToggleButton>
 			</ToggleButtonGroup>
 
 			{ filtered.length === 0 ? (
 				<EmptyState
 					icon={ <ReceiptLongIcon /> }
-					title="No orders here"
-					description="Orders placed on your site land here in real time."
+					title={ tab === 'archived' ? 'Nothing archived' : 'No orders here' }
+					description={ tab === 'archived' ? 'Archived orders are kept here as a permanent record.' : 'Orders placed on your site land here in real time.' }
 				/>
 			) : (
-				<Stack spacing={ 1.5 }>
-					{ filtered.map( ( o ) => {
-						const m = meta( o.status );
-						return (
-							<Card key={ o.id } hover sx={ { p: 2 } }>
-								<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 1 } }>
-									<Typography sx={ { fontWeight: 650, fontSize: 15, fontVariantNumeric: 'tabular-nums' } }>#{ o.number }</Typography>
-									<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
-										{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.when === 'asap' ? 'ASAP' : o.when }
-									</Typography>
-									<Box sx={ { flex: 1 } } />
-									<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
-									<Select
-										value={ o.status }
-										onChange={ ( e ) => setStatus( o.id, e.target.value ) }
-										size="small"
-										renderValue={ ( v ) => {
-											const sm = meta( v );
-											return (
-												<Stack direction="row" spacing={ 0.75 } alignItems="center" component="span">
-													<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: sm.fg, flexShrink: 0 } } />
-													{ sm.label }
+				<Stack spacing={ 3 }>
+					{ groups.map( ( g ) => (
+						<Box key={ g.label }>
+							<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: tokens.muted2, mb: 1 } }>
+								{ g.label } · { g.orders.length }
+							</Typography>
+							<Stack spacing={ 1.5 }>
+								{ g.orders.map( ( o ) => {
+									const m = meta( o.status );
+									const pay = PAYMENT[ o.payment ] || null;
+									const isNew = o.status === 'new';
+									return (
+										<Card key={ o.id } hover sx={ { p: 2, ...( isNew ? { borderColor: tokens.accent, boxShadow: `0 0 0 1px ${ tokens.accent }22` } : {} ) } }>
+											<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 1 } }>
+												<Typography sx={ { fontWeight: 650, fontSize: 15, fontVariantNumeric: 'tabular-nums' } }>#{ o.number }</Typography>
+												<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
+													{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.when === 'asap' ? 'ASAP' : o.when }
+												</Typography>
+												{ pay && (
+													<Chip label={ pay.label } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: pay.fg, bgcolor: pay.bg } } />
+												) }
+												<Box sx={ { flex: 1 } } />
+												<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
+												{ tab !== 'archived' && (
+													<Select
+														value={ o.status }
+														onChange={ ( e ) => setStatus( o.id, e.target.value ) }
+														size="small"
+														renderValue={ ( v ) => {
+															const sm = meta( v );
+															return (
+																<Stack direction="row" spacing={ 0.75 } alignItems="center" component="span">
+																	<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: sm.fg, flexShrink: 0 } } />
+																	{ sm.label }
+																</Stack>
+															);
+														} }
+														sx={ { minWidth: 130, fontWeight: 600, fontSize: 13, color: m.fg, bgcolor: m.bg, borderRadius: '8px', '& fieldset': { border: 'none' } } }
+													>
+														{ O_STATUS.map( ( s ) => (
+															<MenuItem key={ s.key } value={ s.key } sx={ { fontSize: 13, fontWeight: 600 } }>
+																<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: s.fg, display: 'inline-block', mr: 1, flexShrink: 0 } } />
+																{ s.label }
+															</MenuItem>
+														) ) }
+													</Select>
+												) }
+												<Tooltip title="Print ticket">
+													<IconButton size="small" onClick={ () => printTicket( o ) } sx={ { color: tokens.muted } }><PrintIcon fontSize="small" /></IconButton>
+												</Tooltip>
+												{ tab === 'archived' ? (
+													<Tooltip title="Restore from archive">
+														<IconButton size="small" onClick={ () => restore( o.id ) } sx={ { color: tokens.muted } }><UnarchiveIcon fontSize="small" /></IconButton>
+													</Tooltip>
+												) : (
+													<Tooltip title="Archive (kept on record)">
+														<IconButton size="small" onClick={ () => archive( o.id ) } sx={ { color: tokens.muted2 } }><ArchiveIcon fontSize="small" /></IconButton>
+													</Tooltip>
+												) }
+											</Stack>
+
+											{ isNew && tab !== 'archived' && (
+												<Stack direction="row" spacing={ 1 } sx={ { mb: 1.25 } }>
+													<Button size="small" variant="contained" onClick={ () => accept( o.id ) } sx={ { py: 0.4 } }>Accept</Button>
+													<Button size="small" variant="outlined" color="error" onClick={ () => reject( o.id ) } sx={ { py: 0.4 } }>Reject</Button>
 												</Stack>
-											);
-										} }
-										sx={ { minWidth: 130, fontWeight: 600, fontSize: 13, color: m.fg, bgcolor: m.bg, borderRadius: '8px', '& fieldset': { border: 'none' } } }
-									>
-										{ O_STATUS.map( ( s ) => (
-											<MenuItem key={ s.key } value={ s.key } sx={ { fontSize: 13, fontWeight: 600 } }>
-												<Box component="span" sx={ { width: 7, height: 7, borderRadius: '50%', bgcolor: s.fg, display: 'inline-block', mr: 1, flexShrink: 0 } } />
-												{ s.label }
-											</MenuItem>
-										) ) }
-									</Select>
-									<Tooltip title="Print ticket">
-										<IconButton size="small" onClick={ () => printTicket( o ) } sx={ { color: tokens.muted } }><PrintIcon fontSize="small" /></IconButton>
-									</Tooltip>
-									<Tooltip title="Delete order">
-										<IconButton size="small" onClick={ () => remove( o.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
-									</Tooltip>
-								</Stack>
-								<Typography sx={ { fontSize: 12.5, color: tokens.muted, lineHeight: 1.6 } }>
-									{ o.items.map( ( li ) => {
-										const extra = [ li.priceLabel ]
-											.concat( li.chosen.map( ( c ) => c.label ) )
-											.concat( ( li.removed || [] ).map( ( r ) => `no ${ r }` ) )
-											.filter( Boolean );
-										return `${ li.qty }× ${ li.title }${ extra.length ? ` (${ extra.join( ', ' ) })` : '' }`;
-									} ).join( '  ·  ' ) }
-								</Typography>
-								{ o.notes && <Typography sx={ { fontSize: 12.5, color: tokens.ink2, mt: 0.5, fontStyle: 'italic' } }>“{ o.notes }”</Typography> }
-							</Card>
-						);
-					} ) }
+											) }
+
+											<Typography sx={ { fontSize: 12.5, color: tokens.muted, lineHeight: 1.6 } }>
+												{ o.items.map( ( li ) => {
+													const extra = [ li.priceLabel ]
+														.concat( li.chosen.map( ( c ) => c.label ) )
+														.concat( ( li.removed || [] ).map( ( r ) => `no ${ r }` ) )
+														.filter( Boolean );
+													return `${ li.qty }× ${ li.title }${ extra.length ? ` (${ extra.join( ', ' ) })` : '' }`;
+												} ).join( '  ·  ' ) }
+											</Typography>
+											{ o.notes && <Typography sx={ { fontSize: 12.5, color: tokens.ink2, mt: 0.5, fontStyle: 'italic' } }>“{ o.notes }”</Typography> }
+										</Card>
+									);
+								} ) }
+							</Stack>
+						</Box>
+					) ) }
 				</Stack>
 			) }
 		</Page>
@@ -400,6 +504,12 @@ function OrderSettings() {
 					<Switch checked={ cfg.emails_enabled } onChange={ ( e ) => patch( { emails_enabled: e.target.checked } ) } />
 					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Email notifications</Typography>
 				</Stack>
+				<Tooltip title="On: orders go straight to the kitchen. Off: you accept or reject each order first (recommended when a card is held)." placement="top">
+					<Stack direction="row" alignItems="center" spacing={ 1 }>
+						<Switch checked={ !! cfg.auto_accept } onChange={ ( e ) => patch( { auto_accept: e.target.checked } ) } />
+						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Auto-accept orders</Typography>
+					</Stack>
+				</Tooltip>
 			</Stack>
 
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
@@ -440,7 +550,8 @@ function OrderSettings() {
 				/>
 			</Stack>
 			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
-				Card payment (your own Stripe, 0% commission) plugs in from Integrations — coming soon.
+				Card payment runs on your own Stripe (0% commission) — connect it in Integrations. With
+				auto-accept off, a customer's card is held and only charged when you accept.
 			</Typography>
 			<Snackbar open={ copied } autoHideDuration={ 1800 } onClose={ () => setCopied( false ) } message="Shortcode copied" anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } } />
 		</Box>

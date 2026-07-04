@@ -196,17 +196,20 @@ function register() {
 	);
 
 	$meta = array(
-		'dk_order_number'  => 'integer',
-		'dk_order_items'   => 'string',  // JSON of recomputed lines.
-		'dk_order_total'   => 'string',  // Decimal string.
-		'dk_order_status'  => 'string',
-		'dk_order_name'    => 'string',
-		'dk_order_email'   => 'string',
-		'dk_order_phone'   => 'string',
-		'dk_order_notes'   => 'string',
-		'dk_order_when'    => 'string',  // 'asap' or H:i.
-		'dk_order_payment' => 'string',  // unpaid | paid | on_collection.
-		'dk_order_source'  => 'string',
+		'dk_order_number'   => 'integer',
+		'dk_order_items'    => 'string',  // JSON of recomputed lines.
+		'dk_order_total'    => 'string',  // Decimal string.
+		'dk_order_status'   => 'string',
+		'dk_order_name'     => 'string',
+		'dk_order_email'    => 'string',
+		'dk_order_phone'    => 'string',
+		'dk_order_notes'    => 'string',
+		'dk_order_when'     => 'string',  // 'asap' or H:i.
+		'dk_order_payment'  => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
+		'dk_order_source'   => 'string',
+		'dk_order_pi'       => 'string',  // Stripe PaymentIntent id.
+		'dk_order_archived' => 'integer', // 1 = archived (never hard-deleted).
+		'dk_order_history'  => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -231,12 +234,13 @@ function register() {
 function get_settings() {
 	$defaults = array(
 		'enabled'        => true,
+		'auto_accept'    => false, // false = receive & hold (accept/reject); true = auto-accept on arrival.
 		'prep_mins'      => 30,   // Minimum lead time before collection.
 		'min_order'      => 0,    // Minimum order value (0 = none).
 		'emails_enabled' => true, // Send customer + kitchen order emails.
 		'notify_email'   => '',   // Kitchen recipient (empty = site admin).
 	);
-	$stored = get_option( SETTINGS, array() );
+	$stored   = get_option( SETTINGS, array() );
 	return is_array( $stored ) ? array_merge( $defaults, $stored ) : $defaults;
 }
 
@@ -250,6 +254,9 @@ function save_settings( $data ) {
 	$current = get_settings();
 	if ( isset( $data['enabled'] ) ) {
 		$current['enabled'] = (bool) $data['enabled'];
+	}
+	if ( isset( $data['auto_accept'] ) ) {
+		$current['auto_accept'] = (bool) $data['auto_accept'];
 	}
 	if ( isset( $data['prep_mins'] ) ) {
 		$current['prep_mins'] = max( 0, min( 480, absint( $data['prep_mins'] ) ) );
@@ -266,6 +273,52 @@ function save_settings( $data ) {
 	}
 	update_option( SETTINGS, $current );
 	return $current;
+}
+
+/**
+ * Append an event to an order's history audit trail (oldest first).
+ *
+ * @param int    $id    Order id.
+ * @param string $event Human-readable event.
+ * @return void
+ */
+function log_event( $id, $event ) {
+	$log = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
+	$log[] = array(
+		't' => current_time( 'c' ),
+		'e' => (string) $event,
+	);
+	if ( count( $log ) > 100 ) {
+		$log = array_slice( $log, -100 );
+	}
+	update_post_meta( $id, 'dk_order_history', wp_json_encode( $log ) );
+}
+
+/**
+ * Capture an authorized PaymentIntent hold when an order is accepted. No-op for
+ * now (orders are charged immediately); the authorize/capture slice replaces
+ * this with a real Stripe capture.
+ *
+ * @param int $id Order id.
+ * @return void
+ */
+function capture_payment( $id ) {
+	unset( $id ); // Wired up in the Stripe authorize/capture slice.
+}
+
+/**
+ * Release an uncaptured hold, or refund an already-captured payment, when an
+ * order is rejected/cancelled (and flag the customer for notification). No-op
+ * for now; implemented in the authorize/capture slice.
+ *
+ * @param int $id Order id.
+ * @return void
+ */
+function release_or_refund( $id ) {
+	unset( $id ); // Wired up in the Stripe authorize/capture slice.
 }
 
 /**
@@ -307,9 +360,9 @@ function recompute( $lines ) {
 		$unit   = isset( $row['amount'] ) ? (float) $row['amount'] : 0.0;
 		$plabel = isset( $row['label'] ) ? (string) $row['label'] : '';
 
-		$mods   = get_post_meta( $item_id, 'dk_modifiers', true );
-		$mods   = is_array( $mods ) ? $mods : array();
-		$chosen = array();
+		$mods    = get_post_meta( $item_id, 'dk_modifiers', true );
+		$mods    = is_array( $mods ) ? $mods : array();
+		$chosen  = array();
 		$removed = array();
 
 		if ( isset( $line['choices'] ) && is_array( $line['choices'] ) ) {

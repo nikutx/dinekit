@@ -114,21 +114,25 @@ function register_routes() {
  * @return array<string,mixed>
  */
 function order_response( $id ) {
-	$post  = get_post( $id );
-	$items = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
+	$items   = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
+	$history = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
 	return array(
-		'id'      => (int) $id,
-		'number'  => (int) get_post_meta( $id, 'dk_order_number', true ),
-		'items'   => is_array( $items ) ? $items : array(),
-		'total'   => (string) get_post_meta( $id, 'dk_order_total', true ),
-		'status'  => (string) get_post_meta( $id, 'dk_order_status', true ),
-		'name'    => (string) get_post_meta( $id, 'dk_order_name', true ),
-		'email'   => (string) get_post_meta( $id, 'dk_order_email', true ),
-		'phone'   => (string) get_post_meta( $id, 'dk_order_phone', true ),
-		'notes'   => (string) get_post_meta( $id, 'dk_order_notes', true ),
-		'when'    => (string) get_post_meta( $id, 'dk_order_when', true ),
-		'payment' => (string) get_post_meta( $id, 'dk_order_payment', true ),
-		'placed'  => (string) get_post_time( 'c', false, $id ),
+		'id'       => (int) $id,
+		'number'   => (int) get_post_meta( $id, 'dk_order_number', true ),
+		'items'    => is_array( $items ) ? $items : array(),
+		'total'    => (string) get_post_meta( $id, 'dk_order_total', true ),
+		'status'   => (string) get_post_meta( $id, 'dk_order_status', true ),
+		'name'     => (string) get_post_meta( $id, 'dk_order_name', true ),
+		'email'    => (string) get_post_meta( $id, 'dk_order_email', true ),
+		'phone'    => (string) get_post_meta( $id, 'dk_order_phone', true ),
+		'notes'    => (string) get_post_meta( $id, 'dk_order_notes', true ),
+		'when'     => (string) get_post_meta( $id, 'dk_order_when', true ),
+		'payment'  => (string) get_post_meta( $id, 'dk_order_payment', true ),
+		'source'   => (string) get_post_meta( $id, 'dk_order_source', true ),
+		'pi'       => (string) get_post_meta( $id, 'dk_order_pi', true ),
+		'archived' => '1' === (string) get_post_meta( $id, 'dk_order_archived', true ),
+		'history'  => is_array( $history ) ? $history : array(),
+		'placed'   => (string) get_post_time( 'c', false, $id ),
 	);
 }
 
@@ -180,17 +184,20 @@ function create_order( $request ) {
 	update_post_meta( $post_id, 'dk_order_when', $when );
 	update_post_meta( $post_id, 'dk_order_payment', $payment );
 	update_post_meta( $post_id, 'dk_order_source', 'staff' );
+	Ordering\log_event( $post_id, __( 'Order created by staff', 'dinekit' ) );
 
 	return rest_ensure_response( order_response( $post_id ) );
 }
 
 /**
- * GET /orders.
+ * GET /orders — active by default; `?archived=1` returns the archive.
  *
+ * @param \WP_REST_Request $request Request.
  * @return \WP_REST_Response
  */
-function list_orders() {
-	$posts = get_posts(
+function list_orders( $request ) {
+	$archived = '1' === (string) $request->get_param( 'archived' );
+	$posts    = get_posts(
 		array(
 			'post_type'      => 'dk_order',
 			'post_status'    => 'publish',
@@ -198,9 +205,26 @@ function list_orders() {
 			'no_found_rows'  => true,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
+			// Archived orders are kept forever (never hard-deleted) but hidden by default.
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'relation' => 'OR',
+				array(
+					'key'     => 'dk_order_archived',
+					'value'   => '1',
+					'compare' => $archived ? '=' : '!=',
+				),
+				$archived ? array(
+					'key'     => 'dk_order_archived',
+					'value'   => 'x', // Never matches — archived view only wants the =1 branch.
+					'compare' => '=',
+				) : array(
+					'key'     => 'dk_order_archived',
+					'compare' => 'NOT EXISTS',
+				),
+			),
 		)
 	);
-	$orders = array_map(
+	$orders   = array_map(
 		static function ( $post ) {
 			return order_response( $post->ID );
 		},
@@ -210,32 +234,68 @@ function list_orders() {
 }
 
 /**
- * PATCH /orders/:id — update status.
+ * PATCH /orders/:id — accept/reject, change status/payment, or archive. Every
+ * change is written to the order's history trail.
  *
  * @param \WP_REST_Request $request Request.
- * @return \WP_REST_Response
+ * @return \WP_REST_Response|\WP_Error
  */
 function update_order( $request ) {
-	$id     = (int) $request['id'];
+	$id = (int) $request['id'];
+	if ( 'dk_order' !== get_post_type( $id ) ) {
+		return new \WP_Error( 'dinekit_order_404', __( 'Order not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	$action   = (string) $request->get_param( 'action' );
+	$statuses = Ordering\statuses();
+
+	if ( 'accept' === $action ) {
+		update_post_meta( $id, 'dk_order_status', 'preparing' );
+		Ordering\log_event( $id, __( 'Accepted', 'dinekit' ) );
+		Ordering\capture_payment( $id ); // Captures an authorized hold when present (no-op otherwise).
+	} elseif ( 'reject' === $action ) {
+		update_post_meta( $id, 'dk_order_status', 'cancelled' );
+		Ordering\log_event( $id, __( 'Rejected & cancelled', 'dinekit' ) );
+		Ordering\release_or_refund( $id ); // Releases the hold, or refunds if already captured.
+	}
+
 	$status = (string) $request->get_param( 'status' );
-	if ( array_key_exists( $status, Ordering\statuses() ) ) {
+	if ( '' !== $status && array_key_exists( $status, $statuses ) ) {
 		update_post_meta( $id, 'dk_order_status', $status );
+		/* translators: %s: order status label. */
+		Ordering\log_event( $id, sprintf( __( 'Status changed to %s', 'dinekit' ), $statuses[ $status ] ) );
 	}
+
 	if ( null !== $request->get_param( 'payment' ) ) {
-		update_post_meta( $id, 'dk_order_payment', sanitize_text_field( (string) $request->get_param( 'payment' ) ) );
+		$pay = sanitize_text_field( (string) $request->get_param( 'payment' ) );
+		update_post_meta( $id, 'dk_order_payment', $pay );
+		/* translators: %s: payment status. */
+		Ordering\log_event( $id, sprintf( __( 'Payment marked %s', 'dinekit' ), $pay ) );
 	}
+
+	if ( null !== $request->get_param( 'archived' ) ) {
+		$arch = (bool) $request->get_param( 'archived' );
+		update_post_meta( $id, 'dk_order_archived', $arch ? 1 : 0 );
+		Ordering\log_event( $id, $arch ? __( 'Archived', 'dinekit' ) : __( 'Restored from archive', 'dinekit' ) );
+	}
+
 	return rest_ensure_response( order_response( $id ) );
 }
 
 /**
- * DELETE /orders/:id.
+ * DELETE /orders/:id — orders are financial records, so this ARCHIVES rather
+ * than hard-deleting (nothing is ever lost).
  *
  * @param \WP_REST_Request $request Request.
- * @return \WP_REST_Response
+ * @return \WP_REST_Response|\WP_Error
  */
 function delete_order( $request ) {
-	wp_delete_post( (int) $request['id'], true );
-	return rest_ensure_response( array( 'deleted' => true ) );
+	$id = (int) $request['id'];
+	if ( 'dk_order' !== get_post_type( $id ) ) {
+		return new \WP_Error( 'dinekit_order_404', __( 'Order not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	update_post_meta( $id, 'dk_order_archived', 1 );
+	Ordering\log_event( $id, __( 'Archived', 'dinekit' ) );
+	return rest_ensure_response( order_response( $id ) );
 }
 
 /**
@@ -276,7 +336,12 @@ function place_order( $request ) {
 
 	// Honeypot.
 	if ( '' !== trim( (string) $request->get_param( 'hp' ) ) ) {
-		return rest_ensure_response( array( 'ok' => true, 'number' => 0 ) );
+		return rest_ensure_response(
+			array(
+				'ok'     => true,
+				'number' => 0,
+			)
+		);
 	}
 	// Rate limit.
 	$ip   = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'na';
@@ -322,16 +387,23 @@ function place_order( $request ) {
 		return new \WP_Error( 'dinekit_order_save', __( 'Could not place your order. Please try again.', 'dinekit' ), array( 'status' => 500 ) );
 	}
 
+	// Auto-accept sends it straight to the kitchen; otherwise it's held as "new"
+	// for the restaurant to accept or reject first.
+	$auto = ! empty( $settings['auto_accept'] );
 	update_post_meta( $post_id, 'dk_order_number', $number );
 	update_post_meta( $post_id, 'dk_order_items', wp_json_encode( $computed['items'] ) );
 	update_post_meta( $post_id, 'dk_order_total', number_format( $computed['total'], 2, '.', '' ) );
-	update_post_meta( $post_id, 'dk_order_status', 'new' );
+	update_post_meta( $post_id, 'dk_order_status', $auto ? 'preparing' : 'new' );
 	update_post_meta( $post_id, 'dk_order_name', $name );
 	update_post_meta( $post_id, 'dk_order_email', $email );
 	update_post_meta( $post_id, 'dk_order_phone', $phone );
 	update_post_meta( $post_id, 'dk_order_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 	update_post_meta( $post_id, 'dk_order_when', $when );
 	update_post_meta( $post_id, 'dk_order_source', 'online' );
+	Ordering\log_event( $post_id, __( 'Order received online', 'dinekit' ) );
+	if ( $auto ) {
+		Ordering\log_event( $post_id, __( 'Auto-accepted', 'dinekit' ) );
+	}
 
 	// When Stripe is connected and there's something to charge, hold the order as
 	// awaiting payment (the webhook flips it to 'paid'); otherwise pay-on-collection.

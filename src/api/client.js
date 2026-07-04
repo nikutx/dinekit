@@ -131,7 +131,7 @@ export const api = {
 	getFeedback: () => request( 'GET', 'reviews/feedback' ),
 
 	// Ordering (admin board).
-	getOrders: () => request( 'GET', 'orders' ),
+	getOrders: ( archived ) => request( 'GET', 'orders' + ( archived ? '?archived=1' : '' ) ),
 	createOrder: ( data ) => request( 'POST', 'orders', data ),
 	updateOrder: ( id, data ) => request( 'PATCH', `orders/${ id }`, data ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
