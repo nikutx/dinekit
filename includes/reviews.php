@@ -32,7 +32,78 @@ const OPTION = 'dinekit_reviews';
 function init() {
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_routes' );
 	add_action( 'init', __NAMESPACE__ . '\\register_frontend' );
+	add_action( 'init', __NAMESPACE__ . '\\schedule_cron' );
+	add_action( 'dinekit_review_cron', __NAMESPACE__ . '\\run_scheduled' );
 	add_shortcode( 'dinekit_feedback', __NAMESPACE__ . '\\feedback_shortcode' );
+}
+
+/**
+ * Ensure the hourly review-request cron is scheduled.
+ *
+ * @return void
+ */
+function schedule_cron() {
+	if ( ! wp_next_scheduled( 'dinekit_review_cron' ) ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'dinekit_review_cron' );
+	}
+}
+
+/**
+ * Cron worker: email a review request to recent diners whose visit finished at
+ * least `delay_hours` ago and who haven't been asked yet. Soft opt-in only
+ * (confirmed bookings with an email); capped per run.
+ *
+ * @return void
+ */
+function run_scheduled() {
+	$cfg = get();
+	if ( empty( $cfg['enabled'] ) ) {
+		return;
+	}
+	$delay = (int) $cfg['delay_hours'] * HOUR_IN_SECONDS;
+	$now   = time();
+	$from  = gmdate( 'Y-m-d', $now - 7 * DAY_IN_SECONDS ); // Don't reach back further than a week.
+	$to    = gmdate( 'Y-m-d', $now );
+
+	$query = new \WP_Query(
+		array(
+			'post_type'      => 'dk_booking',
+			'post_status'    => 'publish',
+			'posts_per_page' => 100,
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+					'key'     => 'dk_date',
+					'value'   => array( $from, $to ),
+					'compare' => 'BETWEEN',
+					'type'    => 'DATE',
+				),
+			),
+		)
+	);
+
+	$sent = 0;
+	foreach ( $query->posts as $id ) {
+		if ( $sent >= 50 ) {
+			break;
+		}
+		if ( '' !== (string) get_post_meta( $id, 'dk_review_sent', true ) ) {
+			continue; // Already asked.
+		}
+		if ( ! in_array( (string) get_post_meta( $id, 'dk_status', true ), array( 'confirmed', 'seated' ), true ) ) {
+			continue;
+		}
+		$date = (string) get_post_meta( $id, 'dk_date', true );
+		$time = (string) get_post_meta( $id, 'dk_time', true );
+		$ts   = strtotime( $date . ' ' . ( $time ? $time : '20:00' ) . ':00' );
+		if ( ! $ts || ( $ts + $delay ) > $now ) {
+			continue; // Visit hasn't finished long enough ago.
+		}
+		if ( true === send_request( $id ) ) {
+			++$sent;
+		}
+	}
 }
 
 /**
@@ -308,6 +379,9 @@ function send_request( $booking_id ) {
 	$html .= '<p style="font-size:15px;color:#334155;margin:0 0 6px">' . esc_html( sprintf( __( 'Hi %s,', 'dinekit' ), $name ) ) . '</p>';
 	$html .= '<p style="font-size:15px;color:#334155;margin:0 0 16px">' . esc_html( $cfg['message'] ) . '</p>';
 	$html .= '<p style="margin:0 0 20px"><a href="' . esc_url( $link ) . '" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px">' . esc_html__( 'Share your feedback', 'dinekit' ) . '</a></p>';
+	if ( '' !== trim( (string) $cfg['offer'] ) ) {
+		$html .= '<p style="font-size:14px;color:#0f172a;margin:0 0 16px;padding:12px 14px;background:#eef2ff;border-radius:8px"><strong>' . esc_html__( 'Come back soon:', 'dinekit' ) . '</strong> ' . esc_html( $cfg['offer'] ) . '</p>';
+	}
 	$html .= '<p style="font-size:12px;color:#94a3b8;margin:16px 0 0">' . esc_html__( 'You’re receiving this because you recently booked with us. Reply STOP to unsubscribe.', 'dinekit' ) . '</p>';
 	$html .= '</div>';
 
