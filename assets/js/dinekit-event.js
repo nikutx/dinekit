@@ -53,6 +53,7 @@
 			var payload = {
 				name: name,
 				email: form.querySelector( '[name=email]' ).value,
+				group: cfg.group || '',
 				selections: selections,
 				allergens: checkedValues( 'input[name="allergens[]"]' ),
 				dietary: checkedValues( 'input[name="dietary[]"]' ),

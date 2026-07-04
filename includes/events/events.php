@@ -92,6 +92,7 @@ function register() {
 		'dk_event_price'    => 'integer',
 		'dk_event_status'   => 'string',  // draft | published.
 		'dk_event_intro'    => 'string',
+		'dk_event_groups'   => 'string',  // JSON: [{ id, name, size }] — companies/teams within the event.
 	);
 	foreach ( $event_meta as $key => $type ) {
 		register_post_meta(
@@ -114,6 +115,7 @@ function register() {
 		'dk_guest_allergens'  => 'string', // Comma term ids.
 		'dk_guest_dietary'    => 'string', // Comma term ids.
 		'dk_guest_notes'      => 'string',
+		'dk_guest_group'      => 'string', // Group/company id within the event (empty = general).
 	);
 	foreach ( $guest_meta as $key => $type ) {
 		register_post_meta(
@@ -188,6 +190,33 @@ function events_page_url() {
 		return (string) get_permalink( $id );
 	}
 	return home_url( '/' );
+}
+
+/**
+ * Groups (companies/teams) configured on an event.
+ *
+ * @param int $event_id Event id.
+ * @return array<int,array{id:string,name:string,size:int}>
+ */
+function event_groups( $event_id ) {
+	$raw = json_decode( (string) get_post_meta( $event_id, 'dk_event_groups', true ), true );
+	return is_array( $raw ) ? $raw : array();
+}
+
+/**
+ * The display name of a group on an event, or '' if not found.
+ *
+ * @param int    $event_id Event id.
+ * @param string $group_id Group id.
+ * @return string
+ */
+function group_name( $event_id, $group_id ) {
+	foreach ( event_groups( $event_id ) as $g ) {
+		if ( isset( $g['id'] ) && (string) $g['id'] === (string) $group_id ) {
+			return (string) $g['name'];
+		}
+	}
+	return '';
 }
 
 /**
@@ -283,5 +312,7 @@ function event_shortcode( $atts ) {
 	require_once DINEKIT_DIR . 'includes/events/form.php';
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only page keyed by an unguessable token.
 	$token = isset( $_GET['dkevent'] ) ? sanitize_text_field( wp_unslash( $_GET['dkevent'] ) ) : '';
-	return Form\render( $token );
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- optional group tag on the public link.
+	$group = isset( $_GET['g'] ) ? sanitize_key( wp_unslash( $_GET['g'] ) ) : '';
+	return Form\render( $token, $group );
 }

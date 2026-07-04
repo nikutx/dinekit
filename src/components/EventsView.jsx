@@ -94,9 +94,9 @@ export default function EventsView() {
 		select( selectedId );
 	};
 
-	const copyShare = () => {
-		if ( detail?.shareUrl && navigator.clipboard ) {
-			navigator.clipboard.writeText( detail.shareUrl ).then( () => setCopied( true ) );
+	const onCopy = ( text ) => {
+		if ( text && navigator.clipboard ) {
+			navigator.clipboard.writeText( text ).then( () => setCopied( true ) );
 		}
 	};
 
@@ -183,7 +183,7 @@ export default function EventsView() {
 								onPatch={ patch }
 								onDelete={ () => removeEvent( detail.id ) }
 								onRemoveGuest={ removeGuest }
-								onCopyShare={ copyShare }
+								onCopy={ onCopy }
 							/>
 						) }
 					</Box>
@@ -229,8 +229,15 @@ function DateBadge( { date, active } ) {
 	);
 }
 
-function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyShare } ) {
+function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy } ) {
 	const published = detail.status === 'published';
+	const groups = detail.groups || [];
+	const groupName = ( gid ) => ( groups.find( ( g ) => g.id === gid ) || {} ).name || '';
+	const groupUrl = ( gid ) => ( detail.shareUrl ? detail.shareUrl + '&g=' + encodeURIComponent( gid ) : '' );
+	const setGroups = ( next ) => onPatch( { groups: next } );
+	const addGroup = () => setGroups( [ ...groups, { id: 'g' + Date.now(), name: 'New company', size: 0, guestCount: 0 } ] );
+	const updateGroup = ( id, p ) => setGroups( groups.map( ( g ) => ( g.id === id ? { ...g, ...p } : g ) ) );
+	const removeGroup = ( id ) => setGroups( groups.filter( ( g ) => g.id !== id ) );
 	const itemName = ( id ) => {
 		for ( const c of detail.courses || [] ) {
 			const it = c.items.find( ( x ) => x.id === id );
@@ -332,9 +339,58 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 					<Typography sx={ { fontSize: 13, fontFamily: 'monospace', color: tokens.ink2, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
 						{ detail.shareUrl }
 					</Typography>
-					<Button size="small" startIcon={ <ContentCopyIcon sx={ { fontSize: 15 } } /> } onClick={ onCopyShare } disabled={ ! published }>Copy</Button>
+					<Button size="small" startIcon={ <ContentCopyIcon sx={ { fontSize: 15 } } /> } onClick={ () => onCopy( detail.shareUrl ) } disabled={ ! published }>Copy</Button>
 				</Stack>
 			</Box>
+
+			<Divider sx={ { my: 2.5 } } />
+
+			{ /* Groups / companies — separate teams within one event */ }
+			<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 1 } }>
+				<PeopleIcon sx={ { fontSize: 18, color: tokens.ink2 } } />
+				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Groups &amp; companies</Typography>
+				<Box sx={ { flex: 1 } } />
+				<Button size="small" startIcon={ <AddIcon sx={ { fontSize: 16 } } /> } onClick={ addGroup }>Add group</Button>
+			</Stack>
+			<Typography sx={ { fontSize: 12.5, color: tokens.muted2, mb: 1.5 } }>
+				Split one event into separate teams — each gets its own share link, and guests who use it are tagged to that group. Great for multiple companies at a shared event.
+			</Typography>
+			{ groups.length === 0 ? (
+				<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1 } }>No groups — everyone orders under the main link above.</Typography>
+			) : (
+				<Stack spacing={ 1 } sx={ { mb: 1 } }>
+					{ groups.map( ( g ) => (
+						<Stack key={ g.id } direction="row" alignItems="center" spacing={ 1 } flexWrap="wrap" useFlexGap sx={ { bgcolor: tokens.soft, borderRadius: 2, p: 1.25 } }>
+							<TextField
+								size="small"
+								value={ g.name }
+								onChange={ ( e ) => updateGroup( g.id, { name: e.target.value } ) }
+								placeholder="Company / team name"
+								sx={ { flex: 1, minWidth: 160 } }
+							/>
+							<TextField
+								size="small"
+								type="number"
+								label="Size"
+								value={ g.size || 0 }
+								onChange={ ( e ) => updateGroup( g.id, { size: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) }
+								sx={ { width: 90 } }
+							/>
+							<Chip
+								label={ `${ g.guestCount || 0 } in` }
+								size="small"
+								sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600 } }
+							/>
+							<Tooltip title={ published ? 'Copy this group’s share link' : 'Publish the event to activate links' }>
+								<span>
+									<Button size="small" startIcon={ <ContentCopyIcon sx={ { fontSize: 15 } } /> } onClick={ () => onCopy( groupUrl( g.id ) ) } disabled={ ! published }>Link</Button>
+								</span>
+							</Tooltip>
+							<IconButton size="small" onClick={ () => removeGroup( g.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
+						</Stack>
+					) ) }
+				</Stack>
+			) }
 
 			<Divider sx={ { my: 2.5 } } />
 
@@ -397,7 +453,12 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopyS
 						{ detail.guests.map( ( g ) => (
 							<Stack key={ g.id } direction="row" alignItems="center" spacing={ 1.5 } sx={ { bgcolor: tokens.soft, borderRadius: 2, p: 1.25 } }>
 								<Box sx={ { flex: 1, minWidth: 0 } }>
-									<Typography sx={ { fontWeight: 700, fontSize: 14 } }>{ g.name }</Typography>
+									<Stack direction="row" alignItems="center" spacing={ 0.75 }>
+										<Typography sx={ { fontWeight: 700, fontSize: 14 } }>{ g.name }</Typography>
+										{ g.group && groupName( g.group ) && (
+											<Chip label={ groupName( g.group ) } size="small" sx={ { height: 18, fontSize: 10, fontWeight: 600, bgcolor: tokens.accentSoft, color: tokens.accentDark } } />
+										) }
+									</Stack>
 									<Typography sx={ { fontSize: 12, color: tokens.muted } } noWrap>
 										{ Object.values( g.selections ).map( ( id ) => itemName( id ) ).join( ' · ' ) || 'No choices' }
 										{ g.notes ? ` — ${ g.notes }` : '' }

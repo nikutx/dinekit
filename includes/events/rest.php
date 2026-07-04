@@ -138,6 +138,35 @@ function guests_of( $event_id ) {
 function event_response( $id ) {
 	$post  = get_post( $id );
 	$token = (string) get_post_meta( $id, 'dk_event_token', true );
+	$page  = \DineKit\Events\events_page_url();
+
+	// Groups (companies/teams) with their own guest counts + share links.
+	$guests = guests_of( $id );
+	$counts = array();
+	foreach ( $guests as $g ) {
+		$gg = (string) get_post_meta( $g->ID, 'dk_guest_group', true );
+		if ( '' !== $gg ) {
+			$counts[ $gg ] = ( $counts[ $gg ] ?? 0 ) + 1;
+		}
+	}
+	$groups = array();
+	foreach ( \DineKit\Events\event_groups( $id ) as $grp ) {
+		$gid      = (string) ( $grp['id'] ?? '' );
+		$groups[] = array(
+			'id'         => $gid,
+			'name'       => (string) ( $grp['name'] ?? '' ),
+			'size'       => (int) ( $grp['size'] ?? 0 ),
+			'guestCount' => (int) ( $counts[ $gid ] ?? 0 ),
+			'shareUrl'   => $page ? add_query_arg(
+				array(
+					'dkevent' => $token,
+					'g'       => $gid,
+				),
+				$page
+			) : '',
+		);
+	}
+
 	return array(
 		'id'         => (int) $id,
 		'name'       => $post->post_title,
@@ -150,8 +179,9 @@ function event_response( $id ) {
 		'status'     => (string) get_post_meta( $id, 'dk_event_status', true ) ?: 'draft',
 		'intro'      => (string) get_post_meta( $id, 'dk_event_intro', true ),
 		'token'      => $token,
-		'shareUrl'   => \DineKit\Events\events_page_url() ? add_query_arg( 'dkevent', $token, \DineKit\Events\events_page_url() ) : '',
-		'guestCount' => count( guests_of( $id ) ),
+		'shareUrl'   => $page ? add_query_arg( 'dkevent', $token, $page ) : '',
+		'groups'     => $groups,
+		'guestCount' => count( $guests ),
 	);
 }
 
@@ -182,6 +212,7 @@ function guest_response( $post ) {
 		'id'            => (int) $post->ID,
 		'name'          => $post->post_title,
 		'email'         => (string) get_post_meta( $post->ID, 'dk_guest_email', true ),
+		'group'         => (string) get_post_meta( $post->ID, 'dk_guest_group', true ),
 		'selections'    => is_array( $sel ) ? $sel : array(),
 		'allergens'     => $allergen_ids,
 		'dietary'       => $dietary_ids,
@@ -296,6 +327,31 @@ function apply_event_fields( $id, $request ) {
 		}
 		update_post_meta( $id, $conf[0], 'int' === $conf[1] ? absint( $value ) : sanitize_text_field( (string) $value ) );
 	}
+
+	// Groups (companies/teams). Each needs a stable id; keep the client's or mint one.
+	if ( null !== $request->get_param( 'groups' ) ) {
+		$clean = array();
+		$n     = 0;
+		foreach ( (array) $request->get_param( 'groups' ) as $g ) {
+			if ( ! is_array( $g ) ) {
+				continue;
+			}
+			$name = sanitize_text_field( (string) ( $g['name'] ?? '' ) );
+			if ( '' === $name ) {
+				continue;
+			}
+			$gid = sanitize_key( (string) ( $g['id'] ?? '' ) );
+			if ( '' === $gid ) {
+				$gid = 'g' . ( ++$n );
+			}
+			$clean[] = array(
+				'id'   => $gid,
+				'name' => $name,
+				'size' => absint( $g['size'] ?? 0 ),
+			);
+		}
+		update_post_meta( $id, 'dk_event_groups', wp_json_encode( $clean ) );
+	}
 }
 
 /**
@@ -400,6 +456,8 @@ function public_event( $request ) {
 	$menu     = (int) get_post_meta( $event->ID, 'dk_event_menu', true );
 	$deadline = (string) get_post_meta( $event->ID, 'dk_event_deadline', true );
 
+	$group = sanitize_key( (string) $request->get_param( 'g' ) );
+
 	return rest_ensure_response(
 		array(
 			'name'     => $event->post_title,
@@ -409,6 +467,8 @@ function public_event( $request ) {
 			'deadline' => $deadline,
 			'closed'   => deadline_passed( $deadline ) || full( $event->ID ),
 			'courses'  => $menu ? \DineKit\Events\courses( $menu ) : array(),
+			'group'     => $group,
+			'groupName' => $group ? \DineKit\Events\group_name( $event->ID, $group ) : '',
 			'allergens' => taxonomy_options( 'dk_allergen' ),
 			'dietary'   => taxonomy_options( 'dk_dietary' ),
 		)
@@ -513,7 +573,12 @@ function public_submit( $request ) {
 		return new \WP_Error( 'dinekit_guest_save', __( 'Could not save your choices. Please try again.', 'dinekit' ), array( 'status' => 500 ) );
 	}
 
+	// Tag the guest to a company/team group if the link carried a valid one.
+	$group    = sanitize_key( (string) $request->get_param( 'group' ) );
+	$group_ok = '' !== $group && '' !== \DineKit\Events\group_name( $event->ID, $group );
+
 	update_post_meta( $gid, 'dk_guest_event', (int) $event->ID );
+	update_post_meta( $gid, 'dk_guest_group', $group_ok ? $group : '' );
 	update_post_meta( $gid, 'dk_guest_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
 	update_post_meta( $gid, 'dk_guest_selections', wp_json_encode( $sel ) );
 	update_post_meta( $gid, 'dk_guest_allergens', $to_ids( $request->get_param( 'allergens' ) ) );

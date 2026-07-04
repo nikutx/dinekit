@@ -18,9 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Render the event page for a share token.
  *
  * @param string $token Share token.
+ * @param string $group Optional group/company id (from a per-group share link).
  * @return string
  */
-function render( $token ) {
+function render( $token, $group = '' ) {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$event = \DineKit\Events\event_by_token( $token );
 
@@ -60,10 +61,13 @@ function render( $token ) {
 		}
 	}
 
+	$group_name = '' !== $group ? \DineKit\Events\group_name( $event->ID, $group ) : '';
+
 	$config = wp_json_encode(
 		array(
 			'restUrl' => esc_url_raw( rest_url( 'dinekit/v1/' ) ),
 			'token'   => $token,
+			'group'   => '' !== $group_name ? $group : '',
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'i18n'    => array(
 				'needName'     => __( 'Please enter your name.', 'dinekit' ),
@@ -83,6 +87,14 @@ function render( $token ) {
 		<h3 class="dinekit-booking__heading"><?php echo esc_html( $event->post_title ); ?></h3>
 		<?php if ( '' !== $when ) : ?>
 			<p class="dinekit-event__when"><?php echo esc_html( $when ); ?></p>
+		<?php endif; ?>
+		<?php if ( '' !== $group_name ) : ?>
+			<p class="dinekit-booking__note">
+				<?php
+				/* translators: %s: company/group name. */
+				echo esc_html( sprintf( __( 'Ordering as part of: %s', 'dinekit' ), $group_name ) );
+				?>
+			</p>
 		<?php endif; ?>
 		<?php if ( '' !== $intro ) : ?>
 			<p class="dinekit-booking__intro"><?php echo esc_html( $intro ); ?></p>
