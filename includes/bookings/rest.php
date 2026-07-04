@@ -143,6 +143,16 @@ function register_routes() {
 
 	register_rest_route(
 		$ns,
+		'/bookings/service',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_service',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+
+	register_rest_route(
+		$ns,
 		'/bookings/list',
 		array(
 			'methods'             => \WP_REST_Server::READABLE,
@@ -632,6 +642,47 @@ function delete_table( $request ) {
 /* -------------------------------------------------------------------------- */
 /* Availability + bookings                                                    */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * GET /bookings/service?date — the day's service window (from Opening Hours),
+ * for the full-width timeline axis. Returns minutes-past-midnight bounds
+ * (closeMin may exceed 1440 for over-midnight service) + the raw periods.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_service( $request ) {
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	$date    = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$periods = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ? Availability\service_periods( $date ) : array();
+
+	$open_min  = null;
+	$close_min = null;
+	foreach ( $periods as $p ) {
+		$o = Availability\to_minutes( $p['open'] );
+		$c = Availability\to_minutes( $p['close'] );
+		if ( $c <= $o ) {
+			$c += 1440; // Over-midnight.
+		}
+		$open_min  = ( null === $open_min ) ? $o : min( $open_min, $o );
+		$close_min = ( null === $close_min ) ? $c : max( $close_min, $c );
+	}
+	// Closed day (or unset) — hand back a sensible default window so the grid
+	// still renders (there won't be bookings anyway).
+	if ( null === $open_min ) {
+		$open_min  = 12 * 60;
+		$close_min = 22 * 60;
+	}
+
+	return rest_ensure_response(
+		array(
+			'periods'  => array_values( $periods ),
+			'openMin'  => (int) $open_min,
+			'closeMin' => (int) $close_min,
+			'closed'   => empty( $periods ),
+		)
+	);
+}
 
 /**
  * GET /bookings/availability?date&time&party.

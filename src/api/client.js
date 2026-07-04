@@ -102,6 +102,7 @@ export const api = {
 	createBooking: ( data ) => request( 'POST', 'bookings', data ),
 	updateBooking: ( id, data ) => request( 'PATCH', `bookings/${ id }`, data ),
 	deleteBooking: ( id ) => request( 'DELETE', `bookings/${ id }` ),
+	getServiceWindow: ( date ) => request( 'GET', 'bookings/service?date=' + encodeURIComponent( date ) ),
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getGuests: () => request( 'GET', 'guests' ),

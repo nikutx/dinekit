@@ -14,6 +14,8 @@ import {
 	Divider,
 	Collapse,
 	Alert,
+	ToggleButton,
+	ToggleButtonGroup,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -25,6 +27,8 @@ import JoinFullIcon from '@mui/icons-material/JoinFull';
 import TuneIcon from '@mui/icons-material/Tune';
 import PrintIcon from '@mui/icons-material/Print';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
@@ -35,6 +39,7 @@ import Card from './ui/Card';
 import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
 import BookingSettingsView from './BookingSettingsView';
+import ServiceTimeline from './ServiceTimeline';
 
 export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
@@ -42,6 +47,10 @@ export default function BookingsView() {
 	const [ loading, setLoading ] = useState( true );
 	const [ adding, setAdding ] = useState( false );
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
+	const [ view, setView ] = useState( 'list' ); // 'list' (diary) | 'timeline' (full-width service view)
+	const [ floor, setFloor ] = useState( { areas: [], tables: [], combos: [] } );
+	const [ svc, setSvc ] = useState( { openMin: 720, closeMin: 1320 } );
+	const [ turnMin, setTurnMin ] = useState( 120 );
 
 	const load = useCallback( ( d ) => {
 		setLoading( true );
@@ -53,6 +62,23 @@ export default function BookingsView() {
 	useEffect( () => {
 		load( date );
 	}, [ date, load ] );
+
+	// Timeline needs the floor (rows), the day's service window (axis) and the
+	// turn time (block width). Fetch lazily when the view is first opened.
+	useEffect( () => {
+		if ( view !== 'timeline' ) {
+			return;
+		}
+		api.getFloor().then( ( f ) => setFloor( f || { areas: [], tables: [], combos: [] } ) );
+		api.getBookingSettings().then( ( s ) => setTurnMin( ( s && s.turn_time ) || 120 ) );
+	}, [ view ] );
+
+	useEffect( () => {
+		if ( view !== 'timeline' ) {
+			return;
+		}
+		api.getServiceWindow( date ).then( ( w ) => w && setSvc( w ) );
+	}, [ view, date ] );
 
 	const covers = bookings
 		.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) )
@@ -168,12 +194,21 @@ export default function BookingsView() {
 	}
 
 	return (
-		<Page width={ 900 }>
+		<Page width={ view === 'timeline' ? '100%' : 900 }>
 			<PageHeader
 				title="Bookings"
 				subtitle="Your booking diary — take a reservation and see who's coming in."
 				actions={
 					<>
+						<ToggleButtonGroup
+							exclusive
+							size="small"
+							value={ view }
+							onChange={ ( e, v ) => v && setView( v ) }
+						>
+							<ToggleButton value="list"><ViewListIcon sx={ { fontSize: 17, mr: 0.5 } } /> List</ToggleButton>
+							<ToggleButton value="timeline"><ViewTimelineIcon sx={ { fontSize: 17, mr: 0.5 } } /> Timeline</ToggleButton>
+						</ToggleButtonGroup>
 						<Tooltip title="Booking settings & the public form">
 							<IconButton
 								onClick={ () => setSettingsOpen( ( v ) => ! v ) }
@@ -254,7 +289,19 @@ export default function BookingsView() {
 			</Stack>
 			</Card>
 
-			{ loading ? (
+			{ view === 'timeline' && (
+				<ServiceTimeline
+					bookings={ bookings }
+					tables={ floor.tables }
+					areas={ floor.areas }
+					combos={ floor.combos }
+					openMin={ svc.openMin }
+					closeMin={ svc.closeMin }
+					turnMin={ turnMin }
+				/>
+			) }
+
+			{ view === 'list' && ( loading ? (
 				<ListSkeleton rows={ 5 } />
 			) : bookings.length === 0 ? (
 				<EmptyState
@@ -302,7 +349,7 @@ export default function BookingsView() {
 							);
 						} ) }
 				</Stack>
-			) }
+			) ) }
 		</Page>
 	);
 }
