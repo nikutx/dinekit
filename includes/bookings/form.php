@@ -53,6 +53,7 @@ function render( $atts = array() ) {
 					'deposit'       => __( 'deposit applies', 'dinekit' ),
 					'notAvailable'  => __( 'Not available then — try another time', 'dinekit' ),
 					'closedDay'     => __( 'Sorry, we’re closed that day.', 'dinekit' ),
+					'nextFree'      => __( 'Next free:', 'dinekit' ),
 					'waitlistOffer' => __( 'Fully booked — you can join the waitlist', 'dinekit' ),
 					'joinWaitlist'  => __( 'Join the waitlist', 'dinekit' ),
 					'waitlisted'    => __( 'You’re on the waitlist', 'dinekit' ),

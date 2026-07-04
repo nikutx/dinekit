@@ -82,6 +82,26 @@
 			}
 		}
 
+		// "Fully booked at 7pm — next free: 7:30, 8:15" clickable chips, so a diner
+		// isn't turned away when a table opens up shortly after their choice.
+		function renderSuggestions( list ) {
+			if ( ! list || ! list.length ) {
+				return;
+			}
+			var wrap = document.createElement( 'span' );
+			wrap.className = 'dinekit-booking__suggests';
+			wrap.appendChild( document.createTextNode( ' ' + ( t.nextFree || 'Next free:' ) + ' ' ) );
+			list.forEach( function ( s ) {
+				var b = document.createElement( 'button' );
+				b.type = 'button';
+				b.className = 'dinekit-booking__suggest';
+				b.textContent = s;
+				b.addEventListener( 'click', function () { timeEl.value = s; check(); } );
+				wrap.appendChild( b );
+			} );
+			availEl.appendChild( wrap );
+		}
+
 		var timer;
 		function check() {
 			say( availEl, '', '' );
@@ -106,9 +126,11 @@
 						} else if ( d.waitlist ) {
 							say( availEl, '★ ' + t.waitlistOffer, 'is-wait' );
 							submitEl.textContent = t.joinWaitlist;
+							renderSuggestions( d.suggestions );
 						} else {
 							say( availEl, '✗ ' + t.notAvailable, 'is-no' );
 							submitEl.textContent = origSubmit;
+							renderSuggestions( d.suggestions );
 						}
 					} )
 					.catch( function () {} );

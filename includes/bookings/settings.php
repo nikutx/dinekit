@@ -37,6 +37,7 @@ function defaults() {
 		'deposit_over'    => 0,     // Party >= this needs a deposit (0 = off).
 		'deposit_amount'  => 0,     // Per guest; display only until Stripe (B10).
 		'covers_per_hour' => 0,    // Max covers booked within a clock-hour (0 = unlimited).
+		'suggest_window'  => 120,  // When a slot is full, suggest free slots within N mins (0 = off).
 		'intro'           => '',    // Optional blurb shown above the form.
 		'emails_enabled'  => true,  // Send diner + staff notification emails.
 		'notify_email'    => '',    // Staff recipient (empty = site admin email).
@@ -93,6 +94,7 @@ function save( $data ) {
 		'deposit_over'    => array( 0, 100 ),
 		'deposit_amount'  => array( 0, 100000 ),
 		'covers_per_hour' => array( 0, 1000 ),
+		'suggest_window'  => array( 0, 360 ),
 		'widget_radius'   => array( 0, 32 ),
 	);
 	foreach ( $ints as $key => $range ) {

@@ -436,6 +436,60 @@ function available_combos( $date, $time, $party, $exclude_id = 0 ) {
 }
 
 /**
+ * Is a slot bookable for a party — a single table or a combo is free AND the
+ * hour is within its covers cap. The one source of truth for "available".
+ *
+ * @param string $date  Y-m-d.
+ * @param string $time  H:i.
+ * @param int    $party Party size.
+ * @param int    $cap   Covers-per-hour cap (0 = unlimited).
+ * @return bool
+ */
+function is_slot_available( $date, $time, $party, $cap ) {
+	if ( empty( available_tables( $date, $time, $party ) ) && empty( available_combos( $date, $time, $party ) ) ) {
+		return false;
+	}
+	return within_hour_capacity( $date, $time, $party, $cap );
+}
+
+/**
+ * The next bookable slots at/after a full time, within a forward window — so a
+ * diner turned away at 19:00 can be offered 19:30, 20:15, etc. instead of leaving.
+ *
+ * @param string $date       Y-m-d.
+ * @param string $time       H:i (the requested, unavailable time).
+ * @param int    $party      Party size.
+ * @param int    $cap        Covers-per-hour cap.
+ * @param int    $window_min Minutes to look ahead (0 = feature off).
+ * @param int    $limit      Max suggestions to return.
+ * @return string[]
+ */
+function next_available( $date, $time, $party, $cap, $window_min = 120, $limit = 3 ) {
+	$window_min = (int) $window_min;
+	if ( $window_min <= 0 ) {
+		return array();
+	}
+	$target = to_minutes( $time );
+	$out    = array();
+	foreach ( slots_for( $date ) as $slot ) {
+		$m = to_minutes( $slot );
+		if ( $m <= $target ) {
+			continue; // Future slots only.
+		}
+		if ( $m > $target + $window_min ) {
+			break; // Past the look-ahead window (slots are ascending).
+		}
+		if ( is_slot_available( $date, $slot, $party, $cap ) ) {
+			$out[] = $slot;
+			if ( count( $out ) >= (int) $limit ) {
+				break;
+			}
+		}
+	}
+	return $out;
+}
+
+/**
  * Is a specific table free at the given time (used on assignment)?
  *
  * @param int    $table_id   Table id.

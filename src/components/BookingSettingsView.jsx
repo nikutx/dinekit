@@ -156,6 +156,7 @@ export default function BookingSettingsView( { onBack } ) {
 					{ section( 'Capacity & deposits', 'Pace the kitchen and protect big tables against no-shows.' ) }
 					<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
 						{ num( 'Covers / hour', 'covers_per_hour', 0, 1000, '0 = no limit' ) }
+						{ num( 'Suggest within (min)', 'suggest_window', 0, 360, 'Offer nearby free slots when full (0 = off)' ) }
 						{ num( 'Deposit over (guests)', 'deposit_over', 0, 100, '0 = never' ) }
 						{ num( 'Deposit / guest', 'deposit_amount', 0, 100000 ) }
 					</Stack>

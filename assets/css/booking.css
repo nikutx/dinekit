@@ -111,6 +111,28 @@
 .dinekit-booking__availability.is-wait {
 	color: #d97706;
 }
+/* "Next free" suggestion chips shown when the chosen slot is full. */
+.dinekit-booking__suggests {
+	display: inline;
+	font-weight: 600;
+	color: var(--dkb-muted);
+}
+.dinekit-booking__suggest {
+	appearance: none;
+	margin: 0 4px 4px 0;
+	padding: 3px 10px;
+	border: 1px solid var(--dkb-accent);
+	border-radius: 999px;
+	background: rgba( var(--dkb-accent-rgb), 0.08 );
+	color: var(--dkb-accent-dark);
+	font-size: 13px;
+	font-weight: 700;
+	font-family: inherit;
+	cursor: pointer;
+}
+.dinekit-booking__suggest:hover {
+	background: rgba( var(--dkb-accent-rgb), 0.16 );
+}
 .dinekit-booking__note {
 	margin: 4px 0 12px;
 	padding: 8px 12px;

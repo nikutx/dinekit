@@ -576,6 +576,21 @@ function NewBooking( { initialDate, onCreated, onCancel } ) {
 						waitlist here. You can still book it in.
 					</Alert>
 				) }
+
+				{ ! checking && avail && ! avail.available && ( avail.suggestions || [] ).length > 0 && (
+					<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 1 } }>
+						<Typography sx={ { fontSize: 13, color: tokens.muted, fontWeight: 600 } }>Next free:</Typography>
+						{ avail.suggestions.map( ( s ) => (
+							<Chip
+								key={ s }
+								label={ s }
+								size="small"
+								onClick={ () => set( { time: s } ) }
+								sx={ { fontWeight: 700, bgcolor: tokens.accentSoft, color: tokens.accentDark, cursor: 'pointer' } }
+							/>
+						) ) }
+					</Stack>
+				) }
 			</Box>
 
 			{ error && (

@@ -606,14 +606,23 @@ function get_availability( $request ) {
 
 	// The public widget hard-blocks on the covers-per-hour pacing cap; staff can
 	// override it, so surface it as a warning flag rather than "unavailable".
-	$cap = (int) \DineKit\Bookings\Settings\get()['covers_per_hour'];
+	$settings = \DineKit\Bookings\Settings\get();
+	$cap      = (int) $settings['covers_per_hour'];
+	$has      = ! empty( $free ) || ! empty( $combos );
+
+	// Offer the nearest free slots ahead when nothing fits, so staff on the phone
+	// can immediately suggest an alternative time.
+	$suggestions = $has
+		? array()
+		: Availability\next_available( $date, $time, $party, $cap, (int) $settings['suggest_window'] );
 
 	return rest_ensure_response(
 		array(
-			'available' => ! empty( $free ) || ! empty( $combos ),
-			'tables'    => $free,
-			'combos'    => $combos,
-			'overCap'   => ! Availability\within_hour_capacity( $date, $time, $party, $cap ),
+			'available'   => $has,
+			'tables'      => $free,
+			'combos'      => $combos,
+			'overCap'     => ! Availability\within_hour_capacity( $date, $time, $party, $cap ),
+			'suggestions' => $suggestions,
 		)
 	);
 }
@@ -1085,21 +1094,21 @@ function public_check( $request ) {
 		);
 	}
 
-	$free      = Availability\available_tables( $date, $time, $party );
-	$combos    = Availability\available_combos( $date, $time, $party );
-	$available = ! empty( $free ) || ! empty( $combos );
+	$cap       = (int) $cfg['covers_per_hour'];
+	$available = Availability\is_slot_available( $date, $time, $party, $cap );
 
-	// Kitchen pacing: even if tables are free, the hour may be at its covers cap.
-	if ( $available && ! Availability\within_hour_capacity( $date, $time, $party, (int) $cfg['covers_per_hour'] ) ) {
-		$available = false;
-	}
+	// Full? Offer the nearest free slots ahead so the diner doesn't just leave.
+	$suggestions = $available
+		? array()
+		: Availability\next_available( $date, $time, $party, $cap, (int) $cfg['suggest_window'] );
 
 	return rest_ensure_response(
 		array(
-			'available' => $available,
-			'deposit'   => \DineKit\Bookings\Settings\needs_deposit( $party ),
+			'available'   => $available,
+			'deposit'     => \DineKit\Bookings\Settings\needs_deposit( $party ),
 			// Full, but the guest can still be penciled in on the waitlist.
-			'waitlist'  => ! $available && ! empty( $cfg['allow_waitlist'] ),
+			'waitlist'    => ! $available && ! empty( $cfg['allow_waitlist'] ),
+			'suggestions' => $suggestions,
 		)
 	);
 }
