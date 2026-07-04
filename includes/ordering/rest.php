@@ -270,6 +270,11 @@ function update_order( $request ) {
 		update_post_meta( $id, 'dk_order_status', $status );
 		/* translators: %s: order status label. */
 		Ordering\log_event( $id, sprintf( __( 'Status changed to %s', 'dinekit' ), $statuses[ $status ] ) );
+		// Cancelling (incl. a manager overriding an already-accepted order) must
+		// refund/release the payment — not just via the Reject action.
+		if ( 'cancelled' === $status && 'reject' !== $action ) {
+			Ordering\release_or_refund( $id );
+		}
 	}
 
 	if ( null !== $request->get_param( 'payment' ) ) {

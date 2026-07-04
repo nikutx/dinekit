@@ -357,8 +357,8 @@ export default function OrdersView() {
 					) ) }
 				</Stack>
 			) }
-			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
-				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } /> }
+			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } disableEnforceFocus sx={ { zIndex: 100000 } } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
+				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } onCancel={ () => { reject( detail.id ); setDetail( null ); } } /> }
 			</Drawer>
 		</Page>
 	);
@@ -601,10 +601,13 @@ function DRow( { label, value, mono } ) {
 
 // Full order detail: customer, items, payment (+Stripe id), receipt email log
 // with resend, and the status/payment history trail.
-function OrderDetail( { order, money, onClose, onResend } ) {
+function OrderDetail( { order, money, onClose, onResend, onCancel } ) {
 	const m = O_STATUS.find( ( s ) => s.key === order.status ) || O_STATUS[ 0 ];
 	const pay = PAYMENT[ order.payment ];
 	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
+	// Manager override: cancel + refund/release even after an order was accepted.
+	const canCancel = ! [ 'cancelled', 'completed' ].includes( order.status );
+	const refundable = [ 'paid', 'authorized', 'pending' ].includes( order.payment );
 	return (
 		<Box sx={ { p: 3 } }>
 			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
@@ -615,6 +618,22 @@ function OrderDetail( { order, money, onClose, onResend } ) {
 				<Chip label={ m.label } size="small" sx={ { fontWeight: 600, color: m.fg, bgcolor: m.bg } } />
 				{ pay && <Chip label={ pay.label } size="small" sx={ { fontWeight: 600, color: pay.fg, bgcolor: pay.bg } } /> }
 			</Stack>
+
+			{ canCancel && (
+				<Button
+					size="small"
+					variant="outlined"
+					color="error"
+					onClick={ () => {
+						if ( window.confirm( refundable ? 'Cancel this order and refund/release the payment?' : 'Cancel this order?' ) ) {
+							onCancel();
+						}
+					} }
+					sx={ { mb: 2 } }
+				>
+					{ refundable ? 'Cancel & refund' : 'Cancel order' }
+				</Button>
+			) }
 
 			{ order.refundDue && (
 				<Box sx={ { mb: 2, p: 1.5, borderRadius: 2, bgcolor: tokens.redSoft } }>
@@ -656,7 +675,23 @@ function OrderDetail( { order, money, onClose, onResend } ) {
 
 			<DSection title="Payment">
 				<DRow label="Status" value={ pay ? pay.label : ( order.payment || '—' ) } />
-				{ order.pi && <DRow label="Stripe ID" value={ order.pi } mono /> }
+				{ order.pi && (
+					<DRow
+						label="Stripe"
+						mono
+						value={
+							<Box
+								component="a"
+								href={ `https://dashboard.stripe.com/${ api.config.stripeMode === 'live' ? '' : 'test/' }payments/${ order.pi }` }
+								target="_blank"
+								rel="noopener"
+								sx={ { color: tokens.accent, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } } }
+							>
+								{ order.pi } ↗
+							</Box>
+						}
+					/>
+				) }
 			</DSection>
 
 			<DSection title="Receipt email" action={ order.email ? <Button size="small" startIcon={ <ReplayIcon /> } onClick={ onResend }>Resend</Button> : null }>

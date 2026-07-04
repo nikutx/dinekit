@@ -90,6 +90,13 @@ function enqueue( $hook ) {
 		'#wpcontent{padding-left:0}.dinekit-screen #wpbody-content>.wrap{margin:0}.dinekit-screen #wpfooter{display:none}.dinekit-screen #wpbody-content{padding-bottom:0}'
 	);
 
+	// Stripe mode (test/live) so the admin can deep-link to the right dashboard.
+	$stripe_mode = 'test';
+	if ( is_readable( DINEKIT_DIR . 'includes/integrations.php' ) ) {
+		require_once DINEKIT_DIR . 'includes/integrations.php';
+		$stripe_mode = 'live' === \DineKit\Integrations\raw()['stripe']['mode'] ? 'live' : 'test';
+	}
+
 	// Config for the app (REST base + nonce + i18n locale).
 	wp_register_script( 'dinekit-config', false, array(), DINEKIT_VERSION, false );
 	wp_enqueue_script( 'dinekit-config' );
@@ -104,6 +111,7 @@ function enqueue( $hook ) {
 				'pluginUrl'  => esc_url_raw( DINEKIT_URL ),
 				'version'    => DINEKIT_VERSION,
 				'canManage'  => current_user_can( 'manage_categories' ),
+				'stripeMode' => $stripe_mode,
 			)
 		) . ';',
 		'before'
