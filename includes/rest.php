@@ -541,6 +541,7 @@ function get_preview( $request ) {
 		array(
 			'layout'         => (string) $request->get_param( 'layout' ),
 			'columns'        => (int) $request->get_param( 'columns' ),
+			'template'       => sanitize_key( (string) $request->get_param( 'template' ) ),
 			'show_images'    => $truthy( $request->get_param( 'images' ) ),
 			'show_allergens' => $truthy( $request->get_param( 'allergens' ) ),
 			'show_dietary'   => $truthy( $request->get_param( 'dietary' ) ),

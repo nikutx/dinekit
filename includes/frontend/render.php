@@ -146,6 +146,9 @@ function menu( $args = array() ) {
 	$layout       = in_array( $args['layout'], array( 'list', 'grid', 'chalkboard' ), true ) ? $args['layout'] : 'list';
 	$columns      = max( 0, min( 4, (int) $args['columns'] ) );
 	$col_class    = $columns > 0 ? ' dinekit-menu--cols-' . $columns : '';
+	$template     = ! empty( $args['template'] ) ? (string) $args['template'] : \DineKit\Settings\get()['template'];
+	$template     = in_array( $template, \DineKit\Settings\templates(), true ) ? $template : 'maison';
+	$tpl_class    = ' dinekit-menu--tpl-' . $template;
 
 	$groups = $structure['sections'];
 	if ( $structure['loose'] ) {
@@ -159,7 +162,7 @@ function menu( $args = array() ) {
 	?>
 	<?php $style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' ); ?>
 	<div
-		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?>"
+		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?><?php echo esc_attr( $tpl_class ); ?>"
 		<?php echo $style ? 'style="' . esc_attr( $style ) . '"' : ''; ?>
 	>
 		<?php
@@ -236,7 +239,16 @@ function render_item( $post, $args, $allergen_map ) {
 	>
 		<?php if ( $args['show_images'] && has_post_thumbnail( $post ) ) : ?>
 			<div class="dinekit-item__media">
-				<?php echo get_the_post_thumbnail( $post, 'medium', array( 'loading' => 'lazy', 'class' => 'dinekit-item__img' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php
+				echo get_the_post_thumbnail(
+					$post,
+					'medium',
+					array(
+						'loading' => 'lazy',
+						'class'   => 'dinekit-item__img',
+					)
+				); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped 
+				?>
 			</div>
 		<?php endif; ?>
 
@@ -390,8 +402,8 @@ function price_html( $prices, $currency, $position = 'before' ) {
 		} else {
 			$display = $amount;
 		}
-		$label   = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
-		$out[]   = $label
+		$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
+		$out[] = $label
 			? '<span class="dinekit-price"><span class="dinekit-price__label">' . esc_html( $label ) . '</span> ' . esc_html( $display ) . '</span>'
 			: '<span class="dinekit-price">' . esc_html( $display ) . '</span>';
 	}
@@ -413,7 +425,7 @@ function allergen_map() {
 	);
 	if ( is_array( $terms ) ) {
 		foreach ( $terms as $term ) {
-			$icon         = DINEKIT_DIR . 'assets/icons/' . $term->slug . '.svg';
+			$icon                  = DINEKIT_DIR . 'assets/icons/' . $term->slug . '.svg';
 			$map[ $term->term_id ] = array(
 				'name' => $term->name,
 				'slug' => $term->slug,
@@ -544,7 +556,7 @@ function schema_jsonld( $groups, $args ) {
 			'name'        => $group['term'] ? $group['term']->name : __( 'Menu', 'dinekit' ),
 			'hasMenuItem' => $items,
 		);
-		$sections[] = $section_node;
+		$sections[]   = $section_node;
 	}
 
 	$data = array(

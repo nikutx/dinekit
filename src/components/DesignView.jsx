@@ -27,6 +27,19 @@ const LAYOUTS = [
 ];
 const COLS = [ '0', '1', '2', '3' ];
 
+// Menu templates (flavours). Each has a base palette shown in the colour
+// pickers until the venue overrides it.
+const TEMPLATES = [
+	{ value: 'maison', label: 'Maison', desc: 'Classic fine-dining' },
+	{ value: 'counter', label: 'Counter', desc: 'Modern & clean' },
+	{ value: 'noir', label: 'Noir', desc: 'Upscale, dark' },
+];
+const TEMPLATE_PALETTE = {
+	maison: { accent: '#7c2d3a', menu_ink: '#2b2622', menu_muted: '#8a7f73', menu_line: '#e4dccd', menu_bg: '#faf7f1' },
+	counter: { accent: '#4f46e5', menu_ink: '#101319', menu_muted: '#667085', menu_line: '#edeff3', menu_bg: '' },
+	noir: { accent: '#c9a26a', menu_ink: '#ece3d4', menu_muted: '#a2937c', menu_line: '#342f27', menu_bg: '#17130e' },
+};
+
 // Design & Preview: pick a style, see an isolated live preview of the real
 // menu, and copy the shortcode that produces exactly what you see.
 export default function DesignView() {
@@ -46,10 +59,12 @@ export default function DesignView() {
 	useEffect( () => {
 		api.getSettings().then( ( s ) =>
 			setDesign( {
-				accent: s.accent || '#b91c1c',
-				menu_ink: s.menu_ink || '#1f2937',
-				menu_muted: s.menu_muted || '#6b7280',
-				menu_line: s.menu_line || '#e5e7eb',
+				template: s.template || 'maison',
+				// Empty = "use the template's colour" (an override only when set).
+				accent: s.accent || '',
+				menu_ink: s.menu_ink || '',
+				menu_muted: s.menu_muted || '',
+				menu_line: s.menu_line || '',
 				menu_bg: s.menu_bg || '',
 				menu_radius: s.menu_radius != null ? s.menu_radius : 12,
 			} )
@@ -67,13 +82,14 @@ export default function DesignView() {
 		() => ( {
 			layout,
 			columns,
+			template: design ? design.template : 'maison',
 			images: images ? '1' : '0',
 			allergens: allergens ? '1' : '0',
 			dietary: dietary ? '1' : '0',
 			matrix: matrix ? '1' : '0',
 			filter: filter ? '1' : '0',
 		} ),
-		[ layout, columns, images, allergens, dietary, matrix, filter ]
+		[ layout, columns, images, allergens, dietary, matrix, filter, design ]
 	);
 
 	useEffect( () => {
@@ -116,10 +132,20 @@ export default function DesignView() {
 		return `[${ parts.join( ' ' ) }]`;
 	}, [ layout, columns, images, allergens, dietary, matrix, filter ] );
 
-	// Live colour overrides so the preview reflects unsaved picks instantly.
-	const varStyle = design
-		? `.dinekit-menu{--dinekit-accent:${ design.accent };--dinekit-ink:${ design.menu_ink };--dinekit-muted:${ design.menu_muted };--dinekit-line:${ design.menu_line };--dinekit-radius:${ design.menu_radius }px;${ design.menu_bg ? `--dinekit-bg:${ design.menu_bg };` : '' }}`
-		: '';
+	// Live colour overrides so the preview reflects unsaved picks instantly. Only
+	// emit the ones the venue actually set, so the template's palette shows through.
+	const varStyle = ( () => {
+		if ( ! design ) {
+			return '';
+		}
+		let v = `--dinekit-radius:${ design.menu_radius }px;`;
+		[ [ 'accent', 'accent' ], [ 'menu_ink', 'ink' ], [ 'menu_muted', 'muted' ], [ 'menu_line', 'line' ], [ 'menu_bg', 'bg' ] ].forEach( ( [ k, t ] ) => {
+			if ( design[ k ] ) {
+				v += `--dinekit-${ t }:${ design[ k ] };`;
+			}
+		} );
+		return `.dinekit-menu{${ v }}`;
+	} )();
 	const srcDoc = preview
 		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}${ varStyle }</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
 		: '';
@@ -187,10 +213,38 @@ export default function DesignView() {
 				</Stack>
 			</Card>
 
+			{ /* Template — the menu's visual flavour. */ }
+			{ design && (
+				<Card sx={ { p: 2, mb: 2.5 } }>
+					<Typography sx={ { ...labelSx, mb: 1.5 } }>Template</Typography>
+					<ToggleButtonGroup
+						exclusive
+						size="small"
+						value={ design.template }
+						onChange={ ( e, v ) => v && patchDesign( { template: v } ) }
+					>
+						{ TEMPLATES.map( ( t ) => (
+							<ToggleButton key={ t.value } value={ t.value } sx={ { flexDirection: 'column', alignItems: 'flex-start', textTransform: 'none', px: 1.75, py: 0.75 } }>
+								<Box sx={ { fontWeight: 700, fontSize: 13.5 } }>{ t.label }</Box>
+								<Box sx={ { fontSize: 11, color: tokens.muted } }>{ t.desc }</Box>
+							</ToggleButton>
+						) ) }
+					</ToggleButtonGroup>
+					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.25 } }>
+						Sets the base look. The colours below are optional tweaks on top — leave them and the template’s own palette is used.
+					</Typography>
+				</Card>
+			) }
+
 			{ /* Colours — every menu token, saved and applied to the live front end. */ }
 			{ design && (
 				<Card sx={ { p: 2, mb: 2.5 } }>
-					<Typography sx={ { ...labelSx, mb: 1.5 } }>Colours</Typography>
+					<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 1.5 } }>
+						<Typography sx={ labelSx }>Colours <span style={ { fontWeight: 400, textTransform: 'none', letterSpacing: 0 } }>— overrides (optional)</span></Typography>
+						<Button size="small" onClick={ () => patchDesign( { accent: '', menu_ink: '', menu_muted: '', menu_line: '', menu_bg: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
+							Reset to template
+						</Button>
+					</Stack>
 					<Stack direction="row" spacing={ 3 } rowGap={ 2 } flexWrap="wrap" alignItems="flex-end">
 						{ [
 							[ 'accent', 'Accent' ],
@@ -203,7 +257,7 @@ export default function DesignView() {
 								<Box
 									component="input"
 									type="color"
-									value={ design[ key ] }
+									value={ design[ key ] || TEMPLATE_PALETTE[ design.template ][ key ] || '#000000' }
 									onChange={ ( e ) => patchDesign( { [ key ]: e.target.value } ) }
 									sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
 								/>
@@ -215,7 +269,7 @@ export default function DesignView() {
 								<Box
 									component="input"
 									type="color"
-									value={ design.menu_bg || '#ffffff' }
+									value={ design.menu_bg || TEMPLATE_PALETTE[ design.template ].menu_bg || '#ffffff' }
 									onChange={ ( e ) => patchDesign( { menu_bg: e.target.value } ) }
 									sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
 								/>

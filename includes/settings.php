@@ -22,17 +22,28 @@ const OPTION = 'dinekit_settings';
  */
 function defaults() {
 	return array(
-		'accent'           => '#b91c1c',
+		'accent'           => '',       // '' = use the template's accent; a hex overrides it.
 		'currency'         => '£',
 		'currencyPosition' => 'before', // before | after.
 		'businessType'     => 'both',   // dinein | takeaway | both — gates features.
-		// Menu appearance — emitted as --dinekit-* custom properties (see render).
-		'menu_ink'         => '#1f2937', // Body text.
-		'menu_muted'       => '#6b7280', // Secondary text.
-		'menu_line'        => '#e5e7eb', // Borders/rules.
-		'menu_bg'          => '',        // Menu background ('' = transparent).
-		'menu_radius'      => 12,        // Corner radius, px.
+		// Menu look. `template` picks the flavour (maison | counter | noir); the
+		// colours below are OPTIONAL overrides — empty means "use the template's".
+		'template'         => 'maison', // maison (classic) | counter (modern) | noir (dark).
+		'menu_ink'         => '',       // Body text.
+		'menu_muted'       => '',       // Secondary text.
+		'menu_line'        => '',       // Borders/rules.
+		'menu_bg'          => '',       // Menu background.
+		'menu_radius'      => 12,       // Corner radius, px.
 	);
+}
+
+/**
+ * Valid menu templates.
+ *
+ * @return string[]
+ */
+function templates() {
+	return array( 'maison', 'counter', 'noir' );
 }
 
 /**
@@ -44,16 +55,21 @@ function defaults() {
  */
 function menu_style_vars( $accent_override = '' ) {
 	$s      = get();
-	$accent = ( '' !== $accent_override && preg_match( '/^#[0-9a-fA-F]{6}$/', $accent_override ) ) ? $accent_override : $s['accent'];
-	$vars   = array(
+	$accent = ( '' !== $accent_override && preg_match( '/^#[0-9a-fA-F]{6}$/', $accent_override ) ) ? $accent_override : (string) $s['accent'];
+	// Radius is structural (always applies); colours are emitted only when the
+	// venue overrides them, so the chosen template's palette shows through.
+	$vars     = array( '--dinekit-radius' => (int) $s['menu_radius'] . 'px' );
+	$optional = array(
 		'--dinekit-accent' => $accent,
-		'--dinekit-ink'    => $s['menu_ink'],
-		'--dinekit-muted'  => $s['menu_muted'],
-		'--dinekit-line'   => $s['menu_line'],
-		'--dinekit-radius' => (int) $s['menu_radius'] . 'px',
+		'--dinekit-ink'    => (string) $s['menu_ink'],
+		'--dinekit-muted'  => (string) $s['menu_muted'],
+		'--dinekit-line'   => (string) $s['menu_line'],
+		'--dinekit-bg'     => (string) $s['menu_bg'],
 	);
-	if ( '' !== (string) $s['menu_bg'] ) {
-		$vars['--dinekit-bg'] = (string) $s['menu_bg'];
+	foreach ( $optional as $name => $value ) {
+		if ( '' !== $value ) {
+			$vars[ $name ] = $value;
+		}
 	}
 	/**
 	 * Filter the menu's CSS custom properties (design tokens).
@@ -91,8 +107,13 @@ function get() {
 function save( $input ) {
 	$clean = defaults();
 
-	if ( isset( $input['accent'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $input['accent'] ) ) {
-		$clean['accent'] = strtolower( (string) $input['accent'] );
+	// Accent: a hex sets an override, empty string clears it (back to template).
+	if ( isset( $input['accent'] ) ) {
+		$a               = trim( (string) $input['accent'] );
+		$clean['accent'] = ( '' === $a || preg_match( '/^#[0-9a-fA-F]{6}$/', $a ) ) ? strtolower( $a ) : $clean['accent'];
+	}
+	if ( isset( $input['template'] ) && in_array( (string) $input['template'], templates(), true ) ) {
+		$clean['template'] = (string) $input['template'];
 	}
 	if ( isset( $input['currency'] ) ) {
 		$clean['currency'] = substr( sanitize_text_field( (string) $input['currency'] ), 0, 8 );
@@ -104,10 +125,11 @@ function save( $input ) {
 		$clean['businessType'] = (string) $input['businessType'];
 	}
 
-	// Menu appearance colours (#rrggbb) + radius.
+	// Menu colour overrides (#rrggbb, or empty to fall back to the template).
 	foreach ( array( 'menu_ink', 'menu_muted', 'menu_line' ) as $key ) {
-		if ( isset( $input[ $key ] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $input[ $key ] ) ) {
-			$clean[ $key ] = strtolower( (string) $input[ $key ] );
+		if ( isset( $input[ $key ] ) ) {
+			$v             = trim( (string) $input[ $key ] );
+			$clean[ $key ] = ( '' === $v || preg_match( '/^#[0-9a-fA-F]{6}$/', $v ) ) ? strtolower( $v ) : $clean[ $key ];
 		}
 	}
 	if ( isset( $input['menu_bg'] ) ) {

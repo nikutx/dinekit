@@ -541,6 +541,166 @@
 	text-align: center;
 }
 
+/* =========================================================================
+ * MENU TEMPLATES (flavours) — set the palette + typography; the shared classes
+ * above do the structure. Choose one in DineKit → Design (default: Maison).
+ *
+ * Everything is driven by CSS custom properties so a developer can override the
+ * whole look from their own stylesheet without touching the plugin, e.g.:
+ *
+ *   .dinekit-menu { --dinekit-accent:#0a7; --dinekit-ink:#111; }
+ *
+ * Stable classes for targeted overrides:
+ *   .dinekit-menu               root (carries --dinekit-* tokens)
+ *   .dinekit-menu--tpl-maison|counter|noir   the chosen template
+ *   .dinekit-section  .dinekit-section__title  .dinekit-section__desc
+ *   .dinekit-item  .dinekit-item__head  .dinekit-item__name  .dinekit-item__leader
+ *   .dinekit-item__prices  .dinekit-item__desc  .dinekit-item__tags
+ *   .dinekit-diet  .dinekit-allergens  .dinekit-allergen-text  .dinekit-badge
+ * ========================================================================= */
+
+/* ---- A · Maison (classic fine-dining, default) ---- */
+.dinekit-menu--tpl-maison {
+	--dinekit-accent: #7c2d3a;
+	--dinekit-ink: #2b2622;
+	--dinekit-muted: #8a7f73;
+	--dinekit-line: #e4dccd;
+	--dinekit-bg: #faf7f1;
+	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+	max-width: 760px;
+	padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
+	border-radius: var(--dinekit-radius);
+}
+.dinekit-menu--tpl-maison .dinekit-section__title {
+	display: block;
+	text-align: center;
+	border-bottom: 0;
+	font-weight: 600;
+	font-size: 0.95rem;
+	letter-spacing: 0.28em;
+	text-transform: uppercase;
+	color: var(--dinekit-ink);
+	margin: 2.25rem 0 1.25rem;
+}
+.dinekit-menu--tpl-maison .dinekit-section__title::after {
+	content: "";
+	display: block;
+	width: 34px;
+	height: 1px;
+	background: var(--dinekit-accent);
+	margin: 0.6rem auto 0;
+}
+.dinekit-menu--tpl-maison .dinekit-section__desc {
+	text-align: center;
+	font-style: italic;
+}
+.dinekit-menu--tpl-maison .dinekit-item {
+	border-bottom: 0;
+	padding: 0.7rem 0;
+	max-width: 560px;
+	margin: 0 auto;
+}
+.dinekit-menu--tpl-maison .dinekit-item__name {
+	font-size: 1.2rem;
+	font-weight: 600;
+}
+.dinekit-menu--tpl-maison .dinekit-item__prices {
+	font-size: 1.1rem;
+}
+.dinekit-menu--tpl-maison .dinekit-item__desc {
+	font-style: italic;
+	margin-top: 0.15rem;
+}
+
+/* ---- B · Counter (modern, clean) ---- */
+.dinekit-menu--tpl-counter {
+	--dinekit-accent: #4f46e5;
+	--dinekit-ink: #101319;
+	--dinekit-muted: #667085;
+	--dinekit-line: #edeff3;
+}
+.dinekit-menu--tpl-counter .dinekit-section__title {
+	display: block;
+	border-bottom: 2px solid var(--dinekit-line);
+	padding-bottom: 0.6rem;
+	font-size: 0.8rem;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--dinekit-accent);
+}
+.dinekit-menu--tpl-counter .dinekit-item {
+	padding: 1rem 0;
+}
+.dinekit-menu--tpl-counter .dinekit-item__name {
+	font-size: 1.05rem;
+	font-weight: 700;
+}
+.dinekit-menu--tpl-counter .dinekit-item__prices {
+	font-weight: 800;
+}
+/* Allergens as quiet pills. */
+.dinekit-menu--tpl-counter .dinekit-allergen-text {
+	border: 0;
+	color: #b23b4e;
+	background: #fdeef0;
+	border-radius: 999px;
+	padding: 0.12rem 0.55rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	font-size: 0.62rem;
+}
+
+/* ---- C · Noir (upscale evening, dark) ---- */
+.dinekit-menu--tpl-noir {
+	--dinekit-accent: #c9a26a;
+	--dinekit-ink: #ece3d4;
+	--dinekit-muted: #a2937c;
+	--dinekit-line: #342f27;
+	--dinekit-bg: #17130e;
+	font-family: "Palatino Linotype", Palatino, "Iowan Old Style", Georgia, serif;
+	padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
+	border-radius: var(--dinekit-radius);
+}
+.dinekit-menu--tpl-noir .dinekit-section__title {
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+	border-bottom: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dinekit-accent);
+	margin-bottom: 1rem;
+}
+.dinekit-menu--tpl-noir .dinekit-section__title::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--dinekit-line);
+}
+.dinekit-menu--tpl-noir .dinekit-item {
+	border-bottom: 0;
+	padding: 0.6rem 0;
+}
+.dinekit-menu--tpl-noir .dinekit-item__name {
+	font-size: 1.15rem;
+	font-weight: 600;
+}
+.dinekit-menu--tpl-noir .dinekit-item__desc {
+	font-style: italic;
+}
+.dinekit-menu--tpl-noir .dinekit-item__prices {
+	color: var(--dinekit-accent);
+	font-size: 1.05rem;
+}
+.dinekit-menu--tpl-noir .dinekit-allergen-text {
+	border-color: var(--dinekit-line);
+}
+
 /* ---- Opening hours ---- */
 .dinekit-hours {
 	--dinekit-accent: #b91c1c;
