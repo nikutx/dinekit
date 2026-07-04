@@ -38,7 +38,32 @@ export default function EventsView() {
 	const [ detail, setDetail ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ copied, setCopied ] = useState( false );
+	const [ seats, setSeats ] = useState( 0 );
+	const [ dayCovers, setDayCovers ] = useState( null );
 	const debounce = useRef( null );
+
+	// Total seats across the floor — the ceiling for a day's availability.
+	useEffect( () => {
+		api.getFloor().then( ( f ) => setSeats( ( ( f && f.tables ) || [] ).reduce( ( s, t ) => s + ( t.seats || 0 ), 0 ) ) ).catch( () => {} );
+	}, [] );
+
+	// Covers already booked in the diary on the selected event's day (call-in context).
+	useEffect( () => {
+		const d = detail && detail.date;
+		if ( ! d ) {
+			setDayCovers( null );
+			return;
+		}
+		api.listBookings( { from: d } ).then( ( rows ) => {
+			const c = ( rows || [] )
+				.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) )
+				.reduce( ( s, b ) => s + ( b.party || 0 ), 0 );
+			setDayCovers( c );
+		} ).catch( () => setDayCovers( null ) );
+	}, [ detail && detail.date ] );
+
+	const eventCovers = ( e ) =>
+		( ( e && e.groups ) || [] ).reduce( ( s, g ) => s + ( g.size || 0 ), 0 ) || ( e && e.capacity ) || ( e && e.guestCount ) || 0;
 
 	useEffect( () => {
 		Promise.all( [ api.getEvents(), api.getState() ] )
@@ -184,6 +209,7 @@ export default function EventsView() {
 								onDelete={ () => removeEvent( detail.id ) }
 								onRemoveGuest={ removeGuest }
 								onCopy={ onCopy }
+								dayLoad={ { seats, booked: dayCovers, thisEvent: eventCovers( detail ) } }
 							/>
 						) }
 					</Box>
@@ -229,7 +255,7 @@ function DateBadge( { date, active } ) {
 	);
 }
 
-function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy } ) {
+function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy, dayLoad } ) {
 	const published = detail.status === 'published';
 	const groups = detail.groups || [];
 	const groupName = ( gid ) => ( groups.find( ( g ) => g.id === gid ) || {} ).name || '';
@@ -238,6 +264,7 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy 
 	const addGroup = () => setGroups( [ ...groups, { id: 'g' + Date.now(), name: 'New company', size: 0, guestCount: 0 } ] );
 	const updateGroup = ( id, p ) => setGroups( groups.map( ( g ) => ( g.id === id ? { ...g, ...p } : g ) ) );
 	const removeGroup = ( id ) => setGroups( groups.filter( ( g ) => g.id !== id ) );
+	const dayRemaining = dayLoad && dayLoad.seats > 0 ? dayLoad.seats - ( dayLoad.booked || 0 ) - ( dayLoad.thisEvent || 0 ) : null;
 	const itemName = ( id ) => {
 		for ( const c of detail.courses || [] ) {
 			const it = c.items.find( ( x ) => x.id === id );
@@ -328,6 +355,31 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy 
 				<Typography sx={ { fontSize: 13, color: tokens.amber, mt: 1.5 } }>
 					Pick a set menu so guests have courses to choose from.
 				</Typography>
+			) }
+
+			{ /* Call-in context — how much room the day has across the diary. */ }
+			{ detail.date && dayLoad && dayLoad.booked !== null && (
+				<Box sx={ { mt: 2, p: 1.5, bgcolor: tokens.soft, borderRadius: 2 } }>
+					<Typography sx={ { fontSize: 12, fontWeight: 700, color: tokens.muted, mb: 0.5 } }>
+						That day&rsquo;s availability
+					</Typography>
+					<Stack direction="row" spacing={ 2.5 } flexWrap="wrap" useFlexGap sx={ { fontSize: 13, color: tokens.ink2, alignItems: 'center' } }>
+						<span>Seats: <strong>{ dayLoad.seats || '—' }</strong></span>
+						<span>Booked in diary: <strong>{ dayLoad.booked }</strong></span>
+						<span>This event: <strong>{ dayLoad.thisEvent }</strong></span>
+						{ null !== dayRemaining && (
+							<Chip
+								size="small"
+								label={ dayRemaining < 0 ? `Over by ${ -dayRemaining }` : `${ dayRemaining } seats left` }
+								sx={ {
+									fontWeight: 700,
+									bgcolor: dayRemaining < 0 ? tokens.redSoft : tokens.greenSoft,
+									color: dayRemaining < 0 ? tokens.red : tokens.green,
+								} }
+							/>
+						) }
+					</Stack>
+				</Box>
 			) }
 
 			{ /* Share link */ }
