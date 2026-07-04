@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Stack, Typography, TextField } from '@mui/material';
+import { Box, Button, Stack, Typography, TextField, InputAdornment, Chip, Alert } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import {
 	DndContext,
 	DragOverlay,
@@ -55,6 +56,9 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const [ board, setBoard ] = useState( () => buildBoard( data, 0 ) );
 	const [ activeId, setActiveId ] = useState( null );
 	const [ newSection, setNewSection ] = useState( '' );
+	const [ query, setQuery ] = useState( '' );
+	const [ collapsed, setCollapsed ] = useState( {} );
+	const toggleCollapse = ( key ) => setCollapsed( ( c ) => ( { ...c, [ key ]: ! c[ key ] } ) );
 
 	// The open dish is driven by the route (#/builder/item/:id) so it's
 	// deep-linkable and survives a refresh.
@@ -213,6 +217,28 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const selectedMenuName = ( data.menus.find( ( m ) => m.id === selectedMenu ) || {} ).name || '';
 	const boardItemCount = Object.values( board.map ).reduce( ( sum, arr ) => sum + arr.length, 0 );
 
+	// Items in scope of the current menu filter — for search + duplicate detection.
+	const scopedItems = useMemo(
+		() => ( selectedMenu ? data.items.filter( ( it ) => ( it.menus || [] ).includes( selectedMenu ) ) : data.items ),
+		[ data.items, selectedMenu ]
+	);
+	const q = query.trim().toLowerCase();
+	const matches = q ? scopedItems.filter( ( it ) => ( it.title || '' ).toLowerCase().includes( q ) ) : [];
+	const dupTitles = useMemo( () => {
+		const counts = {};
+		scopedItems.forEach( ( it ) => {
+			const t = ( it.title || '' ).trim().toLowerCase();
+			if ( t ) {
+				counts[ t ] = ( counts[ t ] || 0 ) + 1;
+			}
+		} );
+		return Object.keys( counts ).filter( ( t ) => counts[ t ] > 1 );
+	}, [ scopedItems ] );
+	const sectionLabel = ( item ) => {
+		const s = ( item.sections || [] ).map( ( id ) => sectionsById[ id ] ).find( Boolean );
+		return s ? s.name : 'Unsectioned';
+	};
+
 	return (
 		<Box sx={ { maxWidth: 1180, mx: 'auto' } }>
 			<LiveMenuBanner menuPage={ data.menuPage } />
@@ -237,6 +263,47 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				</Box>
 			) }
 
+			{ /* Search across all dishes (handy once you have a lot). */ }
+			<TextField
+				value={ query }
+				onChange={ ( e ) => setQuery( e.target.value ) }
+				placeholder="Search dishes…"
+				size="small"
+				fullWidth
+				InputProps={ { startAdornment: <InputAdornment position="start"><SearchIcon sx={ { fontSize: 18, color: tokens.muted2 } } /></InputAdornment> } }
+				sx={ { mb: 2, maxWidth: 360 } }
+			/>
+
+			{ dupTitles.length > 0 && (
+				<Alert severity="warning" sx={ { mb: 2, '& .MuiAlert-message': { fontSize: 13 } } }>
+					Duplicate dish name{ dupTitles.length === 1 ? '' : 's' }: <strong>{ dupTitles.join( ', ' ) }</strong>. Rename or remove copies so diners aren’t confused.
+				</Alert>
+			) }
+
+			{ /* Search results — a flat list so matches are easy to find + open. */ }
+			{ q && (
+				<Stack spacing={ 1 } sx={ { mb: 3 } }>
+					{ matches.length === 0 && (
+						<Typography sx={ { color: tokens.muted, fontSize: 14, py: 2, textAlign: 'center' } }>No dishes match “{ query }”.</Typography>
+					) }
+					{ matches.map( ( it ) => (
+						<Stack
+							key={ it.id }
+							direction="row"
+							alignItems="center"
+							spacing={ 1.5 }
+							onClick={ () => setEditingId( it.id ) }
+							sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '10px', px: 1.75, py: 1.25, cursor: 'pointer', '&:hover': { borderColor: tokens.border2, boxShadow: tokens.shadowSm } } }
+						>
+							<Typography sx={ { flex: 1, fontWeight: 600, fontSize: 14, color: tokens.ink } } noWrap>{ it.title || 'Untitled dish' }</Typography>
+							<Chip label={ sectionLabel( it ) } size="small" sx={ { bgcolor: tokens.soft, color: tokens.muted, fontWeight: 600 } } />
+						</Stack>
+					) ) }
+				</Stack>
+			) }
+
+			{ ! q && (
+			<>
 			<DndContext
 				sensors={ sensors }
 				collisionDetection={ closestCorners }
@@ -269,6 +336,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 									}
 								} }
 								onDuplicateSection={ () => store.duplicateSection( Number( key ) ) }
+								collapsed={ !! collapsed[ key ] }
+								onToggleCollapse={ () => toggleCollapse( key ) }
 							/>
 						) ) }
 
@@ -317,6 +386,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				<Typography color="text.secondary" sx={ { textAlign: 'center', mt: 4 } }>
 					Add your first section to start building the menu.
 				</Typography>
+			) }
+			</>
 			) }
 
 			{ editingId && itemsById[ editingId ] && (

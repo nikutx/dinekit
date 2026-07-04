@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Stack, IconButton, InputBase, Tooltip, Typography, Button } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,6 +27,8 @@ export default function SortableSection( {
 	onEditItem,
 	onDuplicateItem,
 	onDuplicateSection,
+	collapsed,
+	onToggleCollapse,
 } ) {
 	const [ name, setName ] = useState( section.name );
 	const { setNodeRef, isOver } = useDroppable( { id: containerId } );
@@ -80,6 +83,14 @@ export default function SortableSection( {
 					{ itemIds.length } { itemIds.length === 1 ? 'item' : 'items' }
 				</Typography>
 
+				{ onToggleCollapse && (
+					<Tooltip title={ collapsed ? 'Expand section' : 'Collapse section' }>
+						<IconButton size="small" onClick={ onToggleCollapse } sx={ { color: tokens.muted } }>
+							<ExpandMoreIcon fontSize="small" sx={ { transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' } } />
+						</IconButton>
+					</Tooltip>
+				) }
+
 				{ ! muted && onDuplicateSection && (
 					<Tooltip title="Duplicate section with its dishes">
 						<IconButton size="small" onClick={ onDuplicateSection } sx={ { color: tokens.muted } }>
@@ -97,7 +108,7 @@ export default function SortableSection( {
 				) }
 			</Stack>
 
-			<Box ref={ setNodeRef } sx={ { p: 1.25, minHeight: 56 } }>
+			<Box ref={ setNodeRef } sx={ { p: 1.25, minHeight: collapsed ? 0 : 56, display: collapsed ? 'none' : 'block' } }>
 				<SortableContext items={ itemIds } strategy={ verticalListSortingStrategy }>
 					<Stack spacing={ 1 }>
 						{ itemIds.map( ( id ) => (
