@@ -32,6 +32,7 @@ export default function POSView() {
 	const [ mod, setMod ] = useState( null ); // item being configured
 	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
 	const [ cashUp, setCashUp ] = useState( false ); // cash-up sheet open
+	const [ tableQr, setTableQr ] = useState( false ); // table-QR generator
 	const [ moveOpen, setMoveOpen ] = useState( false ); // transfer-table picker
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
@@ -168,12 +169,14 @@ export default function POSView() {
 					subtitle="Pick a table to start or continue a tab, or take a counter order."
 					actions={
 						<>
+							<Button variant="outlined" startIcon={ <QrCode2Icon /> } onClick={ () => setTableQr( true ) }>Table QRs</Button>
 							<Button variant="outlined" startIcon={ <PointOfSaleIcon /> } onClick={ () => setCashUp( true ) }>Cash-up</Button>
 							<Button variant="contained" startIcon={ <TakeoutDiningIcon /> } onClick={ openTakeaway }>Quick takeaway</Button>
 						</>
 					}
 				/>
 				{ cashUp && <CashSheet money={ money } onClose={ () => setCashUp( false ) } /> }
+				{ tableQr && <TableQrSheet onClose={ () => setTableQr( false ) } /> }
 				{ ( floor.tables || [] ).length === 0 ? (
 					<Card sx={ { p: 3 } }>
 						<Typography sx={ { color: tokens.muted } }>No tables yet — add tables in Floor Plan first, or take a counter order with “Quick takeaway”.</Typography>
@@ -907,6 +910,65 @@ function CashSheet( { money, onClose } ) {
 							</Stack>
 						) }
 					</Box>
+				) }
+			</Box>
+		</Modal>
+	);
+}
+
+// Per-table QR codes to print + stand on the tables (guests scan to order).
+function TableQrSheet( { onClose } ) {
+	const [ links, setLinks ] = useState( null );
+	const [ qrs, setQrs ] = useState( {} ); // tableId -> svg
+
+	useEffect( () => {
+		api.getTableQr().then( ( rows ) => {
+			setLinks( rows || [] );
+			( rows || [] ).forEach( ( r ) => {
+				if ( r.url ) {
+					api.getQr( r.url ).then( ( res ) => setQrs( ( q ) => ( { ...q, [ r.id ]: res.svg } ) ) ).catch( () => {} );
+				}
+			} );
+		} ).catch( () => setLinks( [] ) );
+	}, [] );
+
+	const printAll = () => {
+		const cards = ( links || [] ).filter( ( l ) => l.url && qrs[ l.id ] ).map( ( l ) =>
+			`<div class="c"><div class="t">${ esc( l.name ) }</div>${ qrs[ l.id ] }<div class="s">Scan to order</div></div>`
+		).join( '' );
+		printDoc(
+			'<style>body{font-family:sans-serif;margin:0}.c{page-break-inside:avoid;display:inline-block;width:46%;text-align:center;margin:2%;padding:16px;border:1px solid #ddd;border-radius:12px;box-sizing:border-box}.t{font-size:20px;font-weight:700;margin-bottom:8px}.c svg{width:70%;height:auto}.s{margin-top:8px;font-weight:600;color:#555}</style>' + cards
+		);
+	};
+
+	return (
+		<Modal open onClose={ onClose }>
+			<Box sx={ { p: 3, maxHeight: '85vh', overflowY: 'auto' } }>
+				<Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={ { mb: 1 } }>
+					<Box>
+						<Typography variant="h6">Table ordering QR codes</Typography>
+						<Typography sx={ { fontSize: 13, color: tokens.muted } }>Print one per table — guests scan to order straight to the kitchen.</Typography>
+					</Box>
+					<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
+				</Stack>
+				{ null === links ? (
+					<Stack alignItems="center" sx={ { py: 4 } }><CircularProgress /></Stack>
+				) : links.length === 0 ? (
+					<Typography sx={ { color: tokens.muted } }>Add tables in Floor Plan first.</Typography>
+				) : ! links.some( ( l ) => l.url ) ? (
+					<Typography sx={ { color: tokens.muted } }>Create your online ordering page first (Orders → “Create ordering page”), then the table QR links appear here.</Typography>
+				) : (
+					<>
+						<Button variant="contained" onClick={ printAll } sx={ { mb: 2 } }>Print all</Button>
+						<Box sx={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.5 } }>
+							{ links.filter( ( l ) => l.url ).map( ( l ) => (
+								<Box key={ l.id } sx={ { textAlign: 'center', border: `1px solid ${ tokens.border }`, borderRadius: '10px', p: 1.5 } }>
+									<Typography sx={ { fontWeight: 700, mb: 0.5 } }>{ l.name }</Typography>
+									<Box sx={ { '& svg': { width: '100%', height: 'auto', display: 'block' } } } dangerouslySetInnerHTML={ { __html: qrs[ l.id ] || '' } } />
+								</Box>
+							) ) }
+						</Box>
+					</>
 				) }
 			</Box>
 		</Modal>

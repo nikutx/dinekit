@@ -179,6 +179,9 @@
 		function renderMenu() {
 			var grid = el( 'div', 'dinekit-order__grid' );
 			var menuCol = el( 'div', 'dinekit-order__menu' );
+			if ( cfg.tableMode ) {
+				menuCol.appendChild( el( 'div', 'dinekit-order__table-banner', ( t.tableBanner || 'Ordering at' ) + ' ' + cfg.tableName ) );
+			}
 			cfg.menu.forEach( function ( sec ) {
 				if ( ! sec.items.length ) {
 					return;
@@ -595,17 +598,51 @@
 			hp.appendChild( hpi );
 			form.appendChild( hp );
 
-			var submit = el( 'button', 'dinekit-order__place', ( t.placeOrder || 'Place order' ) + ' · ' + money( orderTotal ) );
+			var tableTab = cfg.tableMode && ! cfg.tablePay; // add-to-tab: no pay, no contact
+			var placeLabel = tableTab ? ( t.sendToKitchen || 'Send to kitchen' ) : ( t.placeOrder || 'Place order' );
+			var submit = el( 'button', 'dinekit-order__place', placeLabel + ' · ' + money( orderTotal ) );
 			submit.type = 'submit';
 			form.appendChild( submit );
 			var result = el( 'p', 'dinekit-order__result' );
 			result.setAttribute( 'role', 'alert' );
 			form.appendChild( result );
 
+			function orderItems() {
+				return state.lines.map( function ( l ) {
+					return { itemId: l.itemId, qty: l.qty, priceIndex: l.priceIndex, choices: l.choices, removed: l.removed };
+				} );
+			}
+
 			form.addEventListener( 'submit', function ( e ) {
 				e.preventDefault();
 				result.textContent = '';
 				result.className = 'dinekit-order__result';
+
+				// Table QR, add-to-tab: fire straight to the kitchen, no contact/pay.
+				if ( tableTab ) {
+					submit.disabled = true;
+					fetch( cfg.restUrl + 'table-order/' + encodeURIComponent( cfg.tableToken ), {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+						body: JSON.stringify( { items: orderItems() } ),
+					} )
+						.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
+						.then( function ( res ) {
+							submit.disabled = false;
+							if ( res.ok && res.d && res.d.ok ) {
+								state.done = { tableSent: true, table: res.d.table };
+								state.lines = [];
+								state.view = 'done';
+								render();
+							} else {
+								result.textContent = ( res.d && res.d.message ) || t.genericError;
+								result.classList.add( 'is-no' );
+							}
+						} )
+						.catch( function () { submit.disabled = false; result.textContent = t.networkError; result.classList.add( 'is-no' ); } );
+					return;
+				}
+
 				var name = form.name.value.trim();
 				var email = form.email.value.trim();
 				var phone = form.phone.value.trim();
@@ -633,9 +670,8 @@
 						fulfilment: state.fulfilment,
 						address: address,
 						hp: form.hp.value,
-						items: state.lines.map( function ( l ) {
-							return { itemId: l.itemId, qty: l.qty, priceIndex: l.priceIndex, choices: l.choices, removed: l.removed };
-						} ),
+						tableToken: cfg.tableMode ? cfg.tableToken : '',
+						items: orderItems(),
 					} ),
 				} )
 					.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
@@ -761,6 +797,17 @@
 		function renderDone() {
 			var box = el( 'div', 'dinekit-order__done' );
 			box.appendChild( successTick() );
+			// Table QR (add-to-tab): the round went to the kitchen; offer another.
+			if ( state.done && state.done.tableSent ) {
+				box.appendChild( el( 'div', 'dinekit-order__done-title', t.sentToKitchen || 'Sent to the kitchen!' ) );
+				box.appendChild( el( 'p', null, ( t.tableThanks || 'Your order is on its way. Order more whenever you like — pay at the table when you’re done.' ) ) );
+				var again = el( 'button', 'dinekit-order__checkout', t.orderMore || 'Order more' );
+				again.type = 'button';
+				again.addEventListener( 'click', function () { state.view = 'menu'; render(); } );
+				box.appendChild( again );
+				app.appendChild( box );
+				return;
+			}
 			box.appendChild( el( 'div', 'dinekit-order__done-title', state.held ? ( t.held || t.placed ) : state.paid ? ( t.paid || t.placed || 'Payment received' ) : ( t.placed || 'Order placed!' ) ) );
 			box.appendChild( el( 'div', 'dinekit-order__done-num', ( t.orderNumber || 'Your order number is' ) + ' #' + ( state.done && state.done.number ) ) );
 			box.appendChild( el( 'p', null, t.collectMsg || '' ) );

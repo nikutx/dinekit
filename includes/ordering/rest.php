@@ -714,6 +714,19 @@ function place_order( $request ) {
 	update_post_meta( $post_id, 'dinekit_order_fulfilment', $fulfilment );
 	update_post_meta( $post_id, 'dinekit_order_address', $address );
 	update_post_meta( $post_id, 'dinekit_order_fee', number_format( $fee, 2, '.', '' ) );
+	// Table QR order with pay-upfront: tag it dine-in for that table + fire to the
+	// kitchen (fulfilment/delivery don't apply).
+	$table_token = sanitize_text_field( (string) $request->get_param( 'tableToken' ) );
+	if ( '' !== $table_token ) {
+		require_once DINEKIT_DIR . 'includes/table-order.php';
+		$tqr = \DineKit\TableOrder\table_by_token( $table_token );
+		if ( $tqr ) {
+			update_post_meta( $post_id, 'dinekit_order_channel', 'dine_in' );
+			update_post_meta( $post_id, 'dinekit_order_table_id', $tqr );
+			update_post_meta( $post_id, 'dinekit_order_source', 'qr' );
+			update_post_meta( $post_id, 'dinekit_order_status', 'sent' );
+		}
+	}
 	Ordering\log_event( $post_id, __( 'Order received online', 'dinekit' ) );
 	if ( $auto ) {
 		Ordering\log_event( $post_id, __( 'Auto-accepted', 'dinekit' ) );

@@ -272,6 +272,7 @@ function get_settings() {
 		'delivery_min'     => 0,     // Minimum food subtotal for delivery (0 = none).
 		'delivery_mins'    => 45,    // Estimated delivery lead time.
 		'delivery_area'    => '',    // Free-text note about the delivery area/zones.
+		'table_qr_pay'     => false, // Table QR orders: false = add to tab (pay later), true = pay upfront.
 	);
 	$stored   = get_option( SETTINGS, array() );
 	return is_array( $stored ) ? array_merge( $defaults, $stored ) : $defaults;
@@ -290,6 +291,9 @@ function save_settings( $data ) {
 	}
 	if ( isset( $data['auto_accept'] ) ) {
 		$current['auto_accept'] = (bool) $data['auto_accept'];
+	}
+	if ( isset( $data['table_qr_pay'] ) ) {
+		$current['table_qr_pay'] = (bool) $data['table_qr_pay'];
 	}
 	if ( isset( $data['prep_mins'] ) ) {
 		$current['prep_mins'] = max( 0, min( 480, absint( $data['prep_mins'] ) ) );

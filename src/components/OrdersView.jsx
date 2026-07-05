@@ -660,6 +660,12 @@ function OrderSettings() {
 						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Auto-accept orders</Typography>
 					</Stack>
 				</Tooltip>
+				<Tooltip title="Off: table-QR orders join the table's tab and are paid at the end. On: guests pay by card upfront each time." placement="top">
+					<Stack direction="row" alignItems="center" spacing={ 1 }>
+						<Switch checked={ !! cfg.table_qr_pay } onChange={ ( e ) => patch( { table_qr_pay: e.target.checked } ) } />
+						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Table QR: pay upfront</Typography>
+					</Stack>
+				</Tooltip>
 			</Stack>
 
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>

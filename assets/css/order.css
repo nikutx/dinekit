@@ -678,3 +678,15 @@
 	letter-spacing: 0.02em;
 	color: #b91c1c;
 }
+
+/* Table QR ordering banner. */
+.dinekit-order__table-banner {
+	grid-column: 1 / -1;
+	font-weight: 700;
+	font-size: 15px;
+	color: #4338ca;
+	background: #eef2ff;
+	border-radius: 10px;
+	padding: 10px 14px;
+	margin-bottom: 12px;
+}

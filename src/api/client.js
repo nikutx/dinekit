@@ -177,6 +177,7 @@ export const api = {
 	// POS loyalty.
 	searchMembers: ( q ) => request( 'GET', 'members?q=' + encodeURIComponent( q ) ),
 	createMember: ( data ) => request( 'POST', 'members', data ),
+	getTableQr: () => request( 'GET', 'pos/table-qr' ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),
 	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),
