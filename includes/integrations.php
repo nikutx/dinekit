@@ -38,8 +38,81 @@ function defaults() {
 	);
 }
 
+const ENC_PREFIX = 'dkenc1:';
+
 /**
- * Raw stored settings (includes secrets — server-side only, never sent as-is).
+ * The stripe fields that hold secrets and must be encrypted at rest.
+ *
+ * @return string[]
+ */
+function secret_keys() {
+	return array( 'test_secret', 'live_secret', 'test_webhook_secret', 'live_webhook_secret' );
+}
+
+/**
+ * 32-byte encryption key derived from the site's secret salts (which live in
+ * wp-config.php, not the database) — so a leaked DB dump alone can't reveal the
+ * Stripe secrets. If the salts change the secrets become unreadable and must be
+ * re-entered; that is the accepted trade-off for at-rest protection.
+ *
+ * @return string Raw 32-byte key.
+ */
+function enc_key() {
+	$salt  = defined( 'AUTH_KEY' ) ? AUTH_KEY : '';
+	$salt .= defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : wp_salt( 'secure_auth' );
+	return hash( 'sha256', 'dinekit-integrations|' . $salt, true );
+}
+
+/**
+ * Encrypt a secret for storage. Empty stays empty; if OpenSSL is unavailable the
+ * value is stored as-is (no worse than before). Output is prefixed so we can tell
+ * encrypted values from legacy plaintext on read.
+ *
+ * @param string $plain Plaintext secret.
+ * @return string
+ */
+function encrypt_secret( $plain ) {
+	$plain = (string) $plain;
+	if ( '' === $plain || ! function_exists( 'openssl_encrypt' ) ) {
+		return $plain;
+	}
+	$iv = openssl_random_pseudo_bytes( 16 );
+	$ct = openssl_encrypt( $plain, 'aes-256-cbc', enc_key(), OPENSSL_RAW_DATA, $iv );
+	if ( false === $ct ) {
+		return $plain;
+	}
+	return ENC_PREFIX . base64_encode( $iv . $ct ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding binary ciphertext for text storage, not obfuscation.
+}
+
+/**
+ * Decrypt a stored secret. Values without the marker are legacy plaintext and
+ * returned unchanged (so existing installs keep working). A failed decrypt
+ * returns '' — the UI then simply shows the key as unset for re-entry.
+ *
+ * @param string $stored Stored value.
+ * @return string
+ */
+function decrypt_secret( $stored ) {
+	$stored = (string) $stored;
+	if ( 0 !== strpos( $stored, ENC_PREFIX ) ) {
+		return $stored;
+	}
+	if ( ! function_exists( 'openssl_decrypt' ) ) {
+		return '';
+	}
+	$raw = base64_decode( substr( $stored, strlen( ENC_PREFIX ) ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding stored binary ciphertext, not obfuscation.
+	if ( false === $raw || strlen( $raw ) <= 16 ) {
+		return '';
+	}
+	$iv = substr( $raw, 0, 16 );
+	$ct = substr( $raw, 16 );
+	$pt = openssl_decrypt( $ct, 'aes-256-cbc', enc_key(), OPENSSL_RAW_DATA, $iv );
+	return false === $pt ? '' : $pt;
+}
+
+/**
+ * Raw stored settings with secrets decrypted (server-side only, never sent
+ * as-is). Legacy plaintext secrets pass through untouched.
  *
  * @return array<string,mixed>
  */
@@ -50,7 +123,37 @@ function raw() {
 	}
 	$defaults         = defaults();
 	$stored['stripe'] = array_merge( $defaults['stripe'], isset( $stored['stripe'] ) && is_array( $stored['stripe'] ) ? $stored['stripe'] : array() );
+	foreach ( secret_keys() as $k ) {
+		$stored['stripe'][ $k ] = decrypt_secret( (string) $stored['stripe'][ $k ] );
+	}
 	return $stored;
+}
+
+/**
+ * One-time migration: encrypt any plaintext secrets already in the database.
+ * Safe to call repeatedly (already-encrypted or empty values are skipped).
+ *
+ * @return void
+ */
+function encrypt_existing() {
+	if ( ! function_exists( 'openssl_encrypt' ) ) {
+		return;
+	}
+	$stored = get_option( OPTION );
+	if ( ! is_array( $stored ) || empty( $stored['stripe'] ) || ! is_array( $stored['stripe'] ) ) {
+		return;
+	}
+	$changed = false;
+	foreach ( secret_keys() as $k ) {
+		$val = isset( $stored['stripe'][ $k ] ) ? (string) $stored['stripe'][ $k ] : '';
+		if ( '' !== $val && 0 !== strpos( $val, ENC_PREFIX ) ) {
+			$stored['stripe'][ $k ] = encrypt_secret( $val );
+			$changed                = true;
+		}
+	}
+	if ( $changed ) {
+		update_option( OPTION, $stored );
+	}
 }
 
 /**
@@ -161,6 +264,11 @@ function save( $data ) {
 		} elseif ( '' !== $value ) {
 			$strip[ $key ] = sanitize_text_field( $value );
 		}
+	}
+
+	// Encrypt secrets at rest before persisting (publishable keys stay plain).
+	foreach ( secret_keys() as $k ) {
+		$strip[ $k ] = encrypt_secret( (string) $strip[ $k ] );
 	}
 
 	$raw['stripe'] = $strip;

@@ -135,6 +135,20 @@ final class Plugin {
 	 * @return void
 	 */
 	public function maybe_upgrade() {
+		// One-time: encrypt any plaintext integration secrets already in the DB.
+		// Keyed by its own flag so it runs even when the version is unchanged.
+		if ( ! get_option( 'dinekit_secrets_encrypted' ) ) {
+			try {
+				require_once DINEKIT_DIR . 'includes/integrations.php';
+				Integrations\encrypt_existing();
+				update_option( 'dinekit_secrets_encrypted', 1 );
+			} catch ( \Throwable $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'DineKit secret migration: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+			}
+		}
+
 		$stored = get_option( 'dinekit_version' );
 		if ( DINEKIT_VERSION === $stored ) {
 			return;
