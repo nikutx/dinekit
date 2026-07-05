@@ -186,7 +186,8 @@
 				menuCol.appendChild( el( 'h3', 'dinekit-order__section', sec.name ) );
 				sec.items.forEach( function ( item ) {
 					var hasImg = !! ( item.image && item.image.thumb );
-					var card = el( 'div', 'dinekit-order__item' + ( hasImg ? ' dinekit-order__item--has-img' : '' ) );
+					var off = item.available === false;
+					var card = el( 'div', 'dinekit-order__item' + ( hasImg ? ' dinekit-order__item--has-img' : '' ) + ( off ? ' dinekit-order__item--off' : '' ) );
 					if ( hasImg ) {
 						var im = document.createElement( 'img' );
 						im.className = 'dinekit-order__item-img';
@@ -200,16 +201,23 @@
 					if ( item.desc ) {
 						info.appendChild( el( 'div', 'dinekit-order__item-desc', item.desc ) );
 					}
-					var price = item.prices.length > 1
-						? 'from ' + money( priceNum( item.prices[ 0 ].amount ) )
-						: money( priceNum( item.prices[ 0 ].amount ) );
-					info.appendChild( el( 'div', 'dinekit-order__item-price', price ) );
+					if ( off ) {
+						// Kept visible (popular dishes stay on the menu) but not orderable.
+						info.appendChild( el( 'div', 'dinekit-order__item-off', t.unavailable || 'Currently unavailable' ) );
+					} else {
+						var price = item.prices.length > 1
+							? 'from ' + money( priceNum( item.prices[ 0 ].amount ) )
+							: money( priceNum( item.prices[ 0 ].amount ) );
+						info.appendChild( el( 'div', 'dinekit-order__item-price', price ) );
+					}
 					card.appendChild( info );
-					var add = el( 'button', 'dinekit-order__add', t.add || 'Add' );
-					add.type = 'button';
-					add.setAttribute( 'aria-label', ( t.add || 'Add' ) + ' ' + item.title );
-					add.addEventListener( 'click', function () { onAdd( item ); } );
-					card.appendChild( add );
+					if ( ! off ) {
+						var add = el( 'button', 'dinekit-order__add', t.add || 'Add' );
+						add.type = 'button';
+						add.setAttribute( 'aria-label', ( t.add || 'Add' ) + ' ' + item.title );
+						add.addEventListener( 'click', function () { onAdd( item ); } );
+						card.appendChild( add );
+					}
 					menuCol.appendChild( card );
 				} );
 			} );

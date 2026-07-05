@@ -668,3 +668,13 @@
 	outline-offset: 2px;
 	border-radius: 4px;
 }
+
+/* 86%d item on the order page — visible (SEO) but not orderable. */
+.dinekit-order__item--off { opacity: 0.55; }
+.dinekit-order__item-off {
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #b91c1c;
+}

@@ -473,6 +473,10 @@ function recompute( $lines ) {
 		if ( ! $post || 'dinekit_menu_item' !== $post->post_type || 'publish' !== $post->post_status ) {
 			continue;
 		}
+		// 86'd items can't be ordered by anyone (public, POS, or table QR).
+		if ( 'out' === (string) get_post_meta( $item_id, 'dinekit_stock', true ) ) {
+			continue;
+		}
 		$qty = max( 1, min( 20, isset( $line['qty'] ) ? (int) $line['qty'] : 1 ) );
 
 		$prices = get_post_meta( $item_id, 'dinekit_prices', true );
@@ -545,32 +549,6 @@ function recompute( $lines ) {
 		'items' => $items,
 		'total' => round( $total, 2 ),
 	);
-}
-
-/**
- * The orderable menu with 86'd (unavailable) items removed + empty sections
- * dropped — for the public order page (customers never see out-of-stock items).
- *
- * @param int $menu_id Optional menu term id.
- * @return array<int,array<string,mixed>>
- */
-function orderable_menu_public( $menu_id = 0 ) {
-	$out = array();
-	foreach ( orderable_menu( $menu_id ) as $sec ) {
-		$items = array_values(
-			array_filter(
-				$sec['items'],
-				static function ( $i ) {
-					return ! empty( $i['available'] );
-				}
-			)
-		);
-		if ( $items ) {
-			$sec['items'] = $items;
-			$out[]        = $sec;
-		}
-	}
-	return $out;
 }
 
 /**

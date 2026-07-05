@@ -222,6 +222,9 @@ function render_item( $post, $args, $allergen_map ) {
 	$prices = get_post_meta( $post->ID, 'dinekit_prices', true );
 	$prices = is_array( $prices ) ? $prices : array();
 	$badge  = (string) get_post_meta( $post->ID, 'dinekit_badge', true );
+	// 86'd / out of stock: keep the dish visible (SEO + popular items stay on the
+	// menu) but mark it so staff/diners know it can't be ordered right now.
+	$out = 'out' === (string) get_post_meta( $post->ID, 'dinekit_stock', true );
 
 	// Slugs used by the diner-facing filter (get_the_terms returns false, not
 	// an empty array, when there are none).
@@ -233,7 +236,7 @@ function render_item( $post, $args, $allergen_map ) {
 	ob_start();
 	?>
 	<li
-		class="dinekit-item"
+		class="dinekit-item<?php echo $out ? ' dinekit-item--unavailable' : ''; ?>"
 		data-dietary="<?php echo esc_attr( implode( ' ', $diet_slugs ) ); ?>"
 		data-allergens="<?php echo esc_attr( implode( ' ', $allergen_slugs ) ); ?>"
 	>
@@ -260,6 +263,9 @@ function render_item( $post, $args, $allergen_map ) {
 						<span class="dinekit-badge"><?php echo esc_html( $badge ); ?></span>
 					<?php endif; ?>
 				</h4>
+				<?php if ( $out ) : ?>
+					<span class="dinekit-item__unavailable"><?php esc_html_e( 'Currently unavailable', 'dinekit' ); ?></span>
+				<?php endif; ?>
 				<span class="dinekit-item__leader" aria-hidden="true"></span>
 				<?php if ( $prices ) : ?>
 					<span class="dinekit-item__prices">
