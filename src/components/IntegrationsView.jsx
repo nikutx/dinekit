@@ -55,6 +55,54 @@ export default function IntegrationsView() {
 	const [ testing, setTesting ] = useState( false );
 	const [ hook, setHook ] = useState( null );
 	const [ hooking, setHooking ] = useState( false );
+	const [ connecting, setConnecting ] = useState( '' ); // '', 'saving', 'testing', 'webhook'
+	const [ connectDone, setConnectDone ] = useState( false );
+
+	// One-click connect: save keys → test → auto-register webhook + wallets.
+	const connect = async () => {
+		setConnectDone( false );
+		setTest( null );
+		setHook( null );
+		const payload = {
+			stripe: {
+				enabled: true,
+				mode: form.mode,
+				testPublishable: form.testPublishable,
+				livePublishable: form.livePublishable,
+			},
+		};
+		if ( secret.test ) {
+			payload.stripe.testSecret = secret.test;
+		}
+		if ( secret.live ) {
+			payload.stripe.liveSecret = secret.live;
+		}
+		try {
+			setConnecting( 'saving' );
+			const saved = await api.saveIntegrations( payload );
+			setData( saved );
+			setSecret( { test: '', live: '' } );
+			set( { enabled: true } );
+
+			setConnecting( 'testing' );
+			const t = await api.testStripe();
+			setTest( t );
+
+			if ( t && t.valid && saved.stripe.webhookable ) {
+				setConnecting( 'webhook' );
+				const h = await api.registerStripeWebhook();
+				setHook( h );
+				if ( h.settings ) {
+					setData( h.settings );
+				}
+			}
+			setConnectDone( true );
+		} catch ( e ) {
+			setTest( { valid: false, error: ( e && e.message ) || 'Could not connect.' } );
+		} finally {
+			setConnecting( '' );
+		}
+	};
 
 	const setupWebhook = () => {
 		setHooking( true );
@@ -126,8 +174,6 @@ export default function IntegrationsView() {
 			.catch( () => setSaveState( 'error' ) );
 	};
 
-	const save = () => persist();
-
 	if ( loading ) {
 		return (
 			<Box sx={ { display: 'flex', justifyContent: 'center', mt: 8 } }>
@@ -141,6 +187,17 @@ export default function IntegrationsView() {
 	const secretSet = mode === 'live' ? data.stripe.liveSecretSet : data.stripe.testSecretSet;
 	const webhookSet = mode === 'live' ? data.stripe.liveWebhookSet : data.stripe.testWebhookSet;
 	const webhookable = !! data.stripe.webhookable;
+
+	// Deep-link straight to the right Stripe API-keys page + validate as they paste.
+	const keysUrl = mode === 'live' ? 'https://dashboard.stripe.com/apikeys' : 'https://dashboard.stripe.com/test/apikeys';
+	const pkVal = form[ pkKey ] || '';
+	const pkOk = new RegExp( '^pk_' + ( mode === 'live' ? 'live' : 'test' ) + '_' ).test( pkVal );
+	const pkBad = pkVal.length > 3 && ! pkOk;
+	const skVal = secret[ mode ] || '';
+	const skOk = /^(sk|rk)_(test|live)_/.test( skVal );
+	const skBad = skVal.length > 3 && ! skOk;
+	const okTick = <CheckCircleIcon sx={ { fontSize: 18, color: tokens.green } } />;
+	const canConnect = ( pkOk || ( secretSet && '' === pkVal ) ) && ! skBad && '' === connecting;
 
 	return (
 		<Page>
@@ -187,12 +244,27 @@ export default function IntegrationsView() {
 					</ToggleButtonGroup>
 				</Stack>
 
+				{ /* Step 1 — deep-link straight to the correct (test/live) keys page. */ }
+				<Box sx={ { display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 1.5, borderRadius: 2, bgcolor: tokens.soft } }>
+					<Box sx={ { width: 22, height: 22, borderRadius: '50%', bgcolor: tokens.accent, color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }>1</Box>
+					<Typography sx={ { fontSize: 13, color: tokens.ink2, flex: 1 } }>
+						Open your Stripe { mode === 'live' ? 'live' : 'test' } keys, then copy the Publishable + Secret key below.
+					</Typography>
+					<Button size="small" variant="outlined" endIcon={ <OpenInNewIcon sx={ { fontSize: 14 } } /> } href={ keysUrl } target="_blank" rel="noopener">
+						Open Stripe keys
+					</Button>
+				</Box>
+
+				{ /* Step 2 — paste keys (validated as you type). */ }
 				<Stack spacing={ 1.5 }>
 					<TextField
 						label={ `${ mode === 'live' ? 'Live' : 'Test' } publishable key` }
 						placeholder={ mode === 'live' ? 'pk_live_…' : 'pk_test_…' }
 						value={ form[ pkKey ] }
-						onChange={ ( e ) => set( { [ pkKey ]: e.target.value } ) }
+						onChange={ ( e ) => set( { [ pkKey ]: e.target.value.trim() } ) }
+						error={ pkBad }
+						helperText={ pkBad ? `That doesn’t look like a ${ mode } publishable key (should start pk_${ mode }_).` : ' ' }
+						InputProps={ pkOk ? { endAdornment: okTick } : undefined }
 						fullWidth
 					/>
 					<TextField
@@ -200,34 +272,32 @@ export default function IntegrationsView() {
 						type="password"
 						placeholder={ secretSet ? '•••••••••••• (saved — leave blank to keep)' : ( mode === 'live' ? 'sk_live_…' : 'sk_test_…' ) }
 						value={ secret[ mode ] }
-						onChange={ ( e ) => setSecret( ( s ) => ( { ...s, [ mode ]: e.target.value } ) ) }
+						onChange={ ( e ) => setSecret( ( s ) => ( { ...s, [ mode ]: e.target.value.trim() } ) ) }
+						error={ skBad }
 						fullWidth
-						InputProps={ { startAdornment: <LockIcon sx={ { fontSize: 16, color: tokens.muted2, mr: 1 } } /> } }
+						InputProps={ {
+							startAdornment: <LockIcon sx={ { fontSize: 16, color: tokens.muted2, mr: 1 } } />,
+							endAdornment: skOk ? okTick : undefined,
+						} }
 						helperText={
-							secretSet
-								? 'A secret key is stored securely and never shown again.'
-								: 'Your secret key is stored on your site and never sent to us.'
+							skBad
+								? 'That doesn’t look like a Stripe secret key (should start sk_ or rk_).'
+								: secretSet
+									? 'A secret key is stored securely and never shown again.'
+									: 'Your secret key is stored on your site (encrypted) and never sent to us.'
 						}
 					/>
 				</Stack>
 
-				<Stack direction="row" alignItems="center" spacing={ 2 } sx={ { mt: 2 } }>
-					<Button variant="contained" onClick={ save } disabled={ saveState === 'saving' }>
-						{ saveState === 'saving' ? 'Saving…' : 'Save Stripe keys' }
+				{ /* Step 3 — one click: save + test + auto-register webhook & wallets. */ }
+				<Stack direction="row" alignItems="center" spacing={ 2 } sx={ { mt: 1.5 } }>
+					<Button variant="contained" onClick={ connect } disabled={ ! canConnect } startIcon={ connecting ? <CircularProgress size={ 16 } color="inherit" /> : <CreditCardIcon /> }>
+						{ 'saving' === connecting ? 'Saving keys…' : 'testing' === connecting ? 'Testing…' : 'webhook' === connecting ? 'Finishing…' : 'Connect Stripe' }
 					</Button>
-					<Button variant="outlined" onClick={ runTest } disabled={ testing }>
+					<Button variant="text" onClick={ runTest } disabled={ testing || !! connecting }>
 						{ testing ? 'Testing…' : 'Test connection' }
 					</Button>
-					{ saveState === 'saved' && (
-						<Stack direction="row" alignItems="center" spacing={ 0.5 } sx={ { color: tokens.green } }>
-							<CheckCircleIcon sx={ { fontSize: 18 } } />
-							<Typography sx={ { fontSize: 13, fontWeight: 600 } }>Saved</Typography>
-						</Stack>
-					) }
 					<Box sx={ { flex: 1 } } />
-					<Link href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" sx={ { fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 0.5 } }>
-						Where are my keys? <OpenInNewIcon sx={ { fontSize: 14 } } />
-					</Link>
 				</Stack>
 
 				{ test && (
