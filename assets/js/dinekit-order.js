@@ -35,6 +35,17 @@
 		}
 		var state = { lines: [], view: 'menu', done: null };
 
+		// Visually-hidden polite live region so screen readers hear cart changes.
+		var live = el( 'div', 'dinekit-order__sr' );
+		live.setAttribute( 'aria-live', 'polite' );
+		live.setAttribute( 'aria-atomic', 'true' );
+		root.appendChild( live );
+		function announce( msg ) {
+			live.textContent = '';
+			// Re-set on the next frame so identical consecutive messages re-announce.
+			window.setTimeout( function () { live.textContent = msg; }, 30 );
+		}
+
 		function money( n ) {
 			var v = ( Math.round( n * 100 ) / 100 ).toFixed( 2 );
 			return cfg.currencyPos === 'after' ? v + cfg.currency : cfg.currency + v;
@@ -111,8 +122,15 @@
 			var viewChanged = lastView !== state.view;
 			lastView = state.view;
 			var count = state.lines.reduce( function ( s, l ) { return s + l.qty; }, 0 );
-			justAdded = count > lastCount;
+			var prevCount = lastCount;
+			justAdded = count > prevCount;
 			lastCount = count;
+			// Announce cart changes to assistive tech (not on plain view switches).
+			if ( count !== prevCount ) {
+				announce( count > 0
+					? count + ' ' + ( count === 1 ? ( t.item || 'item' ) : ( t.items || 'items' ) ) + ' · ' + ( t.total || 'Total' ) + ' ' + money( subtotal() )
+					: ( t.empty || 'Your basket is empty.' ) );
+			}
 			// The "Order online" heading is redundant once we're on the receipt.
 			var heading = root.querySelector( '.dinekit-order__heading' );
 			if ( heading ) { heading.style.display = state.view === 'done' ? 'none' : ''; }
@@ -189,6 +207,7 @@
 					card.appendChild( info );
 					var add = el( 'button', 'dinekit-order__add', t.add || 'Add' );
 					add.type = 'button';
+					add.setAttribute( 'aria-label', ( t.add || 'Add' ) + ' ' + item.title );
 					add.addEventListener( 'click', function () { onAdd( item ); } );
 					card.appendChild( add );
 					menuCol.appendChild( card );
@@ -203,9 +222,11 @@
 			var q = el( 'div', 'dinekit-order__qty' );
 			var minus = el( 'button', null, '−' );
 			minus.type = 'button';
+			minus.setAttribute( 'aria-label', t.decrease || 'Decrease quantity' );
 			minus.addEventListener( 'click', onMinus );
 			var plus = el( 'button', null, '+' );
 			plus.type = 'button';
+			plus.setAttribute( 'aria-label', t.increase || 'Increase quantity' );
 			plus.addEventListener( 'click', onPlus );
 			q.appendChild( minus );
 			q.appendChild( el( 'span', null, String( value ) ) );
@@ -273,12 +294,27 @@
 				}
 			} );
 
+			// Remember what was focused so we can restore it when the dialog closes.
+			var trigger = document.activeElement;
+
 			var overlay = el( 'div', 'dinekit-order__overlay' );
 			var modal = el( 'div', 'dinekit-order__modal' );
-			var close = function () { if ( overlay.parentNode ) { overlay.parentNode.removeChild( overlay ); } };
+			modal.setAttribute( 'role', 'dialog' );
+			modal.setAttribute( 'aria-modal', 'true' );
+			modal.setAttribute( 'aria-label', item.title );
+			modal.tabIndex = -1;
+			var close = function () {
+				if ( overlay.parentNode ) {
+					overlay.parentNode.removeChild( overlay );
+				}
+				if ( trigger && trigger.focus ) {
+					trigger.focus();
+				}
+			};
 
 			var x = el( 'button', 'dinekit-order__modal-close', '×' );
 			x.type = 'button';
+			x.setAttribute( 'aria-label', t.close || 'Close' );
 			x.addEventListener( 'click', close );
 			modal.appendChild( x );
 			if ( item.image && item.image.thumb ) {
@@ -296,7 +332,9 @@
 
 			if ( item.prices.length > 1 ) {
 				var pg = el( 'div', 'dinekit-order__group' );
-				pg.appendChild( el( 'div', 'dinekit-order__group-label', 'Size' ) );
+				pg.setAttribute( 'role', 'group' );
+				pg.setAttribute( 'aria-label', t.size || 'Size' );
+				pg.appendChild( el( 'div', 'dinekit-order__group-label', t.size || 'Size' ) );
 				item.prices.forEach( function ( p, pi ) {
 					var lab = el( 'label', 'dinekit-order__opt' );
 					var inp = document.createElement( 'input' );
@@ -316,6 +354,8 @@
 			( item.modifiers || [] ).forEach( function ( g, gi ) {
 				var grp = el( 'div', 'dinekit-order__group' );
 				var lbl = g.name + ( g.type === 'choose' && g.min < 1 ? ' (' + ( t.optional || 'optional' ) + ')' : '' );
+				grp.setAttribute( 'role', 'group' );
+				grp.setAttribute( 'aria-label', lbl );
 				grp.appendChild( el( 'div', 'dinekit-order__group-label', lbl ) );
 				( g.options || [] ).forEach( function ( o, oi ) {
 					var lab = el( 'label', 'dinekit-order__opt' );
@@ -390,7 +430,33 @@
 
 			overlay.appendChild( modal );
 			overlay.addEventListener( 'click', function ( e ) { if ( e.target === overlay ) { close(); } } );
+			// Keyboard: ESC closes, Tab is trapped inside the dialog.
+			overlay.addEventListener( 'keydown', function ( e ) {
+				if ( e.key === 'Escape' ) {
+					e.preventDefault();
+					close();
+					return;
+				}
+				if ( e.key !== 'Tab' ) {
+					return;
+				}
+				var f = modal.querySelectorAll( 'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])' );
+				if ( ! f.length ) {
+					return;
+				}
+				var first = f[ 0 ];
+				var last = f[ f.length - 1 ];
+				if ( e.shiftKey && document.activeElement === first ) {
+					e.preventDefault();
+					last.focus();
+				} else if ( ! e.shiftKey && document.activeElement === last ) {
+					e.preventDefault();
+					first.focus();
+				}
+			} );
 			document.body.appendChild( overlay );
+			// Move focus into the dialog (the close button is a safe first stop).
+			x.focus();
 
 			function unit() {
 				var base = priceNum( item.prices[ sel.priceIndex ].amount );
@@ -438,9 +504,13 @@
 			var orderTotal = subtotal() + feeVal;
 			if ( cfg.delivery ) {
 				var seg = el( 'div', 'dinekit-order__fulfil' );
+				seg.setAttribute( 'role', 'group' );
+				seg.setAttribute( 'aria-label', t.fulfilment || 'Collection or delivery' );
 				[ [ 'collection', t.collection || 'Collection' ], [ 'delivery', t.delivery || 'Delivery' ] ].forEach( function ( opt ) {
-					var bt = el( 'button', 'dinekit-order__fulfil-btn' + ( state.fulfilment === opt[ 0 ] ? ' is-active' : '' ), opt[ 1 ] );
+					var active = state.fulfilment === opt[ 0 ];
+					var bt = el( 'button', 'dinekit-order__fulfil-btn' + ( active ? ' is-active' : '' ), opt[ 1 ] );
 					bt.type = 'button';
+					bt.setAttribute( 'aria-pressed', active ? 'true' : 'false' );
 					bt.addEventListener( 'click', function () { state.fulfilment = opt[ 0 ]; render(); } );
 					seg.appendChild( bt );
 				} );
@@ -521,6 +591,7 @@
 			submit.type = 'submit';
 			form.appendChild( submit );
 			var result = el( 'p', 'dinekit-order__result' );
+			result.setAttribute( 'role', 'alert' );
 			form.appendChild( result );
 
 			form.addEventListener( 'submit', function ( e ) {
@@ -589,6 +660,7 @@
 			box.appendChild( el( 'div', 'dinekit-order__done-title', t.payTitle || 'Pay for your order' ) );
 			// Shimmer placeholder while the PaymentIntent is fetched + Stripe.js mounts.
 			var skel = el( 'div', 'dinekit-order__pay-skel' );
+			skel.setAttribute( 'aria-hidden', 'true' );
 			skel.appendChild( el( 'div', 'dinekit-order__skel-line' ) );
 			skel.appendChild( el( 'div', 'dinekit-order__skel-line' ) );
 			skel.appendChild( el( 'div', 'dinekit-order__skel-line dinekit-order__skel-line--short' ) );
@@ -597,6 +669,7 @@
 			var host = el( 'div', 'dinekit-order__pay-element' );
 			box.appendChild( host );
 			var err = el( 'p', 'dinekit-order__result' );
+			err.setAttribute( 'role', 'alert' );
 			box.appendChild( err );
 			var btn = el( 'button', 'dinekit-order__place', t.payNow || 'Pay now' );
 			btn.type = 'button';
