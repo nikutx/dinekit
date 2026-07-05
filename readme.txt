@@ -21,7 +21,7 @@ DineKit gives restaurants, cafés and pubs everything they need to publish a pro
 * **Opening hours** — with holiday overrides and a live "open now" indicator.
 * **SEO structured data** — Menu, MenuItem and LocalBusiness schema output automatically. Search engines read your menu.
 
-No WooCommerce required. No external accounts. No page builder needed. Works with any theme, on any host.
+No WooCommerce required. No page builder needed. Works with any theme, on any host. The menu, allergens and QR codes need no external accounts; optional card payments use your own Stripe account (see External Services below).
 
 Built by [Web Level Up](https://weblevelup.co.uk/), a UK web agency that builds commercial WordPress software.
 
@@ -38,6 +38,19 @@ Yes. Menu output is self-contained with its own scoped styles, and works on both
 
 = How do diners see the menu? =
 Add the DineKit Menu block (or the [dinekit_menu] shortcode) to any page. You can also print a QR code for your tables that opens the menu on a phone.
+
+== External services ==
+
+DineKit's optional payments feature (booking deposits and online order payments) uses **Stripe** to take card payments. Stripe is contacted only after you enable it and enter your own Stripe API keys under DineKit → Integrations, and only on requests that involve a payment:
+
+* When a diner pays, DineKit asks Stripe to create a payment by sending the amount, currency, your site URL and the related booking/order reference to Stripe's API (https://api.stripe.com).
+* When you connect Stripe or set up its webhook, DineKit calls Stripe to validate your keys and register payment notifications.
+* On pages where a payment can be made, Stripe's official Stripe.js library is loaded from https://js.stripe.com so card details are entered directly with Stripe and never reach your server (PCI SAQ-A).
+
+If you do not enable payments, DineKit makes no external requests. Stripe is a third-party service; by using it you agree to Stripe's terms and privacy policy:
+
+* Terms: https://stripe.com/legal
+* Privacy: https://stripe.com/privacy
 
 == Development ==
 

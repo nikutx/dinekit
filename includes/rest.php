@@ -132,7 +132,7 @@ function register_routes() {
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\duplicate_item',
-			'permission_callback' => __NAMESPACE__ . '\\can_edit_item',
+			'permission_callback' => __NAMESPACE__ . '\\can_duplicate_item_cb',
 		)
 	);
 
@@ -142,7 +142,7 @@ function register_routes() {
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\duplicate_section',
-			'permission_callback' => __NAMESPACE__ . '\\can_manage_categories_cb',
+			'permission_callback' => __NAMESPACE__ . '\\can_duplicate_section_cb',
 		)
 	);
 
@@ -199,7 +199,7 @@ function register_routes() {
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\duplicate_menu',
-			'permission_callback' => __NAMESPACE__ . '\\can_manage_categories_cb',
+			'permission_callback' => __NAMESPACE__ . '\\can_duplicate_menu_cb',
 		)
 	);
 
@@ -779,6 +779,63 @@ function can_manage_terms( $request ) {
 }
 
 /**
+ * The menu-item post type's capability set (honours map_meta_cap). Falls back to
+ * the default 'post' primitives if the type isn't registered yet.
+ *
+ * @return object
+ */
+function item_caps() {
+	$pt = get_post_type_object( 'dk_menu_item' );
+	if ( $pt && isset( $pt->cap ) ) {
+		return $pt->cap;
+	}
+	return (object) array(
+		'create_posts'      => 'edit_posts',
+		'edit_others_posts' => 'edit_others_posts',
+		'publish_posts'     => 'publish_posts',
+	);
+}
+
+/**
+ * Duplicating a menu re-assigns terms across existing items, so require both term
+ * management AND the capability to edit those items — not manage_categories alone.
+ *
+ * @return bool
+ */
+function can_duplicate_menu_cb() {
+	return current_user_can( 'manage_categories' )
+		&& current_user_can( item_caps()->edit_others_posts );
+}
+
+/**
+ * Duplicating a section clones item posts that inherit the source's status
+ * (possibly published), so require term management plus the capability to create
+ * AND publish items.
+ *
+ * @return bool
+ */
+function can_duplicate_section_cb() {
+	$caps = item_caps();
+	return current_user_can( 'manage_categories' )
+		&& current_user_can( $caps->create_posts )
+		&& current_user_can( $caps->publish_posts );
+}
+
+/**
+ * Duplicating a single item creates a new (possibly published) item, so require
+ * per-item edit of the source PLUS create + publish capability.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return bool
+ */
+function can_duplicate_item_cb( $request ) {
+	$caps = item_caps();
+	return can_edit_item( $request )
+		&& current_user_can( $caps->create_posts )
+		&& current_user_can( $caps->publish_posts );
+}
+
+/**
  * Serialize a term.
  *
  * @param \WP_Term $term Term.
@@ -1040,6 +1097,11 @@ function apply_item_fields( $post_id, $request ) {
 	}
 	$status = $request->get_param( 'status' );
 	if ( null !== $status && in_array( (string) $status, array( 'publish', 'draft' ), true ) ) {
+		// Don't let a user without publish rights push an item live via the API;
+		// downgrade to draft so an editor who can't publish can't publish.
+		if ( 'publish' === $status && ! current_user_can( item_caps()->publish_posts ) ) {
+			$status = 'draft';
+		}
 		$postarr['post_status'] = (string) $status;
 	}
 	if ( count( $postarr ) > 1 ) {
