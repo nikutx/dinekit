@@ -189,6 +189,10 @@ function data() {
 		'todayBookings'  => array_slice( $today_list, 0, 8 ),
 		'upcomingEvents' => $events,
 		'recentOrders'   => $recent_orders,
+		'orderingOn'     => $ordering_on,
+		'orderPageUrl'   => (string) $order_page['url'],
+		'menuPageUrl'    => (string) $menu_page['url'],
+		'bookPageUrl'    => (string) $book_page['url'],
 		'checklist'      => array(
 			'menu'      => $items > 0,
 			'hours'     => $has_hours,

@@ -18,7 +18,7 @@ import {
 	Divider,
 	Snackbar,
 	Drawer,
-} from '@mui/material';
+} from '../ui';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
 import CloseIcon from '@mui/icons-material/Close';
@@ -32,6 +32,9 @@ import PrintIcon from '@mui/icons-material/Print';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import TuneIcon from '@mui/icons-material/Tune';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import LaunchIcon from '@mui/icons-material/Launch';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { printDoc, esc } from '../lib/print';
@@ -42,7 +45,96 @@ import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
 
+// Prominent "how customers order online" panel — the link + QR to share, or a
+// one-click create if the ordering page doesn't exist yet. Makes the online
+// channel discoverable (the board itself only shows orders once they arrive).
+function ShareOrdering() {
+	const [ url, setUrl ] = useState( null ); // null = loading, '' = none yet, string = the page URL
+	const [ orderingOn, setOrderingOn ] = useState( true );
+	const [ qr, setQr ] = useState( '' );
+	const [ creating, setCreating ] = useState( false );
+	const [ copied, setCopied ] = useState( false );
+
+	useEffect( () => {
+		api.getDashboard()
+			.then( ( d ) => { setUrl( d.orderPageUrl || '' ); setOrderingOn( !! d.orderingOn ); } )
+			.catch( () => setUrl( '' ) );
+	}, [] );
+	useEffect( () => {
+		if ( url ) {
+			api.getQr( url ).then( ( r ) => setQr( r.svg ) ).catch( () => {} );
+		}
+	}, [ url ] );
+
+	const create = () => {
+		setCreating( true );
+		api.createSetupPage( 'order' )
+			.then( ( r ) => setUrl( r.page || '' ) )
+			.finally( () => setCreating( false ) );
+	};
+	const copy = () => {
+		if ( url && navigator.clipboard ) {
+			navigator.clipboard.writeText( url ).then( () => { setCopied( true ); setTimeout( () => setCopied( false ), 1500 ); } );
+		}
+	};
+
+	if ( url === null ) {
+		return null; // Don't flash while loading.
+	}
+
+	return (
+		<Card sx={ { mb: 2, p: 2 } }>
+			<Stack direction="row" alignItems="center" spacing={ 2 } flexWrap="wrap" useFlexGap>
+				<Box sx={ { width: 40, height: 40, borderRadius: '10px', bgcolor: tokens.accentSoft, color: tokens.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }>
+					<StorefrontIcon />
+				</Box>
+				<Box sx={ { flex: 1, minWidth: 220 } }>
+					<Typography sx={ { fontWeight: 700, fontSize: 14, color: tokens.ink } }>Your online ordering page</Typography>
+					<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>
+						Share this link (or the QR) so customers can order takeaway &amp; delivery — orders land on the board below.
+					</Typography>
+				</Box>
+				{ url ? (
+					<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap>
+						<Box sx={ { maxWidth: 340, minWidth: 0, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border }`, borderRadius: '8px', bgcolor: tokens.soft, fontSize: 12.5, color: tokens.ink2, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
+							{ url }
+						</Box>
+						<Button size="small" variant="outlined" startIcon={ <ContentCopyIcon fontSize="small" /> } onClick={ copy }>
+							{ copied ? 'Copied' : 'Copy' }
+						</Button>
+						<Button size="small" variant="outlined" component="a" href={ url } target="_blank" startIcon={ <LaunchIcon fontSize="small" /> }>
+							Preview
+						</Button>
+						<Tooltip title="Print a QR poster (QR Code screen)">
+							<IconButton size="small" onClick={ () => { window.location.hash = '#/qr'; } } sx={ { color: tokens.muted } }>
+								<QrCode2Icon />
+							</IconButton>
+						</Tooltip>
+						{ qr && (
+							<Box
+								sx={ { width: 44, height: 44, '& svg': { width: '100%', height: '100%', display: 'block' } } }
+								dangerouslySetInnerHTML={ { __html: qr } }
+							/>
+						) }
+					</Stack>
+				) : (
+					<Button variant="contained" disabled={ creating } onClick={ create }>
+						{ creating ? 'Creating…' : 'Create ordering page' }
+					</Button>
+				) }
+			</Stack>
+			{ url && ! orderingOn && (
+				<Typography sx={ { mt: 1, fontSize: 12.5, color: tokens.amber, fontWeight: 600 } }>
+					⚠ Online ordering is currently off — turn it on via the gear (Ordering settings) so customers can check out.
+				</Typography>
+			) }
+		</Card>
+	);
+}
+
 const O_STATUS = [
+	{ key: 'open', label: 'Open tab', fg: tokens.violet, bg: tokens.violetSoft },
+	{ key: 'sent', label: 'Sent to kitchen', fg: tokens.accentDark, bg: tokens.accentSoft },
 	{ key: 'new', label: 'New', fg: tokens.accentDark, bg: tokens.accentSoft },
 	{ key: 'preparing', label: 'Preparing', fg: tokens.amber, bg: tokens.amberSoft },
 	{ key: 'ready', label: 'Ready', fg: tokens.green, bg: tokens.greenSoft },
@@ -164,7 +256,7 @@ export default function OrdersView() {
 			return archived || [];
 		}
 		if ( tab === 'active' ) {
-			return orders.filter( ( o ) => [ 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) );
+			return orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) );
 		}
 		if ( tab === 'done' ) {
 			return orders.filter( ( o ) => [ 'completed', 'cancelled', 'delivered' ].includes( o.status ) );
@@ -173,7 +265,7 @@ export default function OrdersView() {
 	}, [ orders, archived, tab ] );
 
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
-	const activeCount = orders.filter( ( o ) => [ 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) ).length;
+	const activeCount = orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) ).length;
 
 	const markPrinted = ( id, station ) => {
 		patchLocal( id, { printed: new Date().toISOString() } );
@@ -234,7 +326,7 @@ export default function OrdersView() {
 		<Page>
 			<PageHeader
 				title="Orders"
-				subtitle="Commission-free takeaway orders from your own site — you keep 100%."
+				subtitle="Takeaway, collection & delivery — from your online page or taken by phone. You keep 100%, no commission."
 				actions={
 					<>
 						<Chip
@@ -267,6 +359,8 @@ export default function OrdersView() {
 					'The gear opens ordering settings & the public order page. You keep 100% — no commission.',
 				] }
 			/>
+
+			<ShareOrdering />
 
 			<Collapse in={ settingsOpen } unmountOnExit>
 				<OrderSettings />
@@ -318,8 +412,11 @@ export default function OrdersView() {
 												{ o.printed && (
 													<Chip label="Printed" size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: tokens.muted, bgcolor: tokens.soft } } />
 												) }
-												{ o.fulfilment === 'delivery' && (
+												{ o.fulfilment === 'delivery' && o.channel !== 'dine_in' && (
 													<Chip label="Delivery" size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: tokens.violet, bgcolor: tokens.violetSoft } } />
+												) }
+												{ o.channel === 'dine_in' && (
+													<Chip label={ o.table ? `Dine-in · ${ o.table }` : 'Dine-in' } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: tokens.accentDark, bgcolor: tokens.accentSoft } } />
 												) }
 												<Box sx={ { flex: 1 } } />
 												<Typography sx={ { fontWeight: 650, fontVariantNumeric: 'tabular-nums', textAlign: 'right' } }>{ money( o.total ) }</Typography>
