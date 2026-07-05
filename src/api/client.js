@@ -162,6 +162,7 @@ export const api = {
 	// POS (in-house order taking).
 	getPosMenu: ( menu ) => request( 'GET', 'pos/menu' + ( menu ? '?menu=' + menu : '' ) ),
 	addOrderLines: ( id, items ) => request( 'POST', `orders/${ id }/lines`, { items } ),
+	setItemStock: ( itemId, out ) => request( 'POST', 'pos/item-stock', { itemId, out } ),
 	payStatus: ( token ) => request( 'GET', 'pay/' + encodeURIComponent( token ) ),
 	// POS cash management.
 	getCash: () => request( 'GET', 'cash' ),

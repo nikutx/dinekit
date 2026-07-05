@@ -92,6 +92,9 @@ function orderable_menu( $menu_id = 0 ) {
 			'prices'    => $prices,
 			'modifiers' => is_array( $mods ) ? array_values( $mods ) : array(),
 			'image'     => $thumb_id ? array( 'thumb' => (string) wp_get_attachment_image_url( $thumb_id, 'medium' ) ) : null,
+			// 86'd (out of stock) — staff can see + toggle it; the public feed
+			// filters these out before rendering the order page.
+			'available' => 'out' !== (string) get_post_meta( $post->ID, 'dinekit_stock', true ),
 		);
 
 		$terms = get_the_terms( $post, 'dinekit_section' );
@@ -539,6 +542,32 @@ function recompute( $lines ) {
 		'items' => $items,
 		'total' => round( $total, 2 ),
 	);
+}
+
+/**
+ * The orderable menu with 86'd (unavailable) items removed + empty sections
+ * dropped — for the public order page (customers never see out-of-stock items).
+ *
+ * @param int $menu_id Optional menu term id.
+ * @return array<int,array<string,mixed>>
+ */
+function orderable_menu_public( $menu_id = 0 ) {
+	$out = array();
+	foreach ( orderable_menu( $menu_id ) as $sec ) {
+		$items = array_values(
+			array_filter(
+				$sec['items'],
+				static function ( $i ) {
+					return ! empty( $i['available'] );
+				}
+			)
+		);
+		if ( $items ) {
+			$sec['items'] = $items;
+			$out[]        = $sec;
+		}
+	}
+	return $out;
 }
 
 /**

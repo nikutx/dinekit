@@ -58,7 +58,7 @@ function render( $menu_id = 0, $heading = '' ) {
 			'deliveryMin'    => (float) $settings['delivery_min'],
 			'deliveryMins'   => (int) $settings['delivery_mins'],
 			'deliveryArea'   => (string) $settings['delivery_area'],
-			'menu'           => \DineKit\Ordering\orderable_menu( $menu_id ),
+			'menu'           => \DineKit\Ordering\orderable_menu_public( $menu_id ),
 			'i18n'           => array(
 				'add'          => __( 'Add', 'dinekit' ),
 				'addToOrder'   => __( 'Add to order', 'dinekit' ),

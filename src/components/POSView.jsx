@@ -32,6 +32,7 @@ export default function POSView() {
 	const [ mod, setMod ] = useState( null ); // item being configured
 	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
 	const [ cashUp, setCashUp ] = useState( false ); // cash-up sheet open
+	const [ moveOpen, setMoveOpen ] = useState( false ); // transfer-table picker
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -87,6 +88,9 @@ export default function POSView() {
 	};
 
 	const chooseItem = ( item ) => {
+		if ( item.available === false ) {
+			return;
+		}
 		const hasVariants = ( item.prices || [] ).length > 1;
 		const hasMods = ( item.modifiers || [] ).length > 0;
 		if ( hasVariants || hasMods ) {
@@ -94,6 +98,29 @@ export default function POSView() {
 		} else {
 			addLine( { itemId: item.id, qty: 1, priceIndex: 0 } );
 		}
+	};
+
+	// 86 / restock a menu item (optimistic; reverts on failure).
+	const eightySix = async ( item ) => {
+		const out = item.available !== false;
+		const flip = ( av ) => setSections( ( secs ) => secs.map( ( s ) => ( { ...s, items: s.items.map( ( it ) => ( it.id === item.id ? { ...it, available: av } : it ) ) } ) ) );
+		flip( ! out );
+		try { await api.setItemStock( item.id, out ); } catch ( e ) { flip( out ); }
+	};
+
+	// Transfer the open tab to another table.
+	const transfer = async ( t ) => {
+		if ( ! active || ! active.order ) {
+			setMoveOpen( false );
+			return;
+		}
+		setBusy( true );
+		try {
+			const updated = await api.updateOrder( active.order.id, { action: 'transfer', tableId: t.id } );
+			setActive( ( a ) => ( { ...a, tableId: t.id, tableName: t.name, order: updated } ) );
+			setOrders( ( os ) => os.map( ( o ) => ( o.id === updated.id ? updated : o ) ) );
+			setMoveOpen( false );
+		} finally { setBusy( false ); }
 	};
 
 	const fire = async () => {
@@ -207,6 +234,9 @@ export default function POSView() {
 						{ active.order ? `Open tab · ${ money( total ) }` : ( active.takeaway ? 'New counter order' : 'New tab — add the first item' ) }
 					</Typography>
 				</Box>
+				{ active.order && ! active.takeaway && (
+					<Button variant="outlined" startIcon={ <TableRestaurantIcon /> } onClick={ () => setMoveOpen( true ) }>Move</Button>
+				) }
 			</Stack>
 
 			<Stack direction={ { xs: 'column', md: 'row' } } spacing={ 2 } alignItems="flex-start">
@@ -220,15 +250,21 @@ export default function POSView() {
 						<Box key={ sec.id } sx={ { mb: 2.5 } }>
 							<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>{ sec.name }</Typography>
 							<Box sx={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1 } }>
-								{ ( sec.items || [] ).map( ( item ) => (
-									<Card key={ item.id } hover onClick={ () => chooseItem( item ) } sx={ { p: 1.25, cursor: 'pointer' } }>
-										<Typography sx={ { fontWeight: 600, fontSize: 13.5, color: tokens.ink, lineHeight: 1.25 } }>{ item.title }</Typography>
-										<Typography sx={ { fontSize: 12.5, color: tokens.accentDark, fontWeight: 700, mt: 0.5, fontVariantNumeric: 'tabular-nums' } }>
-											{ ( item.prices || [] ).length > 1 ? `from ${ money( item.prices[ 0 ].amount ) }` : money( ( item.prices[ 0 ] || {} ).amount ) }
-											{ ( item.modifiers || [] ).length > 0 ? ' · options' : '' }
-										</Typography>
-									</Card>
-								) ) }
+								{ ( sec.items || [] ).map( ( item ) => {
+									const off = item.available === false;
+									return (
+										<Card key={ item.id } hover={ ! off } onClick={ off ? undefined : () => chooseItem( item ) } sx={ { p: 1.25, cursor: off ? 'default' : 'pointer', position: 'relative', opacity: off ? 0.55 : 1 } }>
+											<Typography sx={ { fontWeight: 600, fontSize: 13.5, color: tokens.ink, lineHeight: 1.25, pr: 3 } }>{ item.title }</Typography>
+											<Typography sx={ { fontSize: 12.5, color: off ? tokens.red : tokens.accentDark, fontWeight: 700, mt: 0.5, fontVariantNumeric: 'tabular-nums' } }>
+												{ off ? '86’d — out of stock' : ( ( item.prices || [] ).length > 1 ? `from ${ money( item.prices[ 0 ].amount ) }` : money( ( item.prices[ 0 ] || {} ).amount ) ) }
+												{ ! off && ( item.modifiers || [] ).length > 0 ? ' · options' : '' }
+											</Typography>
+											<Box component="button" onClick={ ( e ) => { e.stopPropagation(); eightySix( item ); } } sx={ { position: 'absolute', top: 4, right: 4, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 10.5, fontWeight: 700, color: off ? tokens.green : tokens.muted2, padding: '2px 4px' } }>
+												{ off ? 'Restock' : '86' }
+											</Box>
+										</Card>
+									);
+								} ) }
 							</Box>
 						</Box>
 					) ) }
@@ -300,6 +336,19 @@ export default function POSView() {
 					onClose={ () => setMod( null ) }
 					onAdd={ ( line ) => { setMod( null ); addLine( line ); } }
 				/>
+			) }
+
+			{ moveOpen && (
+				<Modal open onClose={ () => setMoveOpen( false ) }>
+					<Box sx={ { p: 3, maxHeight: '80vh', overflowY: 'auto' } }>
+						<Typography variant="h6" sx={ { mb: 2 } }>Move { active.tableName } to…</Typography>
+						<Box sx={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1 } }>
+							{ ( floor.tables || [] ).filter( ( t ) => t.id !== active.tableId && 'maintenance' !== t.status ).map( ( t ) => (
+								<Button key={ t.id } variant="outlined" disabled={ busy } onClick={ () => transfer( t ) }>{ t.name }</Button>
+							) ) }
+						</Box>
+					</Box>
+				</Modal>
 			) }
 
 			{ bill && active.order && (

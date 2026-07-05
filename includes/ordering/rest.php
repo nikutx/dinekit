@@ -111,6 +111,15 @@ function register_routes() {
 			'permission_callback' => __NAMESPACE__ . '\\can_manage',
 		)
 	);
+	register_rest_route(
+		$ns,
+		'/pos/item-stock',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\set_item_stock',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
 
 	// Public: place an order. Named distinctly from the admin /orders* family so
 	// route matching can't fold it into an admin-permissioned route.
@@ -136,20 +145,20 @@ function register_routes() {
  * @return array<string,mixed>
  */
 function order_response( $id ) {
-	$items    = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
-	$history  = json_decode( (string) get_post_meta( $id, 'dinekit_order_history', true ), true );
-	$emaillog = json_decode( (string) get_post_meta( $id, 'dinekit_order_email_log', true ), true );
+	$items     = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
+	$history   = json_decode( (string) get_post_meta( $id, 'dinekit_order_history', true ), true );
+	$emaillog  = json_decode( (string) get_post_meta( $id, 'dinekit_order_email_log', true ), true );
 	$channel   = (string) get_post_meta( $id, 'dinekit_order_channel', true );
 	$table_id  = (int) get_post_meta( $id, 'dinekit_order_table_id', true );
 	$pay_token = (string) get_post_meta( $id, 'dinekit_order_pay_token', true );
-	$tenders  = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
-	$tenders  = is_array( $tenders ) ? $tenders : array();
-	$food     = (float) get_post_meta( $id, 'dinekit_order_total', true );
-	$service  = (float) get_post_meta( $id, 'dinekit_order_service', true );
-	$tip      = (float) get_post_meta( $id, 'dinekit_order_tip', true );
-	$discount = (float) get_post_meta( $id, 'dinekit_order_discount', true );
-	$grand    = round( $food + $service + $tip - $discount, 2 );
-	$paid     = 0.0;
+	$tenders   = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
+	$tenders   = is_array( $tenders ) ? $tenders : array();
+	$food      = (float) get_post_meta( $id, 'dinekit_order_total', true );
+	$service   = (float) get_post_meta( $id, 'dinekit_order_service', true );
+	$tip       = (float) get_post_meta( $id, 'dinekit_order_tip', true );
+	$discount  = (float) get_post_meta( $id, 'dinekit_order_discount', true );
+	$grand     = round( $food + $service + $tip - $discount, 2 );
+	$paid      = 0.0;
 	foreach ( $tenders as $t ) {
 		$paid += (float) $t['amount'];
 	}
@@ -424,6 +433,18 @@ function update_order( $request ) {
 			Ordering\Emails\receipt( $id, $to );
 			Ordering\log_event( $id, __( 'Receipt emailed', 'dinekit' ) );
 		}
+	} elseif ( 'transfer' === $action ) {
+		$tid = (int) $request->get_param( 'tableId' );
+		update_post_meta( $id, 'dinekit_order_table_id', $tid );
+		/* translators: %s: table name. */
+		Ordering\log_event( $id, sprintf( __( 'Moved to %s', 'dinekit' ), $tid ? get_the_title( $tid ) : __( 'no table', 'dinekit' ) ) );
+	} elseif ( 'reopen' === $action ) {
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_reopen', __( 'You do not have permission to reopen a closed bill.', 'dinekit' ), array( 'status' => 403 ) );
+		}
+		update_post_meta( $id, 'dinekit_order_status', 'open' );
+		Ordering\log_event( $id, __( 'Tab reopened', 'dinekit' ) );
 	} elseif ( 'close' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'completed' );
 		Ordering\log_event( $id, __( 'Tab closed', 'dinekit' ) );
@@ -490,6 +511,27 @@ function pos_menu( $request ) {
 	return rest_ensure_response(
 		array(
 			'sections' => Ordering\orderable_menu( $menu_id ),
+		)
+	);
+}
+
+/**
+ * POST /pos/item-stock — 86 a menu item (mark out of stock) or restock it.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function set_item_stock( $request ) {
+	$item_id = (int) $request->get_param( 'itemId' );
+	if ( 'dinekit_menu_item' !== get_post_type( $item_id ) ) {
+		return new \WP_Error( 'dinekit_item_404', __( 'Item not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	$out = (bool) $request->get_param( 'out' );
+	update_post_meta( $item_id, 'dinekit_stock', $out ? 'out' : 'in' );
+	return rest_ensure_response(
+		array(
+			'itemId'    => $item_id,
+			'available' => ! $out,
 		)
 	);
 }
