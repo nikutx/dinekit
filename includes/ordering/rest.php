@@ -91,6 +91,27 @@ function register_routes() {
 		)
 	);
 
+	// POS: the order-taking item grid (authenticated staff), and appending lines
+	// to an open dine-in tab.
+	register_rest_route(
+		$ns,
+		'/pos/menu',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\pos_menu',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/orders/(?P<id>\d+)/lines',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\add_lines',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+
 	// Public: place an order. Named distinctly from the admin /orders* family so
 	// route matching can't fold it into an admin-permissioned route.
 	register_rest_route(
@@ -118,6 +139,8 @@ function order_response( $id ) {
 	$items    = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 	$history  = json_decode( (string) get_post_meta( $id, 'dinekit_order_history', true ), true );
 	$emaillog = json_decode( (string) get_post_meta( $id, 'dinekit_order_email_log', true ), true );
+	$channel  = (string) get_post_meta( $id, 'dinekit_order_channel', true );
+	$table_id = (int) get_post_meta( $id, 'dinekit_order_table_id', true );
 	return array(
 		'id'         => (int) $id,
 		'number'     => (int) get_post_meta( $id, 'dinekit_order_number', true ),
@@ -134,6 +157,10 @@ function order_response( $id ) {
 		'fulfilment' => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
 		'address'    => (string) get_post_meta( $id, 'dinekit_order_address', true ),
 		'fee'        => (string) get_post_meta( $id, 'dinekit_order_fee', true ),
+		'channel'    => '' !== $channel ? $channel : 'online',
+		'tableId'    => $table_id,
+		'table'      => $table_id ? (string) get_the_title( $table_id ) : '',
+		'covers'     => (int) get_post_meta( $id, 'dinekit_order_covers', true ),
 		'pi'         => (string) get_post_meta( $id, 'dinekit_order_pi', true ),
 		'archived'   => '1' === (string) get_post_meta( $id, 'dinekit_order_archived', true ),
 		'refundDue'  => '1' === (string) get_post_meta( $id, 'dinekit_order_refund_due', true ),
@@ -152,8 +179,13 @@ function order_response( $id ) {
  * @return \WP_REST_Response|\WP_Error
  */
 function create_order( $request ) {
+	$channel  = (string) $request->get_param( 'channel' );
+	$channel  = in_array( $channel, array( 'online', 'takeaway', 'dine_in', 'delivery' ), true ) ? $channel : 'takeaway';
+	$dine_in  = 'dine_in' === $channel;
 	$computed = Ordering\recompute( (array) $request->get_param( 'items' ) );
-	if ( empty( $computed['items'] ) ) {
+	// A dine-in tab may be opened empty (items added as the meal goes); every
+	// other channel needs at least one line.
+	if ( empty( $computed['items'] ) && ! $dine_in ) {
 		return new \WP_Error( 'dinekit_order_empty', __( 'Add at least one item.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
@@ -184,7 +216,12 @@ function create_order( $request ) {
 	update_post_meta( $post_id, 'dinekit_order_number', $number );
 	update_post_meta( $post_id, 'dinekit_order_items', wp_json_encode( $computed['items'] ) );
 	update_post_meta( $post_id, 'dinekit_order_total', number_format( $computed['total'], 2, '.', '' ) );
-	update_post_meta( $post_id, 'dinekit_order_status', 'new' );
+	update_post_meta( $post_id, 'dinekit_order_status', $dine_in ? 'open' : 'new' );
+	update_post_meta( $post_id, 'dinekit_order_channel', $channel );
+	if ( $dine_in ) {
+		update_post_meta( $post_id, 'dinekit_order_table_id', (int) $request->get_param( 'tableId' ) );
+		update_post_meta( $post_id, 'dinekit_order_covers', max( 0, (int) $request->get_param( 'covers' ) ) );
+	}
 	update_post_meta( $post_id, 'dinekit_order_name', $name );
 	update_post_meta( $post_id, 'dinekit_order_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
 	update_post_meta( $post_id, 'dinekit_order_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
@@ -293,6 +330,44 @@ function update_order( $request ) {
 		$station = sanitize_key( (string) $request->get_param( 'station' ) );
 		/* translators: %s: station name (kitchen/bar/all). */
 		Ordering\log_event( $id, sprintf( __( 'Ticket printed (%s)', 'dinekit' ), '' !== $station ? $station : 'all' ) );
+	} elseif ( 'fire' === $action ) {
+		// Dine-in: commit the not-yet-fired lines as a round to the kitchen.
+		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
+		$items = is_array( $items ) ? $items : array();
+		$new   = 0;
+		$now   = current_time( 'c' );
+		foreach ( $items as &$li ) {
+			if ( empty( $li['fired'] ) ) {
+				$li['fired']   = true;
+				$li['firedAt'] = $now;
+				++$new;
+			}
+		}
+		unset( $li );
+		if ( $new > 0 ) {
+			update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+			if ( 'open' === (string) get_post_meta( $id, 'dinekit_order_status', true ) ) {
+				update_post_meta( $id, 'dinekit_order_status', 'sent' );
+			}
+			/* translators: %d: number of items fired. */
+			Ordering\log_event( $id, sprintf( _n( 'Fired %d item to the kitchen', 'Fired %d items to the kitchen', $new, 'dinekit' ), $new ) );
+		}
+	} elseif ( 'void_line' === $action ) {
+		$idx   = (int) $request->get_param( 'line' );
+		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
+		$items = is_array( $items ) ? $items : array();
+		if ( isset( $items[ $idx ] ) ) {
+			$voided = (string) $items[ $idx ]['title'];
+			array_splice( $items, $idx, 1 );
+			$total = 0.0;
+			foreach ( $items as $li ) {
+				$total += (float) $li['lineTotal'];
+			}
+			update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+			update_post_meta( $id, 'dinekit_order_total', number_format( $total, 2, '.', '' ) );
+			/* translators: %s: item name. */
+			Ordering\log_event( $id, sprintf( __( 'Removed %s from the tab', 'dinekit' ), $voided ) );
+		}
 	}
 
 	$status = (string) $request->get_param( 'status' );
@@ -341,6 +416,53 @@ function delete_order( $request ) {
 	}
 	update_post_meta( $id, 'dinekit_order_archived', 1 );
 	Ordering\log_event( $id, __( 'Archived', 'dinekit' ) );
+	return rest_ensure_response( order_response( $id ) );
+}
+
+/**
+ * GET /pos/menu — the orderable item grid for staff order-taking (authenticated).
+ * Thin wrapper over the same feed the public order page uses.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function pos_menu( $request ) {
+	$menu_id = (int) $request->get_param( 'menu' );
+	return rest_ensure_response(
+		array(
+			'sections' => Ordering\orderable_menu( $menu_id ),
+		)
+	);
+}
+
+/**
+ * POST /orders/:id/lines — append lines to an open tab (dine-in). Prices are
+ * recomputed server-side; new lines are unfired until the round is fired.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function add_lines( $request ) {
+	$id = (int) $request['id'];
+	if ( 'dinekit_order' !== get_post_type( $id ) ) {
+		return new \WP_Error( 'dinekit_order_404', __( 'Order not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	$computed = Ordering\recompute( (array) $request->get_param( 'items' ) );
+	if ( empty( $computed['items'] ) ) {
+		return new \WP_Error( 'dinekit_order_empty', __( 'Add at least one item.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	$existing = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
+	$existing = is_array( $existing ) ? $existing : array();
+	$merged   = array_merge( $existing, $computed['items'] );
+	$total    = 0.0;
+	foreach ( $merged as $li ) {
+		$total += (float) $li['lineTotal'];
+	}
+	update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $merged ) );
+	update_post_meta( $id, 'dinekit_order_total', number_format( $total, 2, '.', '' ) );
+	$n = count( $computed['items'] );
+	/* translators: %d: number of items added. */
+	Ordering\log_event( $id, sprintf( _n( 'Added %d item to the tab', 'Added %d items to the tab', $n, 'dinekit' ), $n ) );
 	return rest_ensure_response( order_response( $id ) );
 }
 

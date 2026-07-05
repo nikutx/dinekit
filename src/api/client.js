@@ -110,8 +110,10 @@ export const api = {
 	deleteCombo: ( id ) => request( 'DELETE', `bookings/combos/${ id }` ),
 
 	// Bookings — availability + diary.
-	getAvailability: ( { date, time, party } ) =>
-		request( 'GET', 'bookings/availability?' + new URLSearchParams( { date, time, party } ).toString() ),
+	getAvailability: ( { date, time, party, exclude } ) =>
+		request( 'GET', 'bookings/availability?' + new URLSearchParams(
+			exclude ? { date, time, party, exclude } : { date, time, party }
+		).toString() ),
 	listBookings: ( { from, to } = {} ) => {
 		const q = new URLSearchParams();
 		if ( from ) {
@@ -157,6 +159,9 @@ export const api = {
 	getOrders: ( archived ) => request( 'GET', 'orders' + ( archived ? '?archived=1' : '' ) ),
 	createOrder: ( data ) => request( 'POST', 'orders', data ),
 	updateOrder: ( id, data ) => request( 'PATCH', `orders/${ id }`, data ),
+	// POS (in-house order taking).
+	getPosMenu: ( menu ) => request( 'GET', 'pos/menu' + ( menu ? '?menu=' + menu : '' ) ),
+	addOrderLines: ( id, items ) => request( 'POST', `orders/${ id }/lines`, { items } ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),
 	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),

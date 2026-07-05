@@ -164,6 +164,8 @@ function can_manage() {
  */
 function statuses() {
 	return array(
+		'open'             => __( 'Open tab', 'dinekit' ),
+		'sent'             => __( 'Sent to kitchen', 'dinekit' ),
 		'new'              => __( 'New', 'dinekit' ),
 		'preparing'        => __( 'Preparing', 'dinekit' ),
 		'ready'            => __( 'Ready', 'dinekit' ),
@@ -220,6 +222,9 @@ function register() {
 		'dinekit_order_fulfilment' => 'string',  // collection | delivery.
 		'dinekit_order_address'    => 'string',  // Delivery address (when delivery).
 		'dinekit_order_fee'        => 'string',  // Delivery fee (decimal string).
+		'dinekit_order_channel'    => 'string',  // online | takeaway | dine_in | delivery (POS).
+		'dinekit_order_table_id'   => 'integer', // Dine-in table (POS); reuses dinekit_table.
+		'dinekit_order_covers'     => 'integer', // Dine-in party size (POS).
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -517,6 +522,11 @@ function recompute( $lines ) {
 			'chosen'     => $chosen,
 			'removed'    => $removed,
 			'station'    => 'bar' === get_post_meta( $item_id, 'dinekit_station', true ) ? 'bar' : 'kitchen',
+			// POS per-line metadata (no effect on price); carried through so tabs
+			// keep seat/course and which round has been fired to the kitchen.
+			'seat'       => isset( $line['seat'] ) ? (int) $line['seat'] : 0,
+			'course'     => isset( $line['course'] ) ? sanitize_text_field( (string) $line['course'] ) : '',
+			'fired'      => ! empty( $line['fired'] ),
 		);
 	}
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, CircularProgress, Alert } from '@mui/material';
+import { Box, CircularProgress, Alert } from './ui';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import PaletteIcon from '@mui/icons-material/Palette';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
@@ -13,6 +13,7 @@ import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import BadgeIcon from '@mui/icons-material/Badge';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard';
 import InsightsIcon from '@mui/icons-material/Insights';
 import { tokens } from './theme';
@@ -33,6 +34,7 @@ import GuestsView from './components/GuestsView';
 import ReviewsView from './components/ReviewsView';
 import StaffView from './components/StaffView';
 import OrdersView from './components/OrdersView';
+import POSView from './components/POSView';
 import EmailsView from './components/EmailsView';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import DashboardView from './components/DashboardView';
@@ -51,6 +53,7 @@ const NAV = [
 	{ key: 'bookings', label: 'Bookings', icon: <EventNoteIcon fontSize="small" /> },
 	{ key: 'floor', label: 'Floor Plan', icon: <GridViewIcon fontSize="small" /> },
 	{ key: 'orders', label: 'Orders', icon: <ReceiptLongIcon fontSize="small" /> },
+	{ key: 'pos', label: 'Take Order', icon: <PointOfSaleIcon fontSize="small" /> },
 	{ key: 'events', label: 'Events', icon: <CelebrationIcon fontSize="small" /> },
 	{ key: 'guests', label: 'Guests', icon: <PeopleAltIcon fontSize="small" /> },
 	{ key: 'reviews', label: 'Reviews', icon: <StarBorderIcon fontSize="small" /> },
@@ -76,7 +79,7 @@ const ORDERING_ONLY = [ 'orders' ];          // hidden for dine-in-only.
 const NAV_PERM = {
 	home: 'access', reports: 'access',
 	bookings: 'bookings', floor: 'bookings', guests: 'bookings',
-	orders: 'orders', events: 'events', reviews: 'settings', staff: 'staff',
+	orders: 'orders', pos: 'orders', events: 'events', reviews: 'settings', staff: 'staff',
 	builder: 'menu', design: 'menu', qr: 'menu', hours: 'menu',
 	integrations: 'settings', emails: 'settings', access: 'owner', activity: 'staff', settings: 'settings',
 };
@@ -181,6 +184,7 @@ export default function App() {
 							{ activeView === 'hours' && <HoursEditor /> }
 							{ activeView === 'qr' && <QRView /> }
 							{ activeView === 'orders' && <OrdersView /> }
+						{ activeView === 'pos' && <POSView /> }
 							{ activeView === 'bookings' && <BookingsView /> }
 							{ activeView === 'floor' && <FloorPlan /> }
 							{ activeView === 'events' && <EventsView /> }
