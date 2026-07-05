@@ -108,6 +108,9 @@ final class Plugin {
 		if ( $this->load( 'terminal.php' ) ) {
 			Terminal\init();
 		}
+		if ( $this->load( 'loyalty.php' ) ) {
+			Loyalty\init();
+		}
 		if ( $this->load( 'staff.php' ) ) {
 			Staff\init();
 		}

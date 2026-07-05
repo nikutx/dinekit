@@ -174,6 +174,9 @@ export const api = {
 	terminalReaders: () => request( 'GET', 'terminal/readers' ),
 	pairReader: ( readerId, readerName ) => request( 'POST', 'terminal/reader', { readerId, readerName } ),
 	terminalCharge: ( orderId, amount ) => request( 'POST', 'terminal/charge', { orderId, amount } ),
+	// POS loyalty.
+	searchMembers: ( q ) => request( 'GET', 'members?q=' + encodeURIComponent( q ) ),
+	createMember: ( data ) => request( 'POST', 'members', data ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),
 	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),

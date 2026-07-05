@@ -479,6 +479,8 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const [ emailed, setEmailed ] = useState( false );
 	const [ term, setTerm ] = useState( null ); // { paired, ready }
 	const [ readerMsg, setReaderMsg ] = useState( '' );
+	const [ memberQ, setMemberQ ] = useState( '' );
+	const [ memberResults, setMemberResults ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -562,6 +564,30 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 		} catch ( e ) {
 			setReaderMsg( ( e && e.message ) || 'Could not start the reader.' );
 		} finally { setBusy( false ); }
+	};
+
+	const findMembers = async () => {
+		if ( ! memberQ ) {
+			return;
+		}
+		setMemberResults( [] );
+		try { setMemberResults( await api.searchMembers( memberQ ) ); } catch ( e ) { setMemberResults( [] ); }
+	};
+	const attachMember = async ( m ) => {
+		setBusy( true );
+		try { onUpdate( await api.updateOrder( order.id, { action: 'member', memberId: m.id } ) ); setMemberResults( null ); setMemberQ( '' ); } finally { setBusy( false ); }
+	};
+	const newMember = async () => {
+		setBusy( true );
+		try { const m = await api.createMember( { name: memberQ, phone: /\d/.test( memberQ ) ? memberQ : '' } ); await attachMember( m ); } finally { setBusy( false ); }
+	};
+	const redeem = async () => {
+		const pts = Math.min( Number( order.memberPoints || 0 ), Math.floor( balance / 0.05 ) );
+		if ( pts <= 0 ) {
+			return;
+		}
+		setBusy( true );
+		try { onUpdate( await api.updateOrder( order.id, { action: 'redeem', points: pts } ) ); } finally { setBusy( false ); }
 	};
 
 	const emailReceipt = async () => {
@@ -655,6 +681,36 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 						<Chip key={ pct } label={ `Tip ${ pct }%` } onClick={ busy ? undefined : () => { const t = round2( food * pct / 100 ); setTipInput( String( t ) ); setCharges( { tip: t } ); } } sx={ { cursor: 'pointer', bgcolor: tokens.soft, color: tokens.ink2 } } />
 					) ) }
 				</Stack>
+
+				{ /* Loyalty member */ }
+				<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Loyalty</Typography>
+				{ order.memberId ? (
+					<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 2 } } flexWrap="wrap" useFlexGap>
+						<Chip label={ `${ order.memberName } · ${ order.memberPoints } pts` } sx={ { fontWeight: 600, bgcolor: tokens.accentSoft, color: tokens.accentDark } } />
+						{ order.memberPoints > 0 && balance > 0 && Number( order.redeem ) === 0 && (
+							<Button variant="outlined" disabled={ busy } onClick={ redeem }>
+								Redeem { Math.min( order.memberPoints, Math.floor( balance / 0.05 ) ) } pts (−{ money( Math.min( order.memberPoints, Math.floor( balance / 0.05 ) ) * 0.05 ) })
+							</Button>
+						) }
+						{ Number( order.redeem ) > 0 && <Typography sx={ { fontSize: 12.5, color: tokens.green } }>{ order.redeem } pts redeemed</Typography> }
+					</Stack>
+				) : (
+					<Box sx={ { mb: 2 } }>
+						<Stack direction="row" spacing={ 1 } flexWrap="wrap" useFlexGap>
+							<Box component="input" type="text" placeholder="Member name or phone…" value={ memberQ } onChange={ ( e ) => setMemberQ( e.target.value ) }
+								sx={ { flex: 1, minWidth: 160, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 13.5, boxShadow: 'none', outline: 'none' } } />
+							<Button variant="outlined" disabled={ busy || ! memberQ } onClick={ findMembers }>Find</Button>
+						</Stack>
+						{ memberResults && (
+							<Stack spacing={ 0.5 } sx={ { mt: 1 } }>
+								{ memberResults.map( ( m ) => (
+									<Button key={ m.id } variant="text" onClick={ () => attachMember( m ) } sx={ { justifyContent: 'flex-start' } }>{ m.name } { m.phone ? `· ${ m.phone }` : '' } · { m.points } pts</Button>
+								) ) }
+								<Button variant="text" disabled={ busy || ! memberQ } onClick={ newMember } sx={ { justifyContent: 'flex-start', color: tokens.accentDark } }>+ New member “{ memberQ }”</Button>
+							</Stack>
+						) }
+					</Box>
+				) }
 
 				{ /* Payment */ }
 				<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Take payment</Typography>

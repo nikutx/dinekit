@@ -205,34 +205,37 @@ function register() {
 	);
 
 	$meta = array(
-		'dinekit_order_number'     => 'integer',
-		'dinekit_order_items'      => 'string',  // JSON of recomputed lines.
-		'dinekit_order_total'      => 'string',  // Decimal string.
-		'dinekit_order_status'     => 'string',
-		'dinekit_order_name'       => 'string',
-		'dinekit_order_email'      => 'string',
-		'dinekit_order_phone'      => 'string',
-		'dinekit_order_notes'      => 'string',
-		'dinekit_order_when'       => 'string',  // 'asap' or H:i.
-		'dinekit_order_payment'    => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
-		'dinekit_order_source'     => 'string',
-		'dinekit_order_pi'         => 'string',  // Stripe PaymentIntent id.
-		'dinekit_order_archived'   => 'integer', // 1 = archived (never hard-deleted).
-		'dinekit_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
-		'dinekit_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
-		'dinekit_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
-		'dinekit_order_printed'    => 'string',  // ISO time the ticket was last printed.
-		'dinekit_order_fulfilment' => 'string',  // collection | delivery.
-		'dinekit_order_address'    => 'string',  // Delivery address (when delivery).
-		'dinekit_order_fee'        => 'string',  // Delivery fee (decimal string).
-		'dinekit_order_channel'    => 'string',  // online | takeaway | dine_in | delivery (POS).
-		'dinekit_order_table_id'   => 'integer', // Dine-in table (POS); reuses dinekit_table.
-		'dinekit_order_covers'     => 'integer', // Dine-in party size (POS).
-		'dinekit_order_tenders'    => 'string',  // JSON: [{type,amount,t}] payments taken (POS).
-		'dinekit_order_service'    => 'string',  // Service charge (decimal string).
-		'dinekit_order_tip'        => 'string',  // Tip (decimal string).
-		'dinekit_order_discount'   => 'string',  // Discount (decimal string).
-		'dinekit_order_pay_token'  => 'string',  // Public pay-by-QR token.
+		'dinekit_order_number'       => 'integer',
+		'dinekit_order_items'        => 'string',  // JSON of recomputed lines.
+		'dinekit_order_total'        => 'string',  // Decimal string.
+		'dinekit_order_status'       => 'string',
+		'dinekit_order_name'         => 'string',
+		'dinekit_order_email'        => 'string',
+		'dinekit_order_phone'        => 'string',
+		'dinekit_order_notes'        => 'string',
+		'dinekit_order_when'         => 'string',  // 'asap' or H:i.
+		'dinekit_order_payment'      => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
+		'dinekit_order_source'       => 'string',
+		'dinekit_order_pi'           => 'string',  // Stripe PaymentIntent id.
+		'dinekit_order_archived'     => 'integer', // 1 = archived (never hard-deleted).
+		'dinekit_order_history'      => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
+		'dinekit_order_refund_due'   => 'integer', // 1 = a refund is owed but failed automatically.
+		'dinekit_order_email_log'    => 'string',  // JSON: [{t,to,type,ok}] email sends.
+		'dinekit_order_printed'      => 'string',  // ISO time the ticket was last printed.
+		'dinekit_order_fulfilment'   => 'string',  // collection | delivery.
+		'dinekit_order_address'      => 'string',  // Delivery address (when delivery).
+		'dinekit_order_fee'          => 'string',  // Delivery fee (decimal string).
+		'dinekit_order_channel'      => 'string',  // online | takeaway | dine_in | delivery (POS).
+		'dinekit_order_table_id'     => 'integer', // Dine-in table (POS); reuses dinekit_table.
+		'dinekit_order_covers'       => 'integer', // Dine-in party size (POS).
+		'dinekit_order_tenders'      => 'string',  // JSON: [{type,amount,t}] payments taken (POS).
+		'dinekit_order_service'      => 'string',  // Service charge (decimal string).
+		'dinekit_order_tip'          => 'string',  // Tip (decimal string).
+		'dinekit_order_discount'     => 'string',  // Discount (decimal string).
+		'dinekit_order_pay_token'    => 'string',  // Public pay-by-QR token.
+		'dinekit_order_member'       => 'integer', // Loyalty member on the tab.
+		'dinekit_order_redeem'       => 'integer', // Points redeemed on this order.
+		'dinekit_order_loyalty_done' => 'integer', // 1 once points have been awarded.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -601,9 +604,9 @@ function add_tender( $order_id, $type, $amount, $via = '' ) {
 	if ( $amount <= 0 ) {
 		return;
 	}
-	$tenders   = json_decode( (string) get_post_meta( $order_id, 'dinekit_order_tenders', true ), true );
-	$tenders   = is_array( $tenders ) ? $tenders : array();
-	$tender    = array(
+	$tenders = json_decode( (string) get_post_meta( $order_id, 'dinekit_order_tenders', true ), true );
+	$tenders = is_array( $tenders ) ? $tenders : array();
+	$tender  = array(
 		'type'   => $type,
 		'amount' => $amount,
 		't'      => current_time( 'c' ),
@@ -624,5 +627,11 @@ function add_tender( $order_id, $type, $amount, $via = '' ) {
 		update_post_meta( $order_id, 'dinekit_order_payment', 'paid' );
 		update_post_meta( $order_id, 'dinekit_order_status', 'completed' );
 		log_event( $order_id, __( 'Tab settled & closed', 'dinekit' ) );
+		// Award loyalty points to any member on the tab.
+		$member = (int) get_post_meta( $order_id, 'dinekit_order_member', true );
+		if ( $member ) {
+			require_once DINEKIT_DIR . 'includes/loyalty.php';
+			\DineKit\Loyalty\award( $order_id, $member );
+		}
 	}
 }

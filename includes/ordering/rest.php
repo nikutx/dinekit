@@ -151,6 +151,7 @@ function order_response( $id ) {
 	$channel   = (string) get_post_meta( $id, 'dinekit_order_channel', true );
 	$table_id  = (int) get_post_meta( $id, 'dinekit_order_table_id', true );
 	$pay_token = (string) get_post_meta( $id, 'dinekit_order_pay_token', true );
+	$member_id = (int) get_post_meta( $id, 'dinekit_order_member', true );
 	$tenders   = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
 	$tenders   = is_array( $tenders ) ? $tenders : array();
 	$food      = (float) get_post_meta( $id, 'dinekit_order_total', true );
@@ -163,40 +164,44 @@ function order_response( $id ) {
 		$paid += (float) $t['amount'];
 	}
 	return array(
-		'id'         => (int) $id,
-		'number'     => (int) get_post_meta( $id, 'dinekit_order_number', true ),
-		'items'      => is_array( $items ) ? $items : array(),
-		'total'      => (string) get_post_meta( $id, 'dinekit_order_total', true ),
-		'status'     => (string) get_post_meta( $id, 'dinekit_order_status', true ),
-		'name'       => (string) get_post_meta( $id, 'dinekit_order_name', true ),
-		'email'      => (string) get_post_meta( $id, 'dinekit_order_email', true ),
-		'phone'      => (string) get_post_meta( $id, 'dinekit_order_phone', true ),
-		'notes'      => (string) get_post_meta( $id, 'dinekit_order_notes', true ),
-		'when'       => (string) get_post_meta( $id, 'dinekit_order_when', true ),
-		'payment'    => (string) get_post_meta( $id, 'dinekit_order_payment', true ),
-		'source'     => (string) get_post_meta( $id, 'dinekit_order_source', true ),
-		'fulfilment' => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
-		'address'    => (string) get_post_meta( $id, 'dinekit_order_address', true ),
-		'fee'        => (string) get_post_meta( $id, 'dinekit_order_fee', true ),
-		'channel'    => '' !== $channel ? $channel : 'online',
-		'tableId'    => $table_id,
-		'table'      => $table_id ? (string) get_the_title( $table_id ) : '',
-		'covers'     => (int) get_post_meta( $id, 'dinekit_order_covers', true ),
-		'tenders'    => $tenders,
-		'service'    => number_format( $service, 2, '.', '' ),
-		'tip'        => number_format( $tip, 2, '.', '' ),
-		'discount'   => number_format( $discount, 2, '.', '' ),
-		'grandTotal' => number_format( $grand, 2, '.', '' ),
-		'paid'       => number_format( $paid, 2, '.', '' ),
-		'balance'    => number_format( round( $grand - $paid, 2 ), 2, '.', '' ),
-		'payUrl'     => '' !== $pay_token ? add_query_arg( 'dinekit_pay', $pay_token, home_url( '/' ) ) : '',
-		'pi'         => (string) get_post_meta( $id, 'dinekit_order_pi', true ),
-		'archived'   => '1' === (string) get_post_meta( $id, 'dinekit_order_archived', true ),
-		'refundDue'  => '1' === (string) get_post_meta( $id, 'dinekit_order_refund_due', true ),
-		'printed'    => (string) get_post_meta( $id, 'dinekit_order_printed', true ),
-		'history'    => is_array( $history ) ? $history : array(),
-		'emailLog'   => is_array( $emaillog ) ? $emaillog : array(),
-		'placed'     => (string) get_post_time( 'c', false, $id ),
+		'id'           => (int) $id,
+		'number'       => (int) get_post_meta( $id, 'dinekit_order_number', true ),
+		'items'        => is_array( $items ) ? $items : array(),
+		'total'        => (string) get_post_meta( $id, 'dinekit_order_total', true ),
+		'status'       => (string) get_post_meta( $id, 'dinekit_order_status', true ),
+		'name'         => (string) get_post_meta( $id, 'dinekit_order_name', true ),
+		'email'        => (string) get_post_meta( $id, 'dinekit_order_email', true ),
+		'phone'        => (string) get_post_meta( $id, 'dinekit_order_phone', true ),
+		'notes'        => (string) get_post_meta( $id, 'dinekit_order_notes', true ),
+		'when'         => (string) get_post_meta( $id, 'dinekit_order_when', true ),
+		'payment'      => (string) get_post_meta( $id, 'dinekit_order_payment', true ),
+		'source'       => (string) get_post_meta( $id, 'dinekit_order_source', true ),
+		'fulfilment'   => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
+		'address'      => (string) get_post_meta( $id, 'dinekit_order_address', true ),
+		'fee'          => (string) get_post_meta( $id, 'dinekit_order_fee', true ),
+		'channel'      => '' !== $channel ? $channel : 'online',
+		'tableId'      => $table_id,
+		'table'        => $table_id ? (string) get_the_title( $table_id ) : '',
+		'covers'       => (int) get_post_meta( $id, 'dinekit_order_covers', true ),
+		'tenders'      => $tenders,
+		'service'      => number_format( $service, 2, '.', '' ),
+		'tip'          => number_format( $tip, 2, '.', '' ),
+		'discount'     => number_format( $discount, 2, '.', '' ),
+		'grandTotal'   => number_format( $grand, 2, '.', '' ),
+		'paid'         => number_format( $paid, 2, '.', '' ),
+		'balance'      => number_format( round( $grand - $paid, 2 ), 2, '.', '' ),
+		'payUrl'       => '' !== $pay_token ? add_query_arg( 'dinekit_pay', $pay_token, home_url( '/' ) ) : '',
+		'memberId'     => $member_id,
+		'memberName'   => $member_id ? (string) get_the_title( $member_id ) : '',
+		'memberPoints' => $member_id ? (int) get_post_meta( $member_id, 'dinekit_member_points', true ) : 0,
+		'redeem'       => (int) get_post_meta( $id, 'dinekit_order_redeem', true ),
+		'pi'           => (string) get_post_meta( $id, 'dinekit_order_pi', true ),
+		'archived'     => '1' === (string) get_post_meta( $id, 'dinekit_order_archived', true ),
+		'refundDue'    => '1' === (string) get_post_meta( $id, 'dinekit_order_refund_due', true ),
+		'printed'      => (string) get_post_meta( $id, 'dinekit_order_printed', true ),
+		'history'      => is_array( $history ) ? $history : array(),
+		'emailLog'     => is_array( $emaillog ) ? $emaillog : array(),
+		'placed'       => (string) get_post_time( 'c', false, $id ),
 	);
 }
 
@@ -445,6 +450,26 @@ function update_order( $request ) {
 		}
 		update_post_meta( $id, 'dinekit_order_status', 'open' );
 		Ordering\log_event( $id, __( 'Tab reopened', 'dinekit' ) );
+	} elseif ( 'member' === $action ) {
+		update_post_meta( $id, 'dinekit_order_member', (int) $request->get_param( 'memberId' ) );
+	} elseif ( 'redeem' === $action ) {
+		require_once DINEKIT_DIR . 'includes/loyalty.php';
+		$member = (int) get_post_meta( $id, 'dinekit_order_member', true );
+		if ( $member ) {
+			$have    = (int) get_post_meta( $member, 'dinekit_member_points', true );
+			$balance = Ordering\grand_total( $id );
+			foreach ( (array) json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true ) as $t ) {
+				$balance -= (float) $t['amount'];
+			}
+			$max_by_bal = (int) floor( max( 0, $balance ) / \DineKit\Loyalty\REDEEM_VALUE );
+			$pts        = min( (int) $request->get_param( 'points' ), $have, $max_by_bal );
+			if ( $pts > 0 ) {
+				update_post_meta( $id, 'dinekit_order_redeem', $pts );
+				update_post_meta( $id, 'dinekit_order_discount', number_format( $pts * \DineKit\Loyalty\REDEEM_VALUE, 2, '.', '' ) );
+				/* translators: %d: points redeemed. */
+				Ordering\log_event( $id, sprintf( __( 'Redeemed %d loyalty points', 'dinekit' ), $pts ) );
+			}
+		}
 	} elseif ( 'close' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'completed' );
 		Ordering\log_event( $id, __( 'Tab closed', 'dinekit' ) );
