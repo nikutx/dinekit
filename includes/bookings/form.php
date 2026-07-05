@@ -65,6 +65,7 @@ function render( $atts = array() ) {
 					'notAvailable'  => __( 'Not available then — try another time', 'dinekit' ),
 					'closedDay'     => __( 'Sorry, we’re closed that day.', 'dinekit' ),
 					'nextFree'      => __( 'Next free:', 'dinekit' ),
+					'bookAt'        => __( 'Choose', 'dinekit' ),
 					'waitlistOffer' => __( 'Fully booked — you can join the waitlist', 'dinekit' ),
 					'joinWaitlist'  => __( 'Join the waitlist', 'dinekit' ),
 					'waitlisted'    => __( 'You’re on the waitlist', 'dinekit' ),
@@ -174,7 +175,7 @@ function render( $atts = array() ) {
 			<button type="submit" class="dinekit-booking__submit">
 				<?php echo empty( $cfg['autoConfirm'] ) ? esc_html__( 'Request booking', 'dinekit' ) : esc_html__( 'Book now', 'dinekit' ); ?>
 			</button>
-			<p class="dinekit-booking__result" aria-live="polite"></p>
+			<p class="dinekit-booking__result" role="alert"></p>
 		</form>
 	</div>
 	<?php

@@ -16,10 +16,13 @@
 		return ( cfg.currency || '£' ) + ( pence / 100 ).toFixed( 2 );
 	}
 
-	// Replace the whole widget with a simple confirmation screen.
+	// Replace the whole widget with a simple confirmation screen. Announced to
+	// screen readers (role=status) and focused so keyboard users land on it.
 	function renderSuccess( root, title, message ) {
 		var wrap = document.createElement( 'div' );
 		wrap.className = 'dinekit-booking__success';
+		wrap.setAttribute( 'role', 'status' );
+		wrap.tabIndex = -1;
 		var h = document.createElement( 'p' );
 		h.className = 'dinekit-booking__success-title';
 		h.textContent = title;
@@ -29,6 +32,7 @@
 		wrap.appendChild( p );
 		root.innerHTML = '';
 		root.appendChild( wrap );
+		wrap.focus();
 	}
 
 	// Native Stripe deposit step (Payment Element, on-site). Started only when the
@@ -40,6 +44,15 @@
 		var h = document.createElement( 'p' );
 		h.className = 'dinekit-booking__success-title';
 		h.textContent = t.payTitle || t.payButton || 'Pay deposit';
+		var skel = document.createElement( 'div' );
+		skel.className = 'dinekit-booking__pay-skel';
+		skel.setAttribute( 'aria-hidden', 'true' );
+		for ( var s = 0; s < 3; s++ ) {
+			var line = document.createElement( 'div' );
+			line.className = 'dinekit-booking__skel-line';
+			skel.appendChild( line );
+		}
+		var removeSkel = function () { if ( skel.parentNode ) { skel.parentNode.removeChild( skel ); } };
 		var host = document.createElement( 'div' );
 		host.className = 'dinekit-booking__pay-element';
 		var err = document.createElement( 'p' );
@@ -50,12 +63,16 @@
 		btn.className = 'dinekit-booking__submit';
 		btn.textContent = t.payButton || 'Pay deposit';
 		btn.disabled = true;
+		wrap.setAttribute( 'role', 'status' );
+		wrap.tabIndex = -1;
 		wrap.appendChild( h );
+		wrap.appendChild( skel );
 		wrap.appendChild( host );
 		wrap.appendChild( err );
 		wrap.appendChild( btn );
 		root.innerHTML = '';
 		root.appendChild( wrap );
+		wrap.focus();
 
 		var stripe = window.Stripe( cfg.publishableKey );
 		fetch( cfg.restUrl + 'payments/intent', {
@@ -66,6 +83,7 @@
 			.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
 			.then( function ( res ) {
 				if ( ! res.ok || ! res.d || ! res.d.clientSecret ) {
+					removeSkel();
 					err.textContent = ( res.d && res.d.message ) ? res.d.message : ( t.payError || '' );
 					return;
 				}
@@ -73,7 +91,9 @@
 					btn.textContent = ( t.payButton || 'Pay' ) + ' · ' + money( cfg, res.d.amount );
 				}
 				var elements = stripe.elements( { clientSecret: res.d.clientSecret } );
-				elements.create( 'payment' ).mount( host );
+				var paymentEl = elements.create( 'payment' );
+				paymentEl.on( 'ready', removeSkel );
+				paymentEl.mount( host );
 				btn.disabled = false;
 				btn.addEventListener( 'click', function () {
 					btn.disabled = true;
@@ -94,7 +114,7 @@
 					} );
 				} );
 			} )
-			.catch( function () { err.textContent = t.networkError || ''; } );
+			.catch( function () { removeSkel(); err.textContent = t.networkError || ''; } );
 	}
 
 	function setup( root ) {
@@ -180,6 +200,7 @@
 				b.type = 'button';
 				b.className = 'dinekit-booking__suggest';
 				b.textContent = s;
+				b.setAttribute( 'aria-label', ( t.bookAt || 'Choose' ) + ' ' + s );
 				b.addEventListener( 'click', function () { timeEl.value = s; check(); } );
 				wrap.appendChild( b );
 			} );

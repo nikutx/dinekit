@@ -335,3 +335,62 @@
 	color: #b91c1c;
 	font-size: 14px;
 }
+
+/* ============================================================
+ * Motion, skeleton & focus (opt-out via prefers-reduced-motion)
+ * ============================================================ */
+@keyframes dinekit-booking-in {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+.dinekit-booking__success,
+.dinekit-booking__pay {
+	animation: dinekit-booking-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+	outline: none;
+}
+.dinekit-booking__submit,
+.dinekit-booking__suggest {
+	transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+.dinekit-booking__submit:not(:disabled):active,
+.dinekit-booking__suggest:active {
+	transform: scale(0.98);
+}
+
+/* Stripe.js deposit loading skeleton (shimmer). */
+.dinekit-booking__pay-skel {
+	margin: 14px 0;
+	display: grid;
+	gap: 10px;
+}
+.dinekit-booking__skel-line {
+	height: 42px;
+	border-radius: 10px;
+	background: linear-gradient( 100deg, var(--dkb-soft) 30%, var(--dkb-border) 50%, var(--dkb-soft) 70% );
+	background-size: 200% 100%;
+	animation: dinekit-booking-shimmer 1.2s ease-in-out infinite;
+}
+.dinekit-booking__skel-line:last-child { width: 55%; }
+@keyframes dinekit-booking-shimmer {
+	from { background-position: 200% 0; }
+	to   { background-position: -200% 0; }
+}
+
+/* Visible keyboard focus ring. */
+.dinekit-booking :focus-visible {
+	outline: 2px solid var(--dkb-accent);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dinekit-booking__success,
+	.dinekit-booking__pay,
+	.dinekit-booking__skel-line {
+		animation: none;
+	}
+	.dinekit-booking__submit:not(:disabled):active,
+	.dinekit-booking__suggest:active {
+		transform: none;
+	}
+}
