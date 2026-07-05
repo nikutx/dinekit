@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Typography, Chip, CircularProgress } from '@mui/material';
+import { Box, Stack, Typography, Chip, CircularProgress } from '../ui';
 import HistoryIcon from '@mui/icons-material/History';
 import { tokens } from '../theme';
 import { api } from '../api/client';

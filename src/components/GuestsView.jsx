@@ -11,7 +11,7 @@ import {
 	Button,
 	IconButton,
 	Snackbar,
-} from '@mui/material';
+} from '../ui';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';

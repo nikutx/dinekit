@@ -14,7 +14,7 @@ import {
 	ToggleButton,
 	ToggleButtonGroup,
 	CircularProgress,
-} from '@mui/material';
+} from '../ui';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';

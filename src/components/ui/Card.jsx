@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box } from '../../ui';
 import { tokens } from '../../theme';
 
 // Surface card v2 — the standard container. `hover` lifts on mouse-over

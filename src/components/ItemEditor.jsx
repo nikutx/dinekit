@@ -14,7 +14,7 @@ import {
 	Tooltip,
 	ToggleButton,
 	ToggleButtonGroup,
-} from '@mui/material';
+} from '../ui';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ImageIcon from '@mui/icons-material/Image';

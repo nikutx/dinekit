@@ -74,11 +74,11 @@ function enqueue( $hook ) {
 		if ( is_readable( $js ) ) {
 			// The Vite bundle is self-contained (its own React) — no wp-element
 			// dependency, which avoids loading a second React on the page.
-			wp_enqueue_script( 'dinekit-app', DINEKIT_URL . 'dist/main.js', array(), DINEKIT_VERSION, true );
+			wp_enqueue_script( 'dinekit-app', DINEKIT_URL . 'dist/main.js', array(), (string) filemtime( $js ), true );
 		}
 		$css = DINEKIT_DIR . 'dist/main.css';
 		if ( is_readable( $css ) ) {
-			wp_enqueue_style( 'dinekit-app', DINEKIT_URL . 'dist/main.css', array(), DINEKIT_VERSION );
+			wp_enqueue_style( 'dinekit-app', DINEKIT_URL . 'dist/main.css', array(), (string) filemtime( $css ) );
 		}
 	}
 

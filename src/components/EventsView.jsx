@@ -12,7 +12,7 @@ import {
 	Divider,
 	Switch,
 	Snackbar,
-} from '@mui/material';
+} from '../ui';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CelebrationIcon from '@mui/icons-material/Celebration';

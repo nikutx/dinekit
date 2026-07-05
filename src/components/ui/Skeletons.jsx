@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Skeleton } from '@mui/material';
+import { Box, Stack, Skeleton } from '../../ui';
 import { tokens } from '../../theme';
 
 // Loading skeletons v2 — pages sketch their own shape while data loads

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '../../ui';
 import { tokens } from '../../theme';
 
 // Small building blocks for detail drawers (orders, bookings): a labelled

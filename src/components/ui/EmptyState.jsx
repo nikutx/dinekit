@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography } from '../../ui';
 import { tokens } from '../../theme';
 
 // Empty state v2 — a warm, teaching moment: gradient icon disc, confident

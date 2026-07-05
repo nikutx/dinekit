@@ -10,7 +10,7 @@ import {
 	Button,
 	TextField,
 	CircularProgress,
-} from '@mui/material';
+} from '../ui';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';
 import { api } from '../api/client';

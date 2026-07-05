@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, IconButton, InputBase, Button, Typography } from '@mui/material';
+import { Box, Stack, IconButton, InputBase, Button, Typography } from '../ui';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import { tokens } from '../theme';

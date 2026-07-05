@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box } from '../../ui';
 import { CONTENT_WIDTH } from '../../theme';
 
 // The single content column — every page uses this so widths never vary.

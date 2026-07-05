@@ -8,7 +8,7 @@ import {
 	Button,
 	CircularProgress,
 	Alert,
-} from '@mui/material';
+} from '../ui';
 import PrintIcon from '@mui/icons-material/Print';
 import DownloadIcon from '@mui/icons-material/Download';
 import { tokens } from '../theme';

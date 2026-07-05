@@ -7,7 +7,7 @@ import {
 	ToggleButtonGroup,
 	ToggleButton,
 	CircularProgress,
-} from '@mui/material';
+} from '../ui';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { useToast } from './Toast';

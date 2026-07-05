@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Checkbox, CircularProgress } from '@mui/material';
+import { Box, Typography, Checkbox, CircularProgress } from '../ui';
 import LockIcon from '@mui/icons-material/Lock';
 import { tokens } from '../theme';
 import { api } from '../api/client';

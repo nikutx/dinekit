@@ -12,7 +12,7 @@ import {
 	CircularProgress,
 	Divider,
 	Link,
-} from '@mui/material';
+} from '../ui';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';

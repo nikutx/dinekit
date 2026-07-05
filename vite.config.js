@@ -10,6 +10,15 @@ export default defineConfig( {
 	plugins: [ react() ],
 	base: './',
 
+	// De-MUI: @mui/icons-material icons call createSvgIcon from '@mui/material/utils'.
+	// Alias that single module to our own shim so the 83 icon imports keep working
+	// without pulling @mui/material + emotion into the bundle.
+	resolve: {
+		alias: [
+			{ find: /^@mui\/material\/utils$/, replacement: path.resolve( __dirname, 'src/ui/muiShim.jsx' ) },
+		],
+	},
+
 	server: {
 		host: DEV_HOST,
 		port: DEV_PORT,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Stack, Typography, Button, IconButton } from '@mui/material';
+import { Box, Stack, Typography, Button, IconButton } from '../ui';
 import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { tokens } from '../theme';

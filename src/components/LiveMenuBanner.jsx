@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stack, Typography, Button } from '@mui/material';
+import { Stack, Typography, Button } from '../ui';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';

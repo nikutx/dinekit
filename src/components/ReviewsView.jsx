@@ -9,7 +9,7 @@ import {
 	Chip,
 	CircularProgress,
 	Alert,
-} from '@mui/material';
+} from '../ui';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { tokens } from '../theme';
 import { api } from '../api/client';

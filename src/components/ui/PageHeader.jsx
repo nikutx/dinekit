@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '../../ui';
 import { tokens } from '../../theme';
 
 // The identical page header on every screen: title + one-line subtitle on the

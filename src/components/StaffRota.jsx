@@ -10,7 +10,7 @@ import {
 	Drawer,
 	Chip,
 	CircularProgress,
-} from '@mui/material';
+} from '../ui';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddIcon from '@mui/icons-material/Add';

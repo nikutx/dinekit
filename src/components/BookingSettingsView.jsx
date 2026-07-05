@@ -13,7 +13,7 @@ import {
 	Slider,
 	ToggleButton,
 	ToggleButtonGroup,
-} from '@mui/material';
+} from '../ui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';

@@ -1,0 +1,39 @@
+// DineKit's own admin component library — drop-in replacements for the slice of
+// MUI the app uses, backed by scoped .dk-* CSS + a tiny sx resolver (no emotion).
+// Import from here exactly as before: `import { Box, Stack, Typography } from '../ui';`
+export { default as Box } from './Box';
+export { default as Stack } from './Stack';
+export { default as Typography } from './Typography';
+export { default as Button } from './Button';
+export { default as IconButton } from './IconButton';
+export { default as Chip } from './Chip';
+export { default as Alert } from './Alert';
+export { default as Divider } from './Divider';
+export { default as Avatar } from './Avatar';
+export { default as Skeleton } from './Skeleton';
+export { default as CircularProgress } from './CircularProgress';
+export { default as LinearProgress } from './LinearProgress';
+export { default as Link } from './Link';
+export { default as CssBaseline } from './CssBaseline';
+export { default as ListItemIcon } from './ListItemIcon';
+export { default as InputAdornment } from './InputAdornment';
+export { default as TextField } from './TextField';
+export { default as InputBase } from './InputBase';
+export { default as Checkbox } from './Checkbox';
+export { default as Switch } from './Switch';
+export { default as ToggleButton } from './ToggleButton';
+export { default as ToggleButtonGroup } from './ToggleButtonGroup';
+export { default as Slider } from './Slider';
+export { default as FormControlLabel } from './FormControlLabel';
+export { default as MenuItem } from './MenuItem';
+export { default as Collapse } from './Collapse';
+export { default as Snackbar } from './Snackbar';
+export { default as Tooltip } from './Tooltip';
+export { default as Menu } from './Menu';
+export { default as Select } from './Select';
+export { default as Drawer } from './Drawer';
+export { default as Modal } from './Modal';
+export { default as Slide } from './Slide';
+export { default as ThemeProvider } from './ThemeProvider';
+export { default as Portal } from './Portal';
+export { sxResolve, cx, BP } from './sx';

@@ -1,0 +1,1093 @@
+/*
+ * DineKit admin — our own component styles, replacing MUI/emotion. Everything is
+ * scoped under #dinekit-root so nothing leaks into wp-admin. Per-instance `sx`
+ * still wins because the sx resolver injects its rules after this sheet.
+ * Values mirror src/theme.js `tokens` (kept in sync by hand; small + stable).
+ */
+
+#dinekit-root {
+	font-family: "InterVariable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	color: #18181b;
+}
+
+/* Typography — variant styles from theme.typography ---------------------- */
+.dk-typo {
+	margin: 0;
+	font-family: inherit;
+}
+.dk-typo--h5 {
+	font-size: 23px;
+	font-weight: 650;
+	letter-spacing: -0.022em;
+	line-height: 1.2;
+	color: #18181b;
+}
+.dk-typo--h6 {
+	font-size: 17px;
+	font-weight: 600;
+	letter-spacing: -0.014em;
+	line-height: 1.25;
+	color: #18181b;
+}
+.dk-typo--subtitle1 {
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.008em;
+}
+.dk-typo--subtitle2 {
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: -0.006em;
+}
+.dk-typo--body1 {
+	font-size: 14px;
+	line-height: 1.55;
+}
+.dk-typo--body2 {
+	font-size: 13px;
+	line-height: 1.5;
+}
+.dk-typo--caption {
+	font-size: 12px;
+	line-height: 1.4;
+}
+.dk-typo--overline {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+.dk-typo--button {
+	text-transform: none;
+	font-weight: 550;
+}
+
+/* Button — from theme.MuiButton ----------------------------------------- */
+.dk-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	min-height: 36px;
+	padding: 6px 16px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 550;
+	letter-spacing: -0.006em;
+	line-height: 1.4;
+	text-transform: none;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	color: #4f46e5;
+}
+.dk-btn--sm {
+	min-height: 32px;
+	padding: 4px 12px;
+	font-size: 13px;
+}
+.dk-btn--full {
+	width: 100%;
+}
+.dk-btn__icon {
+	display: inline-flex;
+	align-items: center;
+}
+.dk-btn__icon svg,
+.dk-btn__icon--start svg,
+.dk-btn__icon--end svg {
+	font-size: 18px;
+}
+.dk-btn__label {
+	display: inline-flex;
+	align-items: center;
+}
+/* Contained — glassy indigo, matches theme.MuiButton.contained. */
+.dk-btn--contained {
+	color: #fff;
+	background: linear-gradient(180deg, #5a52ea 0%, #4f46e5 100%);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2.5px rgba(79,70,229,.36);
+}
+.dk-btn--contained:hover {
+	background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 1px 2px rgba(79,70,229,.30);
+}
+.dk-btn--contained.dk-btn--error {
+	background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2.5px rgba(225,29,72,.36);
+}
+.dk-btn--contained.dk-btn--error:hover {
+	background: linear-gradient(180deg, #e11d48 0%, #be123c 100%);
+}
+/* Outlined. */
+.dk-btn--outlined {
+	border-color: #d9d9e0;
+	background: #fff;
+	color: #3f3f46;
+}
+.dk-btn--outlined:hover {
+	border-color: #a1a1aa;
+	background: #f4f4f5;
+}
+.dk-btn--outlined.dk-btn--error {
+	border-color: #f5b5c1;
+	color: #e11d48;
+}
+.dk-btn--outlined.dk-btn--error:hover {
+	border-color: #e11d48;
+	background: #fff1f2;
+}
+/* Text. */
+.dk-btn--text:hover {
+	background: #eef2ff;
+}
+.dk-btn--text.dk-btn--error {
+	color: #e11d48;
+}
+.dk-btn--text.dk-btn--error:hover {
+	background: #fff1f2;
+}
+.dk-btn--inherit {
+	color: inherit;
+}
+.dk-btn:disabled,
+.dk-btn--disabled {
+	opacity: 0.5;
+	pointer-events: none;
+	box-shadow: none;
+}
+.dk-btn:focus-visible {
+	outline: 2px solid #4f46e5;
+	outline-offset: 2px;
+}
+
+/* IconButton ------------------------------------------------------------ */
+.dk-iconbtn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	line-height: 0;
+	transition: background .15s ease, color .15s ease;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.dk-iconbtn:hover {
+	background: rgba(24,24,27,.06);
+}
+.dk-iconbtn--sm {
+	padding: 5px;
+}
+.dk-iconbtn--edge-start {
+	margin-left: -8px;
+}
+.dk-iconbtn--edge-end {
+	margin-right: -8px;
+}
+.dk-iconbtn:disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}
+.dk-iconbtn:focus-visible {
+	outline: 2px solid #4f46e5;
+	outline-offset: 2px;
+}
+
+/* Chip — from theme.MuiChip --------------------------------------------- */
+.dk-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	height: 32px;
+	padding: 0 12px;
+	border-radius: 6px;
+	background: #f4f4f5;
+	color: #3f3f46;
+	font-size: 13px;
+	font-weight: 550;
+	line-height: 1;
+	white-space: nowrap;
+}
+.dk-chip--sm {
+	height: 24px;
+	padding: 0 8px;
+	font-size: 12px;
+}
+.dk-chip--clickable {
+	cursor: pointer;
+}
+.dk-chip__icon {
+	display: inline-flex;
+	align-items: center;
+	margin-left: -2px;
+}
+.dk-chip__icon svg {
+	font-size: 16px;
+}
+.dk-chip__delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 -4px 0 0;
+	padding: 0;
+	width: 16px;
+	height: 16px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(24,24,27,.16);
+	color: inherit;
+	font-size: 10px;
+	cursor: pointer;
+}
+.dk-chip__delete:hover {
+	background: rgba(24,24,27,.3);
+}
+
+/* Alert ----------------------------------------------------------------- */
+.dk-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 14px;
+	border-radius: 10px;
+	font-size: 13.5px;
+	line-height: 1.45;
+}
+.dk-alert__icon {
+	flex-shrink: 0;
+	font-size: 15px;
+	line-height: 1.4;
+}
+.dk-alert__msg {
+	flex: 1;
+	min-width: 0;
+}
+.dk-alert__close {
+	flex-shrink: 0;
+	border: none;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.6;
+	font-size: 12px;
+}
+.dk-alert__close:hover {
+	opacity: 1;
+}
+.dk-alert--error {
+	background: #fff1f2;
+	color: #9f1239;
+}
+.dk-alert--warning {
+	background: #fffbeb;
+	color: #92400e;
+}
+.dk-alert--info {
+	background: #eef2ff;
+	color: #3730a3;
+}
+.dk-alert--success {
+	background: #ecfdf5;
+	color: #065f46;
+}
+
+/* Divider --------------------------------------------------------------- */
+.dk-divider {
+	border: none;
+	border-top: 1px solid #e8e8ec;
+	margin: 0;
+	height: 0;
+	width: 100%;
+	flex-shrink: 0;
+}
+.dk-divider--vertical {
+	border-top: none;
+	border-left: 1px solid #e8e8ec;
+	height: auto;
+	width: 0;
+	align-self: stretch;
+}
+.dk-divider--flex {
+	align-self: stretch;
+}
+
+/* Avatar ---------------------------------------------------------------- */
+.dk-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 40px;
+	height: 40px;
+	overflow: hidden;
+	background: #f4f4f5;
+	color: #3f3f46;
+	font-weight: 600;
+	line-height: 1;
+	user-select: none;
+	flex-shrink: 0;
+}
+.dk-avatar--circular {
+	border-radius: 50%;
+}
+.dk-avatar--rounded {
+	border-radius: 8px;
+}
+.dk-avatar--square {
+	border-radius: 0;
+}
+.dk-avatar__img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Skeleton -------------------------------------------------------------- */
+.dk-skel {
+	display: block;
+	background: #ececef;
+}
+.dk-skel--text {
+	border-radius: 4px;
+	height: 1em;
+	transform: scale(1, 0.72);
+	transform-origin: 0 55%;
+}
+.dk-skel--rectangular {
+	border-radius: 0;
+}
+.dk-skel--rounded {
+	border-radius: 8px;
+}
+.dk-skel--circular {
+	border-radius: 50%;
+}
+.dk-skel--pulse {
+	animation: dk-skel-pulse 1.5s ease-in-out 0.5s infinite;
+}
+@keyframes dk-skel-pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.4; }
+	100% { opacity: 1; }
+}
+
+/* CircularProgress ------------------------------------------------------ */
+.dk-spin {
+	display: inline-block;
+	line-height: 0;
+}
+.dk-spin--indeterminate .dk-spin__svg {
+	animation: dk-spin-rotate 1.4s linear infinite;
+}
+.dk-spin__svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.dk-spin--indeterminate .dk-spin__circle {
+	stroke-dasharray: 80px, 200px;
+	stroke-dashoffset: 0;
+	stroke-linecap: round;
+	animation: dk-spin-dash 1.4s ease-in-out infinite;
+}
+@keyframes dk-spin-rotate {
+	100% { transform: rotate(360deg); }
+}
+@keyframes dk-spin-dash {
+	0% { stroke-dasharray: 1px, 200px; stroke-dashoffset: 0; }
+	50% { stroke-dasharray: 100px, 200px; stroke-dashoffset: -15px; }
+	100% { stroke-dasharray: 100px, 200px; stroke-dashoffset: -125px; }
+}
+.dk-spin--determinate .dk-spin__svg {
+	transform: rotate(-90deg);
+}
+.dk-spin--determinate .dk-spin__circle {
+	stroke-linecap: round;
+	transition: stroke-dashoffset .3s ease;
+}
+
+/* LinearProgress — from theme.MuiLinearProgress ------------------------- */
+.dk-linear {
+	display: block;
+	position: relative;
+	overflow: hidden;
+	height: 4px;
+	border-radius: 999px;
+	background: #f4f4f5;
+}
+.dk-linear__bar {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: #4f46e5;
+	transition: width .3s ease;
+}
+.dk-linear__bar--indeterminate {
+	position: absolute;
+	width: 40%;
+	animation: dk-linear-move 1.6s ease-in-out infinite;
+}
+@keyframes dk-linear-move {
+	0% { left: -40%; }
+	100% { left: 100%; }
+}
+
+/* Link ------------------------------------------------------------------ */
+.dk-link {
+	color: #4f46e5;
+	cursor: pointer;
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+}
+.dk-link--hover {
+	text-decoration: none;
+}
+.dk-link--hover:hover {
+	text-decoration: underline;
+}
+.dk-link--always {
+	text-decoration: underline;
+}
+.dk-link--none {
+	text-decoration: none;
+}
+
+/* ListItemIcon / InputAdornment ----------------------------------------- */
+.dk-listicon {
+	display: inline-flex;
+	align-items: center;
+	min-width: 32px;
+	color: #71717a;
+}
+.dk-adorn {
+	display: inline-flex;
+	align-items: center;
+	color: #71717a;
+	white-space: nowrap;
+}
+.dk-adorn--start {
+	margin-right: 6px;
+}
+.dk-adorn--end {
+	margin-left: 6px;
+}
+
+/* Neutralise wp-admin's global form-control styling INSIDE our SPA. wp-admin's
+   `input[type=text]` etc. rules are more specific than our classes and would
+   otherwise draw a second border + inset shadow inside our field wrapper (the
+   "input within input" look). The #dinekit-root id gives us the higher
+   specificity to win cleanly. Scoped to our own control classes so native
+   checkbox/switch/slider inputs keep their appearance. */
+#dinekit-root .dk-field__input,
+#dinekit-root .dk-inputbase {
+	border: none;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	outline: none;
+	min-height: 0;
+	color: inherit;
+}
+#dinekit-root .dk-field__input:focus,
+#dinekit-root .dk-inputbase:focus {
+	border: none;
+	box-shadow: none;
+	outline: none;
+}
+
+/* TextField — clean label-above field (deliberately not MUI's floating label) */
+.dk-field {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 6px;
+	vertical-align: top;
+}
+.dk-field--full {
+	display: flex;
+	width: 100%;
+}
+.dk-field__label {
+	font-size: 12.5px;
+	font-weight: 550;
+	letter-spacing: -0.004em;
+	line-height: 1.2;
+	color: #3f3f46;
+}
+.dk-field--error .dk-field__label {
+	color: #e11d48;
+}
+.dk-field--disabled .dk-field__label {
+	opacity: 0.6;
+}
+.dk-field__wrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	box-sizing: border-box;
+	min-height: 42px;
+	padding: 0 13px;
+	border: 1px solid #d9d9e0;
+	border-radius: 9px;
+	background: #fff;
+	cursor: text;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+.dk-field--select .dk-field__wrap {
+	cursor: pointer;
+}
+.dk-field--sm .dk-field__wrap {
+	min-height: 40px;
+}
+.dk-field--multiline .dk-field__wrap {
+	align-items: stretch;
+	padding: 5px 13px;
+}
+.dk-field__wrap:hover {
+	border-color: #a1a1aa;
+}
+.dk-field.is-focused .dk-field__wrap {
+	border-color: #4f46e5;
+	box-shadow: 0 0 0 3px rgba(79,70,229,.14);
+}
+.dk-field--error .dk-field__wrap {
+	border-color: #e11d48;
+}
+.dk-field--error.is-focused .dk-field__wrap {
+	box-shadow: 0 0 0 3px rgba(225,29,72,.14);
+}
+.dk-field--disabled .dk-field__wrap {
+	background: #f4f4f5;
+	opacity: 0.7;
+}
+.dk-field--bare .dk-field__wrap {
+	border-color: transparent;
+	background: transparent;
+	padding: 0;
+	min-height: 0;
+}
+.dk-field__input {
+	flex: 1;
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-family: inherit;
+	font-size: 14px;
+	color: #18181b;
+	padding: 9px 0;
+}
+.dk-field--multiline .dk-field__input {
+	resize: vertical;
+	line-height: 1.5;
+	padding: 6px 0;
+}
+select.dk-field__input {
+	cursor: pointer;
+	appearance: auto;
+}
+.dk-field__input::placeholder {
+	color: #a1a1aa;
+}
+/* Date/time fields: give the native calendar/clock picker icon breathing room so
+   it never overlaps the digits (e.g. the year in 05/06/2026). */
+.dk-field__input[type="date"],
+.dk-field__input[type="time"],
+.dk-field__input[type="datetime-local"] {
+	padding-right: 2px;
+}
+.dk-field__input::-webkit-calendar-picker-indicator {
+	margin-left: 8px;
+	opacity: 0.55;
+	cursor: pointer;
+}
+.dk-field__input::-webkit-calendar-picker-indicator:hover {
+	opacity: 0.9;
+}
+.dk-field__helper {
+	margin: 0 2px;
+	font-size: 11.5px;
+	line-height: 1.35;
+	color: #a1a1aa;
+}
+.dk-field--error .dk-field__helper {
+	color: #e11d48;
+}
+
+/* InputBase — bare input ------------------------------------------------- */
+.dk-inputbase {
+	border: none;
+	outline: none;
+	background: transparent;
+	font-family: inherit;
+	font-size: 14px;
+	color: #18181b;
+	padding: 0;
+	width: auto;
+}
+.dk-inputbase--full {
+	width: 100%;
+}
+.dk-inputbase::placeholder {
+	color: #a1a1aa;
+}
+
+/* Checkbox --------------------------------------------------------------- */
+.dk-checkbox {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: #4f46e5;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+.dk-checkbox--sm {
+	width: 16px;
+	height: 16px;
+}
+.dk-checkbox:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+/* Switch — from theme.MuiSwitch ----------------------------------------- */
+.dk-switch {
+	position: relative;
+	display: inline-flex;
+	width: 40px;
+	height: 24px;
+	flex-shrink: 0;
+	vertical-align: middle;
+}
+.dk-switch__input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+	z-index: 1;
+}
+.dk-switch__track {
+	position: absolute;
+	inset: 0;
+	border-radius: 999px;
+	background: #d9d9e0;
+	transition: background .2s ease;
+}
+.dk-switch__thumb {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(24,24,27,.2);
+	transition: transform .2s ease;
+}
+.dk-switch__input:checked ~ .dk-switch__track {
+	background: #4f46e5;
+}
+.dk-switch__input:checked ~ .dk-switch__thumb {
+	transform: translateX(16px);
+}
+.dk-switch__input:focus-visible ~ .dk-switch__track {
+	box-shadow: 0 0 0 3px rgba(79,70,229,.25);
+}
+.dk-switch--sm {
+	width: 34px;
+	height: 20px;
+}
+.dk-switch--sm .dk-switch__thumb {
+	width: 14px;
+	height: 14px;
+}
+.dk-switch--sm .dk-switch__input:checked ~ .dk-switch__thumb {
+	transform: translateX(14px);
+}
+.dk-switch--disabled {
+	opacity: 0.5;
+}
+
+/* ToggleButtonGroup / ToggleButton — from theme ------------------------- */
+.dk-toggrp {
+	display: inline-flex;
+	gap: 2px;
+	padding: 3px;
+	border-radius: 9px;
+	background: #f4f4f5;
+}
+.dk-toggrp--vertical {
+	flex-direction: column;
+}
+.dk-toggrp--full {
+	display: flex;
+	width: 100%;
+}
+.dk-toggrp--full .dk-tog {
+	flex: 1;
+}
+.dk-tog {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	border: none;
+	border-radius: 7px;
+	padding: 4px 12px;
+	background: transparent;
+	color: #71717a;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 550;
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.dk-tog:hover {
+	background: rgba(24,24,27,.04);
+}
+.dk-tog.is-selected {
+	background: #fff;
+	color: #18181b;
+	box-shadow: 0 1px 2px rgba(24,24,27,.05);
+}
+.dk-tog:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+.dk-tog:focus-visible {
+	outline: 2px solid #4f46e5;
+	outline-offset: 1px;
+}
+
+/* Slider ---------------------------------------------------------------- */
+.dk-slider {
+	width: 100%;
+	accent-color: #4f46e5;
+	cursor: pointer;
+}
+
+/* FormControlLabel ------------------------------------------------------ */
+.dk-fcl {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	cursor: pointer;
+	user-select: none;
+}
+.dk-fcl--start {
+	flex-direction: row-reverse;
+}
+.dk-fcl--top {
+	flex-direction: column-reverse;
+	align-items: flex-start;
+}
+.dk-fcl--bottom {
+	flex-direction: column;
+	align-items: flex-start;
+}
+.dk-fcl__label {
+	font-size: 14px;
+	color: #3f3f46;
+}
+.dk-fcl--disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* MenuItem (popover context) — from theme.MuiMenu ---------------------- */
+.dk-menuitem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	font-size: 14px;
+	color: #18181b;
+	list-style: none;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.dk-menuitem--dense {
+	padding: 5px 14px;
+	font-size: 13px;
+}
+.dk-menuitem:hover {
+	background: #f4f4f5;
+}
+.dk-menuitem.is-selected {
+	background: #eef2ff;
+	color: #4338ca;
+}
+.dk-menuitem.is-disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Collapse -------------------------------------------------------------- */
+.dk-collapse {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows .25s ease;
+}
+.dk-collapse--in {
+	grid-template-rows: 1fr;
+}
+.dk-collapse__inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+/* Snackbar -------------------------------------------------------------- */
+.dk-snackbar {
+	position: fixed;
+	z-index: 100002;
+	max-width: min(560px, calc(100vw - 48px));
+}
+.dk-snackbar--v-bottom {
+	bottom: 24px;
+}
+.dk-snackbar--v-top {
+	top: 46px;
+}
+.dk-snackbar--h-left {
+	left: 24px;
+}
+.dk-snackbar--h-right {
+	right: 24px;
+}
+.dk-snackbar--h-center {
+	left: 50%;
+	transform: translateX(-50%);
+}
+.dk-snackbar__content {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	border-radius: 10px;
+	background: #18181b;
+	color: #fff;
+	font-size: 13.5px;
+	box-shadow: 0 12px 32px rgba(24,24,27,.24);
+}
+
+/* Portal widgets — Tooltip, Menu, Select, Drawer, Slide ----------------- */
+/* These render at document.body, OUTSIDE #dinekit-root, so they are styled by
+   their own .dk-* classes (not the root's inheritance) and carry a z-index
+   above the WP admin bar. */
+
+/* Tooltip — from theme.MuiTooltip */
+.dk-tooltip {
+	z-index: 100003;
+	max-width: 300px;
+	padding: 6px 10px;
+	border-radius: 8px;
+	background: #18181b;
+	color: #fff;
+	font-family: "InterVariable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.4;
+	pointer-events: none;
+	box-shadow: 0 4px 14px rgba(24,24,27,.18);
+}
+
+/* Menu / Select popover paper — from theme.MuiMenu */
+.dk-menu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 100001;
+}
+.dk-menu__paper {
+	z-index: 100002;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	min-width: 160px;
+	max-height: 60vh;
+	overflow-y: auto;
+	border: 1px solid #e8e8ec;
+	border-radius: 12px;
+	background: #fff;
+	box-shadow: 0 12px 32px rgba(24,24,27,.12), 0 2px 8px rgba(24,24,27,.06);
+	font-family: "InterVariable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.dk-menu__paper .dk-menuitem {
+	border-radius: 8px;
+}
+
+/* Select trigger button */
+.dk-select {
+	display: inline-flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	box-sizing: border-box;
+	min-height: 42px;
+	padding: 8px 10px 8px 13px;
+	border: 1px solid #d9d9e0;
+	border-radius: 9px;
+	background: #fff;
+	color: #18181b;
+	font-family: inherit;
+	font-size: 14px;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+.dk-select--sm {
+	min-height: 40px;
+	padding: 7px 8px 7px 12px;
+	font-size: 13.5px;
+}
+.dk-select--full {
+	width: 100%;
+}
+.dk-select:hover {
+	border-color: #a1a1aa;
+}
+.dk-select:focus-visible {
+	outline: none;
+	border-color: #4f46e5;
+	box-shadow: 0 0 0 3px rgba(79,70,229,.14);
+}
+.dk-select__value {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.dk-select__arrow {
+	flex-shrink: 0;
+	color: #71717a;
+}
+.dk-select__list {
+	min-width: 0;
+}
+
+/* Drawer — from theme.MuiDrawer */
+.dk-drawer {
+	position: fixed;
+	inset: 0;
+}
+.dk-drawer__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(24,24,27,.42);
+	animation: dk-fade-in .2s ease;
+}
+.dk-drawer__paper {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	width: 460px;
+	max-width: 100%;
+	overflow-y: auto;
+	background: #fff;
+	box-shadow: 0 12px 32px rgba(24,24,27,.12), 0 2px 8px rgba(24,24,27,.06);
+	outline: none;
+}
+.dk-drawer__paper--right {
+	right: 0;
+	animation: dk-slide-in-right .24s ease;
+}
+.dk-drawer__paper--left {
+	left: 0;
+	animation: dk-slide-in-left .24s ease;
+}
+@keyframes dk-fade-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+@keyframes dk-slide-in-right {
+	from { transform: translateX(100%); }
+	to { transform: translateX(0); }
+}
+@keyframes dk-slide-in-left {
+	from { transform: translateX(-100%); }
+	to { transform: translateX(0); }
+}
+
+/* Modal — centered dialog popup */
+.dk-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100005;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 7vh 16px 16px;
+	overflow-y: auto;
+}
+.dk-modal__backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(24,24,27,.45);
+	animation: dk-fade-in .2s ease;
+}
+.dk-modal__panel {
+	position: relative;
+	width: 100%;
+	max-width: 560px;
+	background: #fff;
+	border-radius: 16px;
+	box-shadow: 0 24px 60px rgba(24,24,27,.28);
+	animation: dk-modal-in .2s ease;
+}
+@keyframes dk-modal-in {
+	from { opacity: 0; transform: translateY(10px) scale(.98); }
+	to { opacity: 1; transform: none; }
+}
+
+/* Slide (toast entry) */
+.dk-slide--left {
+	animation: dk-slide-left .25s ease;
+}
+.dk-slide--right {
+	animation: dk-slide-right .25s ease;
+}
+.dk-slide--up {
+	animation: dk-slide-up .25s ease;
+}
+@keyframes dk-slide-left {
+	from { transform: translateX(24px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+@keyframes dk-slide-right {
+	from { transform: translateX(-24px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+@keyframes dk-slide-up {
+	from { transform: translateY(24px); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
+}
+
+/* Icons (shim) */
+.dk-icon {
+	display: inline-block;
+	flex-shrink: 0;
+	user-select: none;
+	vertical-align: middle;
+}

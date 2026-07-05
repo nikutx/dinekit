@@ -10,7 +10,7 @@ import {
 	Divider,
 	Switch,
 	Tooltip,
-} from '@mui/material';
+} from '../ui';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';

@@ -8,7 +8,7 @@ import {
 	Button,
 	ToggleButton,
 	ToggleButtonGroup,
-} from '@mui/material';
+} from '../ui';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { tokens } from '../theme';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography, Chip, Avatar, IconButton, Tooltip } from '@mui/material';
+import { Box, Stack, Typography, Chip, Avatar, IconButton, Tooltip } from '../ui';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';

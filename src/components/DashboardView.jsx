@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Stack, Typography, Button, Chip, LinearProgress, IconButton, CircularProgress } from '@mui/material';
+import { Box, Stack, Typography, Button, Chip, LinearProgress, IconButton, CircularProgress } from '../ui';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PaymentsIcon from '@mui/icons-material/Payments';

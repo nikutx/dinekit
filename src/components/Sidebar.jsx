@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Stack, Chip, Tooltip, IconButton } from '@mui/material';
+import { Box, Typography, Stack, Chip, Tooltip, IconButton } from '../ui';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
