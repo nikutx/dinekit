@@ -827,15 +827,17 @@ function can_duplicate_menu_cb() {
 }
 
 /**
- * Duplicating a section clones item posts that inherit the source's status
- * (possibly published), so require term management plus the capability to create
- * AND publish items.
+ * Duplicating a section clones the source section's item posts, so the user must
+ * be able to EDIT those source items (edit_others_posts — the menu is a shared,
+ * restaurant-wide dataset) as well as create + publish the clones. Term
+ * management alone is not enough.
  *
  * @return bool
  */
 function can_duplicate_section_cb() {
 	$caps = item_caps();
 	return current_user_can( 'manage_categories' )
+		&& current_user_can( $caps->edit_others_posts )
 		&& current_user_can( $caps->create_posts )
 		&& current_user_can( $caps->publish_posts );
 }
