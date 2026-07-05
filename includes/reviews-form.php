@@ -92,7 +92,7 @@ function render( $token ) {
 					<label><?php esc_html_e( 'Leave empty', 'dinekit' ); ?><input type="text" name="hp" tabindex="-1" autocomplete="off"></label>
 				</div>
 				<button type="submit" class="dinekit-booking__submit"><?php esc_html_e( 'Send feedback', 'dinekit' ); ?></button>
-				<p class="dinekit-booking__result" aria-live="polite"></p>
+				<p class="dinekit-booking__result" role="alert"></p>
 			</form>
 			<?php echo $links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_* above. ?>
 		<?php endif; ?>

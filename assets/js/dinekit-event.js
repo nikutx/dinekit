@@ -73,6 +73,8 @@
 					if ( res.ok && res.d && res.d.ok ) {
 						var wrap = document.createElement( 'div' );
 						wrap.className = 'dinekit-booking__success';
+						wrap.setAttribute( 'role', 'status' );
+						wrap.tabIndex = -1;
 						var h = document.createElement( 'p' );
 						h.className = 'dinekit-booking__success-title';
 						h.textContent = t.submitted;
@@ -82,6 +84,7 @@
 						wrap.appendChild( p );
 						root.innerHTML = '';
 						root.appendChild( wrap );
+						wrap.focus();
 					} else {
 						resultEl.textContent = ( res.d && res.d.message ) ? res.d.message : t.genericError;
 						resultEl.classList.add( 'is-no' );

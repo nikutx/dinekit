@@ -128,12 +128,22 @@ function render( $token, $group = '' ) {
 				<?php endforeach; ?>
 
 				<?php
-				$allergens = get_terms( array( 'taxonomy' => 'dinekit_allergen', 'hide_empty' => false ) );
-				$dietary   = get_terms( array( 'taxonomy' => 'dinekit_dietary', 'hide_empty' => false ) );
+				$allergens = get_terms(
+					array(
+						'taxonomy'   => 'dinekit_allergen',
+						'hide_empty' => false,
+					)
+				);
+				$dietary   = get_terms(
+					array(
+						'taxonomy'   => 'dinekit_dietary',
+						'hide_empty' => false,
+					)
+				);
 				?>
 				<?php if ( is_array( $allergens ) && $allergens ) : ?>
-					<div class="dinekit-event__group">
-						<span class="dinekit-event__group-label"><?php esc_html_e( 'Any allergies? Tick what you must avoid:', 'dinekit' ); ?></span>
+					<div class="dinekit-event__group" role="group" aria-labelledby="dinekit-ev-allergens-lbl">
+						<span class="dinekit-event__group-label" id="dinekit-ev-allergens-lbl"><?php esc_html_e( 'Any allergies? Tick what you must avoid:', 'dinekit' ); ?></span>
 						<div class="dinekit-event__chips">
 							<?php foreach ( $allergens as $term ) : ?>
 								<label class="dinekit-event__chip">
@@ -145,8 +155,8 @@ function render( $token, $group = '' ) {
 					</div>
 				<?php endif; ?>
 				<?php if ( is_array( $dietary ) && $dietary ) : ?>
-					<div class="dinekit-event__group">
-						<span class="dinekit-event__group-label"><?php esc_html_e( 'Dietary preferences:', 'dinekit' ); ?></span>
+					<div class="dinekit-event__group" role="group" aria-labelledby="dinekit-ev-dietary-lbl">
+						<span class="dinekit-event__group-label" id="dinekit-ev-dietary-lbl"><?php esc_html_e( 'Dietary preferences:', 'dinekit' ); ?></span>
 						<div class="dinekit-event__chips">
 							<?php foreach ( $dietary as $term ) : ?>
 								<label class="dinekit-event__chip">
@@ -168,7 +178,7 @@ function render( $token, $group = '' ) {
 				</div>
 
 				<button type="submit" class="dinekit-booking__submit"><?php esc_html_e( 'Submit my choices', 'dinekit' ); ?></button>
-				<p class="dinekit-booking__result" aria-live="polite"></p>
+				<p class="dinekit-booking__result" role="alert"></p>
 			</form>
 		<?php endif; ?>
 	</div>

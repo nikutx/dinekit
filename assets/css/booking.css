@@ -155,6 +155,12 @@
 .dinekit-feedback__star.is-on {
 	color: #f59e0b;
 }
+/* The rating radios are visually hidden, so surface keyboard focus on the star. */
+.dinekit-feedback__star:focus-within {
+	outline: 2px solid var(--dkb-accent);
+	outline-offset: 3px;
+	border-radius: 4px;
+}
 .dinekit-feedback__public {
 	margin-top: 18px;
 	padding-top: 16px;
