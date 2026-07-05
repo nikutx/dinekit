@@ -150,9 +150,23 @@ export default function StaffRota( { staff, roles } ) {
 											<Box
 												key={ sh.id }
 												onClick={ ( e ) => { e.stopPropagation(); openEdit( sh ); } }
-												sx={ { bgcolor: m.color, color: '#fff', borderRadius: '6px', px: 0.75, py: 0.4, mb: 0.4, cursor: 'pointer', fontSize: 11, fontWeight: 700, lineHeight: 1.2 } }
+												title={ sh.onLeave ? 'Clash — this shift is on the member’s approved holiday' : undefined }
+												sx={ {
+													bgcolor: m.color,
+													color: '#fff',
+													borderRadius: '6px',
+													px: 0.75,
+													py: 0.4,
+													mb: 0.4,
+													cursor: 'pointer',
+													fontSize: 11,
+													fontWeight: 700,
+													lineHeight: 1.2,
+													...( sh.onLeave ? { outline: `2px solid ${ tokens.amber }`, outlineOffset: '1px' } : {} ),
+												} }
 											>
 												{ sh.start }–{ sh.end }
+												{ sh.onLeave && <Box component="span" sx={ { display: 'block', fontSize: 10, fontWeight: 700 } }>⚠ on holiday</Box> }
 											</Box>
 										) ) }
 										{ cs.length === 0 && (

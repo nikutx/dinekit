@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Stack, Typography, TextField, CircularProgress } from '@mui/material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import Card from './ui/Card';
@@ -67,6 +68,23 @@ export default function StaffDashboard() {
 					<Box sx={ { mb: 2, p: 2, borderRadius: '12px', bgcolor: `${ statusTint }14`, border: `1px solid ${ statusTint }33` } }>
 						<Typography sx={ { fontWeight: 700, fontSize: 15, color: statusTint } }>{ summary }</Typography>
 					</Box>
+
+					{ ops.clashCount > 0 && (
+						<Box sx={ { mb: 2, p: 2, borderRadius: '12px', bgcolor: `${ tokens.amber }14`, border: `1px solid ${ tokens.amber }55` } }>
+							<Typography sx={ { fontWeight: 750, fontSize: 14, color: tokens.amber, mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 } }>
+								<WarningAmberIcon sx={ { fontSize: 18 } } />
+								{ ops.clashCount } potential holiday { ops.clashCount === 1 ? 'clash' : 'clashes' } — needs attention
+							</Typography>
+							<Stack spacing={ 0.5 }>
+								{ ops.clashes.map( ( c, i ) => (
+									<Typography key={ i } sx={ { fontSize: 13, color: tokens.ink2, lineHeight: 1.45 } }>
+										<strong>{ c.name }</strong> ({ c.role }) is on the rota { c.start }–{ c.end } but on approved holiday
+										{ c.from !== c.to ? ` (${ c.from } → ${ c.to })` : '' }. Left as-is you’ll pay both the holiday and the shift — remove the shift, or move the holiday.
+									</Typography>
+								) ) }
+							</Stack>
+						</Box>
+					) }
 
 					<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 } }>
 						<Tile label="Covers booked" value={ ops.covers } sub={ `of ~${ ops.theoretical } seats-capacity` } />

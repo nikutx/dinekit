@@ -356,16 +356,20 @@ function shift_response( $id ) {
 	}
 	$hours = round( $mins / 60, 2 );
 	$rate  = (float) get_post_meta( $staff_id, 'dk_rate', true );
+	$date  = (string) get_post_meta( $id, 'dk_shift_date', true );
 	return array(
 		'id'      => (int) $id,
 		'staffId' => $staff_id,
-		'date'    => (string) get_post_meta( $id, 'dk_shift_date', true ),
+		'date'    => $date,
 		'start'   => $start,
 		'end'     => $end,
 		'role'    => (string) get_post_meta( $id, 'dk_shift_role', true ),
 		'note'    => (string) get_post_meta( $id, 'dk_shift_note', true ),
 		'hours'   => $hours,
 		'cost'    => round( $hours * $rate, 2 ),
+		// True when this shift falls on the member's approved holiday — the rota
+		// badges it so the clash is visible where it's created.
+		'onLeave' => \DineKit\Staff\staff_on_leave( $staff_id, $date ),
 	);
 }
 

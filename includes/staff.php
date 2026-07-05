@@ -117,6 +117,87 @@ function area_for_role( $role ) {
 }
 
 /**
+ * Human label for a role key (falls back to the key itself).
+ *
+ * @param string $role Role key.
+ * @return string
+ */
+function role_label( $role ) {
+	foreach ( roles() as $r ) {
+		if ( $r['key'] === $role ) {
+			return $r['label'];
+		}
+	}
+	return $role;
+}
+
+/**
+ * Staff who are on APPROVED leave on a given date, keyed by staff id. Pending or
+ * denied requests don't count — only approved leave makes someone unavailable.
+ * Cached per date for the request so callers (rota list, ops) don't re-query.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int,array{from:string,to:string}>
+ */
+function on_leave( $date ) {
+	static $cache = array();
+	if ( isset( $cache[ $date ] ) ) {
+		return $cache[ $date ];
+	}
+	$rows = get_posts(
+		array(
+			'post_type'      => 'dk_leave',
+			'post_status'    => 'publish',
+			'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- leave active on a single day.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'relation' => 'AND',
+				array(
+					'key'   => 'dk_leave_status',
+					'value' => 'approved',
+				),
+				array(
+					'key'     => 'dk_leave_from',
+					'value'   => $date,
+					'compare' => '<=',
+					'type'    => 'DATE',
+				),
+				array(
+					'key'     => 'dk_leave_to',
+					'value'   => $date,
+					'compare' => '>=',
+					'type'    => 'DATE',
+				),
+			),
+		)
+	);
+	$map  = array();
+	foreach ( $rows as $lid ) {
+		$sid = (int) get_post_meta( $lid, 'dk_leave_staff', true );
+		if ( $sid ) {
+			$map[ $sid ] = array(
+				'from' => (string) get_post_meta( $lid, 'dk_leave_from', true ),
+				'to'   => (string) get_post_meta( $lid, 'dk_leave_to', true ),
+			);
+		}
+	}
+	$cache[ $date ] = $map;
+	return $map;
+}
+
+/**
+ * Whether a staff member has approved leave covering a date.
+ *
+ * @param int    $staff_id Staff post id.
+ * @param string $date     Y-m-d.
+ * @return bool
+ */
+function staff_on_leave( $staff_id, $date ) {
+	return isset( on_leave( $date )[ (int) $staff_id ] );
+}
+
+/**
  * Register the staff/shift/leave post types + meta.
  *
  * @return void
@@ -293,6 +374,8 @@ function ops( $date ) {
 	$staff_on    = 0;
 	$servers_on  = 0;
 	$labour_cost = 0.0;
+	$leave       = on_leave( $date ); // Approved leave today, keyed by staff id.
+	$clashes     = array();           // Shifts scheduled on someone's approved holiday.
 	$shifts      = get_posts(
 		array(
 			'post_type'      => 'dk_shift',
@@ -310,14 +393,32 @@ function ops( $date ) {
 		if ( 'boh' !== area_for_role( $role ) ) {
 			++$servers_on;
 		}
-		$start = \DineKit\Bookings\Availability\to_minutes( (string) get_post_meta( $sid, 'dk_shift_start', true ) );
-		$end   = \DineKit\Bookings\Availability\to_minutes( (string) get_post_meta( $sid, 'dk_shift_end', true ) );
-		$mins  = $end - $start;
+		$start_hm = (string) get_post_meta( $sid, 'dk_shift_start', true );
+		$end_hm   = (string) get_post_meta( $sid, 'dk_shift_end', true );
+		$start    = \DineKit\Bookings\Availability\to_minutes( $start_hm );
+		$end      = \DineKit\Bookings\Availability\to_minutes( $end_hm );
+		$mins     = $end - $start;
 		if ( $mins <= 0 ) {
 			$mins += 1440;
 		}
 		$staff_id     = (int) get_post_meta( $sid, 'dk_shift_staff', true );
 		$labour_cost += ( $mins / 60 ) * (float) get_post_meta( $staff_id, 'dk_rate', true );
+
+		// Clash: this shift falls on the member's approved holiday. They still
+		// count above (if the manager leaves it, both the holiday and the shift
+		// are paid) — but we surface it so it isn't a silent double-booking.
+		if ( isset( $leave[ $staff_id ] ) ) {
+			$clashes[] = array(
+				'shiftId' => (int) $sid,
+				'staffId' => $staff_id,
+				'name'    => get_the_title( $staff_id ) ? get_the_title( $staff_id ) : __( 'A team member', 'dinekit' ),
+				'role'    => role_label( $role ),
+				'start'   => $start_hm,
+				'end'     => $end_hm,
+				'from'    => $leave[ $staff_id ]['from'],
+				'to'      => $leave[ $staff_id ]['to'],
+			);
+		}
 	}
 	$over_under = $required > 0 ? (int) round( ( $servers_on - $required ) / $required * 100 ) : 0;
 
@@ -335,5 +436,7 @@ function ops( $date ) {
 		'staffOn'         => $staff_on,
 		'overUnderPct'    => $over_under,
 		'labourCost'      => round( $labour_cost, 2 ),
+		'clashes'         => $clashes,
+		'clashCount'      => count( $clashes ),
 	);
 }
