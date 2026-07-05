@@ -225,13 +225,19 @@ const theme = createTheme( {
 				bar: { borderRadius: 999 },
 			},
 		},
+		// Our drawers/modals are raised to zIndex 100000 so they clear the WP
+		// admin bar; menus & popovers must sit ABOVE them (default is 1300), or a
+		// Select opened inside a drawer renders behind it and its backdrop
+		// silently swallows every click — looking like a frozen form.
 		MuiMenu: {
 			styleOverrides: {
+				root: { zIndex: 100001 },
 				paper: { borderRadius: 12, border: `1px solid ${ tokens.border }`, boxShadow: tokens.shadow },
 			},
 		},
 		MuiPopover: {
 			styleOverrides: {
+				root: { zIndex: 100001 },
 				paper: { borderRadius: 12, boxShadow: tokens.shadow },
 			},
 		},
