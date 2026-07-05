@@ -396,7 +396,14 @@ function update_order( $request ) {
 	} elseif ( 'tender' === $action ) {
 		$ttype = sanitize_key( (string) $request->get_param( 'tenderType' ) );
 		$ttype = in_array( $ttype, array( 'cash', 'card', 'voucher', 'comp', 'account' ), true ) ? $ttype : 'cash';
-		$amt   = round( (float) $request->get_param( 'amount' ), 2 );
+		// Comping (writing off) a bill is a manager action — gate it like refunds.
+		if ( 'comp' === $ttype ) {
+			require_once DINEKIT_DIR . 'includes/access.php';
+			if ( ! \DineKit\Access\can( 'refunds' ) ) {
+				return new \WP_Error( 'dinekit_no_comp', __( 'You do not have permission to comp a bill.', 'dinekit' ), array( 'status' => 403 ) );
+			}
+		}
+		$amt = round( (float) $request->get_param( 'amount' ), 2 );
 		if ( $amt > 0 ) {
 			$tenders   = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
 			$tenders   = is_array( $tenders ) ? $tenders : array();

@@ -409,7 +409,10 @@ const round2 = ( n ) => Math.round( n * 100 ) / 100;
 function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) {
 	const [ cash, setCash ] = useState( '' );
 	const [ tipInput, setTipInput ] = useState( order.tip && Number( order.tip ) ? String( order.tip ) : '' );
+	const [ shares, setShares ] = useState( 1 );
+	const [ sharesPaid, setSharesPaid ] = useState( 0 );
 	const [ busy, setBusy ] = useState( false );
+	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
 	useEffect( () => { if ( 'completed' === order.status ) { onSettled(); } }, [ order.status ] );
 
@@ -418,14 +421,16 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const grand = Number( order.grandTotal );
 	const balance = Number( order.balance );
 	const cashN = Number( cash || 0 );
-	const change = cashN > balance ? round2( cashN - balance ) : 0;
+	// The amount the current tender settles: an even share while splitting, else
+	// the whole remaining balance.
+	const charge = round2( Math.min( shares > 1 ? balance / Math.max( 1, shares - sharesPaid ) : balance, balance ) );
+	const change = cashN > charge ? round2( cashN - charge ) : 0;
 
 	const setCharges = async ( patch ) => {
 		setBusy( true );
 		try { onUpdate( await api.updateOrder( order.id, { action: 'set_charges', ...patch } ) ); } finally { setBusy( false ); }
 	};
 	const toggleService = () => setCharges( { service: svcApplied ? 0 : round2( food * 0.125 ) } );
-	const applyTip = () => setCharges( { tip: Math.max( 0, Number( tipInput || 0 ) ) } );
 
 	const tender = async ( type, amount ) => {
 		if ( amount <= 0 ) {
@@ -436,14 +441,18 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 			const updated = await api.updateOrder( order.id, { action: 'tender', tenderType: type, amount } );
 			onUpdate( updated );
 			if ( 'completed' === updated.status ) {
-				printReceipt( updated, type === 'cash' ? change : 0 );
+				printReceipt( updated, 'cash' === type ? change : 0 );
 				onSettled();
 			} else {
 				setCash( '' );
+				if ( shares > 1 ) {
+					setSharesPaid( ( p ) => p + 1 );
+				}
 			}
 		} finally { setBusy( false ); }
 	};
-	const takeCash = () => tender( 'cash', cashN >= balance ? balance : cashN );
+	// Empty cash box = exact amount; a smaller amount = a partial payment.
+	const takeCash = () => tender( 'cash', cashN > 0 && cashN < charge ? round2( cashN ) : charge );
 
 	const printReceipt = ( o, changeGiven ) => {
 		const rows = ( o.items || [] ).map( ( l ) =>
@@ -500,16 +509,23 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 
 				{ /* Payment */ }
 				<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Take payment</Typography>
+				<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
+					<Typography sx={ { fontSize: 13, color: tokens.muted } }>Split evenly</Typography>
+					<IconButton size="small" disabled={ shares <= 1 } onClick={ () => setShares( ( s ) => Math.max( 1, s - 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><RemoveIcon fontSize="small" /></IconButton>
+					<Typography sx={ { fontWeight: 700, width: 20, textAlign: 'center' } }>{ shares }</Typography>
+					<IconButton size="small" onClick={ () => setShares( ( s ) => Math.min( 12, s + 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><AddIcon fontSize="small" /></IconButton>
+					<Typography sx={ { fontSize: 13, color: tokens.muted } }>{ shares > 1 ? `${ sharesPaid }/${ shares } paid · ${ money( charge ) }/share` : 'whole bill' }</Typography>
+				</Stack>
 				<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
-					<Box component="input" type="number" inputMode="decimal" placeholder="Cash received" value={ cash } onChange={ ( e ) => setCash( e.target.value ) }
-						sx={ { width: 150, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
-					<Button variant="contained" disabled={ busy || cashN <= 0 } onClick={ takeCash }>Take cash</Button>
+					<Box component="input" type="number" inputMode="decimal" placeholder={ shares > 1 ? `Cash for ${ money( charge ) }` : 'Cash received' } value={ cash } onChange={ ( e ) => setCash( e.target.value ) }
+						sx={ { width: 160, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
+					<Button variant="contained" disabled={ busy || balance <= 0 } onClick={ takeCash }>Take cash</Button>
 					{ change > 0 && <Typography sx={ { fontWeight: 700, color: tokens.green } }>Change { money( change ) }</Typography> }
 				</Stack>
 				<Stack direction="row" spacing={ 1 } flexWrap="wrap" useFlexGap>
-					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'card', balance ) }>Card · { money( balance ) }</Button>
-					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'voucher', balance ) }>Voucher</Button>
-					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'comp', balance ) }>Comp</Button>
+					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'card', charge ) }>Card · { money( charge ) }</Button>
+					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'voucher', charge ) }>Voucher</Button>
+					<Button variant="outlined" disabled={ busy || balance <= 0 || ! caps.refunds } onClick={ () => tender( 'comp', balance ) }>Comp</Button>
 					<Box sx={ { flex: 1 } } />
 					<Button variant="text" onClick={ () => printReceipt( order, 0 ) }>Print receipt</Button>
 				</Stack>
