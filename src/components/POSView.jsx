@@ -477,10 +477,13 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const [ sel, setSel ] = useState( [] ); // currently selected line indexes (by-item)
 	const [ emailTo, setEmailTo ] = useState( '' );
 	const [ emailed, setEmailed ] = useState( false );
+	const [ term, setTerm ] = useState( null ); // { paired, ready }
+	const [ readerMsg, setReaderMsg ] = useState( '' );
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
 	useEffect( () => { if ( 'completed' === order.status ) { onSettled(); } }, [ order.status ] );
+	useEffect( () => { api.getTerminal().then( setTerm ).catch( () => setTerm( { paired: false } ) ); }, [] );
 
 	const food = Number( order.total );
 	const svcApplied = Number( order.service ) > 0;
@@ -526,6 +529,40 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	};
 	// Empty cash box = exact amount; a smaller amount = a partial payment.
 	const takeCash = () => tender( 'cash', cashN > 0 && cashN < charge ? round2( cashN ) : charge );
+
+	// Card reader (Stripe Terminal): charge the reader, then poll the tab until
+	// the webhook records the card tender.
+	const payReader = async () => {
+		setBusy( true );
+		setReaderMsg( 'Follow the prompt on the reader…' );
+		try {
+			await api.terminalCharge( order.id, charge );
+			let tries = 0;
+			const iv = setInterval( async () => {
+				tries++;
+				try {
+					const os = await api.getOrders();
+					const o = ( os || [] ).find( ( x ) => x.id === order.id );
+					if ( o ) {
+						onUpdate( o );
+						if ( 'completed' === o.status || Number( o.balance ) <= 0 ) {
+							clearInterval( iv );
+							setReaderMsg( '' );
+							if ( 'completed' === o.status ) {
+								onSettled();
+							}
+						}
+					}
+				} catch ( e ) { /* keep polling */ }
+				if ( tries > 25 ) {
+					clearInterval( iv );
+					setReaderMsg( '' );
+				}
+			}, 3000 );
+		} catch ( e ) {
+			setReaderMsg( ( e && e.message ) || 'Could not start the reader.' );
+		} finally { setBusy( false ); }
+	};
 
 	const emailReceipt = async () => {
 		if ( ! emailTo ) {
@@ -668,9 +705,13 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'voucher', charge ) }>Voucher</Button>
 					<Button variant="outlined" disabled={ busy || balance <= 0 || ! caps.refunds } onClick={ () => tender( 'comp', balance ) }>Comp</Button>
 					<Button variant="outlined" startIcon={ <QrCode2Icon /> } disabled={ busy || balance <= 0 } onClick={ showQr }>Pay by QR</Button>
+					{ term && term.paired && term.ready && (
+						<Button variant="outlined" startIcon={ <PointOfSaleIcon /> } disabled={ busy || balance <= 0 } onClick={ payReader }>Card reader · { money( charge ) }</Button>
+					) }
 					<Box sx={ { flex: 1 } } />
 					<Button variant="text" onClick={ () => printReceipt( order, 0 ) }>Print receipt</Button>
 				</Stack>
+				{ readerMsg && <Typography sx={ { mt: 1, fontSize: 13, color: tokens.accentDark, fontWeight: 600 } }>{ readerMsg }</Typography> }
 				<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mt: 1 } } flexWrap="wrap" useFlexGap>
 					<Box component="input" type="email" placeholder="Email receipt to…" value={ emailTo } onChange={ ( e ) => setEmailTo( e.target.value ) }
 						sx={ { width: 200, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 13.5, boxShadow: 'none', outline: 'none' } } />
@@ -702,10 +743,15 @@ function CashSheet( { money, onClose } ) {
 	const [ reason, setReason ] = useState( '' );
 	const [ counted, setCounted ] = useState( '' );
 	const [ z, setZ ] = useState( null ); // final Z report after close
+	const [ term, setTerm ] = useState( null ); // card reader status
+	const [ readers, setReaders ] = useState( null ); // reader list when pairing
 	const [ busy, setBusy ] = useState( false );
 
 	const load = () => api.getCash().then( setRep ).catch( () => setRep( { open: false } ) );
-	useEffect( () => { load(); }, [] );
+	useEffect( () => { load(); api.getTerminal().then( setTerm ).catch( () => setTerm( { paired: false } ) ); }, [] );
+
+	const loadReaders = () => { setReaders( [] ); api.terminalReaders().then( setReaders ).catch( () => setReaders( [] ) ); };
+	const pair = async ( r ) => { setBusy( true ); try { setTerm( await api.pairReader( r ? r.id : '', r ? r.label : '' ) ); setReaders( null ); } finally { setBusy( false ); } };
 
 	const open = async () => { setBusy( true ); try { setRep( await api.openCash( Number( floatIn || 0 ) ) ); } finally { setBusy( false ); } };
 	const move = async ( type ) => {
@@ -778,6 +824,32 @@ function CashSheet( { money, onClose } ) {
 								sx={ { flex: 1, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
 							<Button variant="contained" disabled={ busy } onClick={ close }>Close drawer</Button>
 						</Stack>
+					</Box>
+				) }
+
+				{ /* Card reader (Stripe Terminal) pairing */ }
+				{ ! z && (
+					<Box sx={ { mt: 2.5, pt: 2, borderTop: `1px solid ${ tokens.border }` } }>
+						<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Card reader</Typography>
+						{ term && ! term.ready ? (
+							<Typography sx={ { fontSize: 13, color: tokens.muted } }>Connect Stripe (Integrations) to use a card reader.</Typography>
+						) : term && term.paired ? (
+							<Stack direction="row" alignItems="center" spacing={ 1 }>
+								<Typography sx={ { fontSize: 13.5 } }>Paired: <strong>{ term.readerName || term.readerId }</strong></Typography>
+								<Box sx={ { flex: 1 } } />
+								<Button variant="text" disabled={ busy } onClick={ () => pair( null ) }>Unpair</Button>
+							</Stack>
+						) : null === readers ? (
+							<Button variant="outlined" disabled={ busy } onClick={ loadReaders }>Pair a reader</Button>
+						) : readers.length === 0 ? (
+							<Typography sx={ { fontSize: 13, color: tokens.muted } }>No readers found on your Stripe account. Register a WisePOS E / Reader S700 in Stripe first.</Typography>
+						) : (
+							<Stack spacing={ 1 }>
+								{ readers.map( ( r ) => (
+									<Button key={ r.id } variant="outlined" disabled={ busy } onClick={ () => pair( r ) }>{ r.label } { r.status ? `· ${ r.status }` : '' }</Button>
+								) ) }
+							</Stack>
+						) }
 					</Box>
 				) }
 			</Box>

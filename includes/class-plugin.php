@@ -105,6 +105,9 @@ final class Plugin {
 		if ( $this->load( 'cash.php' ) ) {
 			Cash\init();
 		}
+		if ( $this->load( 'terminal.php' ) ) {
+			Terminal\init();
+		}
 		if ( $this->load( 'staff.php' ) ) {
 			Staff\init();
 		}

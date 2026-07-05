@@ -169,6 +169,11 @@ export const api = {
 	openCash: ( float ) => request( 'POST', 'cash/open', { float } ),
 	cashMovement: ( data ) => request( 'POST', 'cash/movement', data ),
 	closeCash: ( counted ) => request( 'POST', 'cash/close', { counted } ),
+	// POS card reader (Stripe Terminal, server-driven).
+	getTerminal: () => request( 'GET', 'terminal' ),
+	terminalReaders: () => request( 'GET', 'terminal/readers' ),
+	pairReader: ( readerId, readerName ) => request( 'POST', 'terminal/reader', { readerId, readerName } ),
+	terminalCharge: ( orderId, amount ) => request( 'POST', 'terminal/charge', { orderId, amount } ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),
 	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),
