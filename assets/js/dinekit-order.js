@@ -115,6 +115,30 @@
 			} else {
 				renderMenu();
 			}
+			renderBar();
+		}
+
+		// Sticky bottom "view order" bar — mobile only (hidden ≥768px via CSS).
+		// One-tap to checkout; mirrors the cart's min-order guard.
+		function renderBar() {
+			if ( state.view !== 'menu' || ! state.lines.length ) {
+				return;
+			}
+			var count = state.lines.reduce( function ( s, l ) { return s + l.qty; }, 0 );
+			var bar = el( 'button', 'dinekit-order__bar' );
+			bar.type = 'button';
+			bar.appendChild( el( 'span', 'dinekit-order__bar-count', String( count ) ) );
+			var label = el( 'span', 'dinekit-order__bar-label', t.viewOrder || 'View order' );
+			bar.appendChild( label );
+			bar.appendChild( el( 'span', 'dinekit-order__bar-total', money( subtotal() ) ) );
+			var min = cfg.minOrder || 0;
+			if ( min > 0 && subtotal() < min ) {
+				bar.disabled = true;
+				bar.classList.add( 'is-min' );
+				label.textContent = ( t.minOrder || 'Minimum order' ) + ' ' + money( min );
+			}
+			bar.addEventListener( 'click', function () { state.view = 'checkout'; render(); } );
+			app.appendChild( bar );
 		}
 
 		function renderMenu() {
@@ -126,7 +150,16 @@
 				}
 				menuCol.appendChild( el( 'h3', 'dinekit-order__section', sec.name ) );
 				sec.items.forEach( function ( item ) {
-					var card = el( 'div', 'dinekit-order__item' );
+					var hasImg = !! ( item.image && item.image.thumb );
+					var card = el( 'div', 'dinekit-order__item' + ( hasImg ? ' dinekit-order__item--has-img' : '' ) );
+					if ( hasImg ) {
+						var im = document.createElement( 'img' );
+						im.className = 'dinekit-order__item-img';
+						im.src = item.image.thumb;
+						im.alt = item.title;
+						im.loading = 'lazy';
+						card.appendChild( im );
+					}
 					var info = el( 'div', 'dinekit-order__item-info' );
 					info.appendChild( el( 'div', 'dinekit-order__item-name', item.title ) );
 					if ( item.desc ) {
@@ -228,6 +261,14 @@
 			x.type = 'button';
 			x.addEventListener( 'click', close );
 			modal.appendChild( x );
+			if ( item.image && item.image.thumb ) {
+				var mim = document.createElement( 'img' );
+				mim.className = 'dinekit-order__modal-img';
+				mim.src = item.image.thumb;
+				mim.alt = item.title;
+				mim.loading = 'lazy';
+				modal.appendChild( mim );
+			}
 			modal.appendChild( el( 'h3', null, item.title ) );
 			if ( item.desc ) {
 				modal.appendChild( el( 'p', 'dinekit-order__modal-desc', item.desc ) );

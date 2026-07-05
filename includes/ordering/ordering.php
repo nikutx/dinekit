@@ -83,13 +83,15 @@ function orderable_menu( $menu_id = 0 ) {
 		if ( empty( $prices ) ) {
 			continue;
 		}
-		$mods = get_post_meta( $post->ID, 'dk_modifiers', true );
-		$item = array(
+		$mods     = get_post_meta( $post->ID, 'dk_modifiers', true );
+		$thumb_id = get_post_thumbnail_id( $post );
+		$item     = array(
 			'id'        => (int) $post->ID,
 			'title'     => $post->post_title,
 			'desc'      => wp_strip_all_tags( (string) $post->post_content ),
 			'prices'    => $prices,
 			'modifiers' => is_array( $mods ) ? array_values( $mods ) : array(),
+			'image'     => $thumb_id ? array( 'thumb' => (string) wp_get_attachment_image_url( $thumb_id, 'medium' ) ) : null,
 		);
 
 		$terms = get_the_terms( $post, 'dk_section' );

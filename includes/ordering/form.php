@@ -65,6 +65,7 @@ function render( $menu_id = 0, $heading = '' ) {
 				'yourOrder'    => __( 'Your order', 'dinekit' ),
 				'empty'        => __( 'Your basket is empty.', 'dinekit' ),
 				'checkout'     => __( 'Checkout', 'dinekit' ),
+				'viewOrder'    => __( 'View order', 'dinekit' ),
 				'placeOrder'   => __( 'Place order', 'dinekit' ),
 				'total'        => __( 'Total', 'dinekit' ),
 				'minOrder'     => __( 'Minimum order', 'dinekit' ),
