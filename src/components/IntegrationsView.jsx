@@ -290,6 +290,11 @@ export default function IntegrationsView() {
 								? `✓ Webhook ready (${ hook.mode } mode) — listening for payments at ${ hook.url }`
 								: `✗ ${ hook.error || 'Could not set up the webhook.' }` }
 						</Typography>
+						{ hook.ok && hook.wallets && hook.wallets.ok && (
+							<Typography sx={ { fontSize: 13, fontWeight: 600, color: tokens.green, mt: 0.5 } }>
+								{ `✓ Apple Pay ${ hook.wallets.apple || 'registered' } · Google Pay ${ hook.wallets.google || 'registered' } on ${ hook.wallets.domain } — wallet buttons appear at checkout on supported devices.` }
+							</Typography>
+						) }
 					</Box>
 				) }
 			</Card>

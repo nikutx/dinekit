@@ -130,6 +130,23 @@ function raw() {
 }
 
 /**
+ * Persist settings whose secrets are currently in plaintext form (as returned
+ * by raw()), encrypting every secret field before writing. Use this anywhere
+ * that mutates the raw() array and saves it, so encryption is never bypassed.
+ *
+ * @param array<string,mixed> $raw Settings with plaintext secrets.
+ * @return void
+ */
+function store( $raw ) {
+	if ( isset( $raw['stripe'] ) && is_array( $raw['stripe'] ) ) {
+		foreach ( secret_keys() as $k ) {
+			$raw['stripe'][ $k ] = encrypt_secret( isset( $raw['stripe'][ $k ] ) ? (string) $raw['stripe'][ $k ] : '' );
+		}
+	}
+	update_option( OPTION, $raw );
+}
+
+/**
  * One-time migration: encrypt any plaintext secrets already in the database.
  * Safe to call repeatedly (already-encrypted or empty values are skipped).
  *
@@ -266,13 +283,9 @@ function save( $data ) {
 		}
 	}
 
-	// Encrypt secrets at rest before persisting (publishable keys stay plain).
-	foreach ( secret_keys() as $k ) {
-		$strip[ $k ] = encrypt_secret( (string) $strip[ $k ] );
-	}
-
+	// Persist with secrets encrypted at rest (publishable keys stay plain).
 	$raw['stripe'] = $strip;
-	update_option( OPTION, $raw );
+	store( $raw );
 	return get_public();
 }
 
@@ -485,12 +498,67 @@ function register_webhook() {
 
 	$raw['stripe'][ $mode . '_webhook_secret' ] = $secret;
 	$raw['stripe'][ $mode . '_webhook_id' ]     = $id;
-	update_option( OPTION, $raw );
+	store( $raw );
+
+	// Best-effort: register this domain so Apple Pay / Google Pay can appear in
+	// the Payment Element. Non-fatal — wallets are a bonus, not required.
+	$wallets = register_payment_domain();
 
 	return array(
+		'ok'      => true,
+		'mode'    => $mode,
+		'url'     => $url,
+		'events'  => 2,
+		'wallets' => $wallets,
+	);
+}
+
+/**
+ * Register this site's domain with Stripe so Apple Pay / Google Pay can render
+ * in the Payment Element. Stripe manages the Apple Pay domain-association file
+ * automatically for Elements integrations, so no local well-known file is
+ * needed. Idempotent: if the domain already exists we fetch and return its
+ * status instead of erroring. Requires a secret key + a public HTTPS host, so
+ * it no-ops on local/dev sites.
+ *
+ * @return array<string,mixed>
+ */
+function register_payment_domain() {
+	$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	if ( '' === active_secret() || '' === $host || ! is_public_https( 'https://' . $host . '/' ) ) {
+		return array( 'ok' => false );
+	}
+
+	$res = stripe_request( 'POST', 'payment_method_domains', array( 'domain_name' => $host ) );
+	if ( is_wp_error( $res ) ) {
+		return array(
+			'ok'    => false,
+			'error' => $res->get_error_message(),
+		);
+	}
+
+	// If it already exists, Stripe returns 400 — look it up and use that record.
+	if ( ! in_array( (int) $res['code'], array( 200, 201 ), true ) ) {
+		$list = stripe_request( 'GET', 'payment_method_domains?domain_name=' . rawurlencode( $host ) . '&limit=1' );
+		if ( ! is_wp_error( $list ) && 200 === (int) $list['code'] && ! empty( $list['json']['data'][0] ) ) {
+			$res = array(
+				'code' => 200,
+				'json' => $list['json']['data'][0],
+			);
+		} else {
+			$msg = isset( $res['json']['error']['message'] ) ? (string) $res['json']['error']['message'] : __( 'Stripe could not register the domain.', 'dinekit' );
+			return array(
+				'ok'    => false,
+				'error' => $msg,
+			);
+		}
+	}
+
+	$json = isset( $res['json'] ) && is_array( $res['json'] ) ? $res['json'] : array();
+	return array(
 		'ok'     => true,
-		'mode'   => $mode,
-		'url'    => $url,
-		'events' => 2,
+		'domain' => $host,
+		'apple'  => isset( $json['apple_pay']['status'] ) ? (string) $json['apple_pay']['status'] : '',
+		'google' => isset( $json['google_pay']['status'] ) ? (string) $json['google_pay']['status'] : '',
 	);
 }
