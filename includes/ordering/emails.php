@@ -180,6 +180,27 @@ function cancelled( $id ) {
 }
 
 /**
+ * Email an itemised receipt to an address supplied at the till (POS). Sent
+ * regardless of the customer-email toggle — the guest asked for it.
+ *
+ * @param int    $id Order id.
+ * @param string $to Recipient email.
+ * @return bool
+ */
+function receipt( $id, $to ) {
+	if ( ! is_email( $to ) ) {
+		return false;
+	}
+	require_once DINEKIT_DIR . 'includes/emails.php';
+	$d = order_data( $id );
+	/* translators: %s: site name. */
+	$subject = sprintf( __( 'Your receipt from %s', 'dinekit' ), get_bloginfo( 'name' ) );
+	$ok      = \DineKit\Emails\send( $to, $subject, order_inner( $d ), __( 'Thanks for dining with us — here’s your receipt:', 'dinekit' ) );
+	Ordering\log_email( $id, $to, 'receipt', $ok );
+	return $ok;
+}
+
+/**
  * Send a plain-text kitchen ticket to an email-to-print device (e.g. Epson
  * Connect / Star email print). Independent of the customer/kitchen email
  * toggle — it's an operational feed — and only fires when a printer address is

@@ -31,6 +31,7 @@ export default function POSView() {
 	const [ mod, setMod ] = useState( null ); // item being configured
 	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
 	const [ busy, setBusy ] = useState( false );
+	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
 	useEffect( () => {
 		Promise.all( [
@@ -249,8 +250,8 @@ export default function POSView() {
 										</Stack>
 									</Box>
 									<Typography sx={ { fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' } }>{ money( l.lineTotal ) }</Typography>
-									{ ! l.fired && (
-										<IconButton size="small" disabled={ busy } onClick={ () => voidLine( i ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
+									{ ( ! l.fired || caps.refunds ) && (
+										<IconButton size="small" disabled={ busy } onClick={ () => voidLine( i ) } sx={ { color: l.fired ? tokens.red : tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
 									) }
 								</Stack>
 							) ) }
@@ -417,6 +418,8 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const [ mode, setMode ] = useState( 'even' ); // split mode: even | item
 	const [ paidIdx, setPaidIdx ] = useState( [] ); // line indexes already settled (by-item)
 	const [ sel, setSel ] = useState( [] ); // currently selected line indexes (by-item)
+	const [ emailTo, setEmailTo ] = useState( '' );
+	const [ emailed, setEmailed ] = useState( false );
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -466,6 +469,18 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	};
 	// Empty cash box = exact amount; a smaller amount = a partial payment.
 	const takeCash = () => tender( 'cash', cashN > 0 && cashN < charge ? round2( cashN ) : charge );
+
+	const emailReceipt = async () => {
+		if ( ! emailTo ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			await api.updateOrder( order.id, { action: 'email_receipt', email: emailTo } );
+			setEmailed( true );
+			setTimeout( () => setEmailed( false ), 2500 );
+		} finally { setBusy( false ); }
+	};
 
 	// Pay-by-QR: mint a pay link, show its QR, and poll until the customer pays.
 	const showQr = async () => {
@@ -598,6 +613,11 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 					<Button variant="outlined" startIcon={ <QrCode2Icon /> } disabled={ busy || balance <= 0 } onClick={ showQr }>Pay by QR</Button>
 					<Box sx={ { flex: 1 } } />
 					<Button variant="text" onClick={ () => printReceipt( order, 0 ) }>Print receipt</Button>
+				</Stack>
+				<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mt: 1 } } flexWrap="wrap" useFlexGap>
+					<Box component="input" type="email" placeholder="Email receipt to…" value={ emailTo } onChange={ ( e ) => setEmailTo( e.target.value ) }
+						sx={ { width: 200, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 13.5, boxShadow: 'none', outline: 'none' } } />
+					<Button variant="text" disabled={ busy || ! emailTo } onClick={ emailReceipt }>{ emailed ? 'Sent ✓' : 'Email' }</Button>
 				</Stack>
 
 				{ qr && balance > 0 && (

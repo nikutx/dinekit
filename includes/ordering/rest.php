@@ -377,6 +377,13 @@ function update_order( $request ) {
 		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 		$items = is_array( $items ) ? $items : array();
 		if ( isset( $items[ $idx ] ) ) {
+			// Voiding a line already fired to the kitchen is a manager action.
+			if ( ! empty( $items[ $idx ]['fired'] ) ) {
+				require_once DINEKIT_DIR . 'includes/access.php';
+				if ( ! \DineKit\Access\can( 'refunds' ) ) {
+					return new \WP_Error( 'dinekit_no_void', __( 'You do not have permission to void a fired item.', 'dinekit' ), array( 'status' => 403 ) );
+				}
+			}
 			$voided = (string) $items[ $idx ]['title'];
 			array_splice( $items, $idx, 1 );
 			$total = 0.0;
@@ -410,6 +417,13 @@ function update_order( $request ) {
 	} elseif ( 'pay_link' === $action ) {
 		require_once DINEKIT_DIR . 'includes/pay.php';
 		\DineKit\Pay\ensure_token( $id );
+	} elseif ( 'email_receipt' === $action ) {
+		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+		$to = sanitize_email( (string) $request->get_param( 'email' ) );
+		if ( is_email( $to ) ) {
+			Ordering\Emails\receipt( $id, $to );
+			Ordering\log_event( $id, __( 'Receipt emailed', 'dinekit' ) );
+		}
 	} elseif ( 'close' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'completed' );
 		Ordering\log_event( $id, __( 'Tab closed', 'dinekit' ) );
