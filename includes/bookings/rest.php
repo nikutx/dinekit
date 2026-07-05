@@ -694,11 +694,12 @@ function get_service( $request ) {
 function get_availability( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
 	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
-	$date   = sanitize_text_field( (string) $request->get_param( 'date' ) );
-	$time   = sanitize_text_field( (string) $request->get_param( 'time' ) );
-	$party  = absint( $request->get_param( 'party' ) );
-	$free   = Availability\available_tables( $date, $time, $party );
-	$combos = Availability\available_combos( $date, $time, $party );
+	$date    = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$time    = sanitize_text_field( (string) $request->get_param( 'time' ) );
+	$party   = absint( $request->get_param( 'party' ) );
+	$exclude = absint( $request->get_param( 'exclude' ) ); // Booking being edited — ignore its own table hold.
+	$free    = Availability\available_tables( $date, $time, $party, $exclude );
+	$combos  = Availability\available_combos( $date, $time, $party, $exclude );
 
 	// The public widget hard-blocks on the covers-per-hour pacing cap; staff can
 	// override it, so surface it as a warning flag rather than "unavailable".
@@ -717,7 +718,7 @@ function get_availability( $request ) {
 			'available'   => $has,
 			'tables'      => $free,
 			'combos'      => $combos,
-			'overCap'     => ! Availability\within_hour_capacity( $date, $time, $party, $cap ),
+			'overCap'     => ! Availability\within_hour_capacity( $date, $time, $party, $cap, $exclude ),
 			'suggestions' => $suggestions,
 		)
 	);

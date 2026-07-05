@@ -18,7 +18,10 @@ import {
 	ToggleButton,
 	ToggleButtonGroup,
 	Drawer,
-} from '@mui/material';
+	Modal,
+	Menu,
+	ListItemIcon,
+} from '../ui';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -37,6 +40,7 @@ import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { STATUSES, statusMeta, isoDate, addDays, prettyDate } from '../lib/bookings';
@@ -55,7 +59,8 @@ export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
 	const [ bookings, setBookings ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
-	const [ adding, setAdding ] = useState( false );
+	const [ adding, setAdding ] = useState( false ); // inline add form (list view)
+	const [ popupAdd, setPopupAdd ] = useState( false ); // popup add form (timeline view)
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
 	const [ view, setView ] = useState( 'list' ); // 'list' (diary) | 'timeline' (full-width service view)
 	const [ floor, setFloor ] = useState( { areas: [], tables: [], combos: [] } );
@@ -214,6 +219,7 @@ export default function BookingsView() {
 	const [ prefill, setPrefill ] = useState( null ); // { time, tableId } for click-to-book.
 	const onCreated = ( booking ) => {
 		setAdding( false );
+		setPopupAdd( false );
 		setPrefill( null );
 		if ( booking.date === date ) {
 			setBookings( ( bs ) =>
@@ -224,11 +230,46 @@ export default function BookingsView() {
 		}
 	};
 
-	// Timeline: click an empty table cell → open the booking form pre-filled.
+	// Timeline: click an empty table cell → open the booking form as a popup with
+	// the time + table pre-selected (stays on the timeline, no bounce to the list).
 	const createAt = ( tableId, time ) => {
 		setPrefill( { time, tableId } );
-		setView( 'list' );
-		setAdding( true );
+		setPopupAdd( true );
+	};
+
+	// Click a booking on the timeline → edit it in a popup.
+	const [ editBooking, setEditBooking ] = useState( null );
+	const onEdited = ( b ) => {
+		setEditBooking( null );
+		setBookings( ( bs ) => {
+			const without = bs.filter( ( x ) => x.id !== b.id );
+			return b.date === date
+				? [ ...without, b ].sort( ( a, c ) => ( a.time > c.time ? 1 : -1 ) )
+				: without;
+		} );
+	};
+
+	// Drag a booking to another table (and/or time) on the timeline → reschedule.
+	const moveBooking = async ( id, tableId, time ) => {
+		const prev = bookings.find( ( x ) => x.id === id );
+		if ( ! prev || ( prev.tableId === tableId && prev.time === time ) ) {
+			return;
+		}
+		// Optimistic move; revert on failure.
+		setBookings( ( bs ) =>
+			bs
+				.map( ( x ) => ( x.id === id ? { ...x, tableId, comboId: 0, time } : x ) )
+				.sort( ( a, c ) => ( a.time > c.time ? 1 : -1 ) )
+		);
+		try {
+			const b = await api.updateBooking( id, { tableId, comboId: 0, time } );
+			if ( b ) {
+				patchLocal( id, b );
+			}
+		} catch ( e ) {
+			setBookings( ( bs ) => bs.map( ( x ) => ( x.id === id ? prev : x ) ) );
+			setReviewMsg( e.message || 'Could not move the booking' );
+		}
 	};
 
 	// Walk-in: an on-the-spot guest, seated immediately with no details required.
@@ -281,7 +322,11 @@ export default function BookingsView() {
 						<Button variant="outlined" startIcon={ <PeopleAltIcon /> } onClick={ addWalkIn }>
 							Walk-in
 						</Button>
-						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( ( v ) => ! v ) }>
+						<Button
+							variant="contained"
+							startIcon={ <AddIcon /> }
+							onClick={ () => ( view === 'timeline' ? ( setPrefill( null ), setPopupAdd( true ) ) : setAdding( ( v ) => ! v ) ) }
+						>
 							New booking
 						</Button>
 					</>
@@ -299,7 +344,7 @@ export default function BookingsView() {
 				] }
 			/>
 
-			<Collapse in={ adding } unmountOnExit>
+			<Collapse in={ adding && view === 'list' } unmountOnExit>
 				<NewBooking initialDate={ date } initialTime={ prefill && prefill.time } initialTable={ prefill && prefill.tableId } onCreated={ onCreated } onCancel={ () => { setAdding( false ); setPrefill( null ); } } />
 			</Collapse>
 
@@ -319,9 +364,7 @@ export default function BookingsView() {
 						value={ date }
 						onChange={ ( e ) => setDate( e.target.value || isoDate() ) }
 						sx={ {
-							width: 148,
-							'& .MuiOutlinedInput-root': { boxShadow: tokens.shadowSm },
-							'& fieldset': { border: 'none' },
+							width: 172,
 							'& input': { py: 0.5, fontSize: 13, fontWeight: 550 },
 						} }
 					/>
@@ -375,8 +418,9 @@ export default function BookingsView() {
 					openMin={ svc.openMin }
 					closeMin={ svc.closeMin }
 					turnMin={ turnMin }
-					onSelect={ ( b ) => setDetail( b ) }
+					onSelect={ ( b ) => setEditBooking( b ) }
 					onCreate={ createAt }
+					onMove={ moveBooking }
 				/>
 			) }
 
@@ -478,12 +522,36 @@ export default function BookingsView() {
 			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } disableEnforceFocus sx={ { zIndex: 100000 } } PaperProps={ { sx: { width: { xs: '100%', sm: 460 } } } }>
 				{ detail && <BookingDetail booking={ detail } onClose={ () => setDetail( null ) } onCancel={ () => setStatus( detail.id, 'cancelled' ) } /> }
 			</Drawer>
+			<Modal open={ popupAdd } onClose={ () => { setPopupAdd( false ); setPrefill( null ); } }>
+				<NewBooking
+					bare
+					initialDate={ date }
+					initialTime={ prefill && prefill.time }
+					initialTable={ prefill && prefill.tableId }
+					onCreated={ onCreated }
+					onCancel={ () => { setPopupAdd( false ); setPrefill( null ); } }
+				/>
+			</Modal>
+			<Modal open={ !! editBooking } onClose={ () => setEditBooking( null ) }>
+				{ editBooking && (
+					<NewBooking
+						bare
+						editing={ editBooking }
+						initialDate={ date }
+						onCreated={ onEdited }
+						onCancel={ () => setEditBooking( null ) }
+					/>
+				) }
+			</Modal>
 		</Page>
 	);
 }
 
 function BookingRow( { booking, onStatus, onDelete, onRequestReview, onOpen } ) {
 	const meta = statusMeta( booking.status );
+	const [ menuEl, setMenuEl ] = useState( null );
+	const closeMenu = () => setMenuEl( null );
+	const run = ( fn ) => () => { closeMenu(); fn(); };
 	return (
 		<Stack
 			direction="row"
@@ -552,31 +620,51 @@ function BookingRow( { booking, onStatus, onDelete, onRequestReview, onOpen } ) 
 					</MenuItem>
 				) ) }
 			</Select>
-			<Tooltip title="Details">
-				<IconButton size="small" onClick={ onOpen } sx={ { color: tokens.muted2 } }>
-					<InfoOutlinedIcon fontSize="small" />
+			<Tooltip title="Actions">
+				<IconButton size="small" onClick={ ( e ) => setMenuEl( e.currentTarget ) } sx={ { color: tokens.muted2 } }>
+					<MoreVertIcon fontSize="small" />
 				</IconButton>
 			</Tooltip>
-			{ booking.email && (
-				<Tooltip title="Ask this guest for a review">
-					<IconButton size="small" onClick={ onRequestReview } sx={ { color: tokens.muted2 } }>
-						<StarBorderIcon fontSize="small" />
-					</IconButton>
-				</Tooltip>
-			) }
-			<Tooltip title="Cancel &amp; archive (refunds a paid deposit; kept on record)">
-				<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted2 } }>
-					<DeleteOutlineIcon fontSize="small" />
-				</IconButton>
-			</Tooltip>
+			<Menu
+				anchorEl={ menuEl }
+				open={ !! menuEl }
+				onClose={ closeMenu }
+				anchorOrigin={ { vertical: 'bottom', horizontal: 'right' } }
+				transformOrigin={ { vertical: 'top', horizontal: 'right' } }
+			>
+				<MenuItem onClick={ run( onOpen ) }>
+					<ListItemIcon><InfoOutlinedIcon fontSize="small" /></ListItemIcon>
+					Details
+				</MenuItem>
+				{ booking.email && (
+					<MenuItem onClick={ run( onRequestReview ) }>
+						<ListItemIcon><StarBorderIcon fontSize="small" /></ListItemIcon>
+						Ask for a review
+					</MenuItem>
+				) }
+				<MenuItem onClick={ run( onDelete ) } sx={ { color: tokens.red } }>
+					<ListItemIcon><DeleteOutlineIcon fontSize="small" sx={ { color: tokens.red } } /></ListItemIcon>
+					Cancel &amp; archive
+				</MenuItem>
+			</Menu>
 		</Stack>
 	);
 }
 
 const BLANK = { name: '', phone: '', email: '', party: 2, time: '19:00', notes: '' };
 
-function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel } ) {
-	const [ form, setForm ] = useState( { ...BLANK, date: initialDate, time: initialTime || BLANK.time } );
+function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel, bare, editing } ) {
+	const [ form, setForm ] = useState( editing
+		? {
+			name: editing.name || '',
+			phone: editing.phone || '',
+			email: editing.email || '',
+			party: editing.party || 2,
+			time: editing.time || BLANK.time,
+			notes: editing.notes || '',
+			date: editing.date || initialDate,
+		}
+		: { ...BLANK, date: initialDate, time: initialTime || BLANK.time } );
 	const [ avail, setAvail ] = useState( null ); // null | { available, tables, combos }
 	const [ checking, setChecking ] = useState( false );
 	const [ tableId, setTableId ] = useState( 0 ); // 0 = auto
@@ -584,7 +672,10 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 	const [ saving, setSaving ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const debounce = useRef( null );
-	const prefillTable = useRef( initialTable || 0 ); // Pre-select the clicked table once availability loads.
+	// Pre-select a table/combo once availability loads: the timeline-clicked table
+	// when creating, or the booking's own table/combo when editing.
+	const prefillTable = useRef( ( editing && editing.tableId ) || initialTable || 0 );
+	const prefillCombo = useRef( ( editing && editing.comboId ) || 0 );
 
 	const set = ( patch ) => setForm( ( f ) => ( { ...f, ...patch } ) );
 
@@ -599,18 +690,23 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 		clearTimeout( debounce.current );
 		setChecking( true );
 		debounce.current = setTimeout( () => {
-			api.getAvailability( { date: form.date, time: form.time, party: form.party } )
+			api.getAvailability( { date: form.date, time: form.time, party: form.party, exclude: editing ? editing.id : 0 } )
 				.then( ( res ) => setAvail( res ) )
 				.finally( () => setChecking( false ) );
 		}, 350 );
 		return () => clearTimeout( debounce.current );
 	}, [ form.date, form.time, form.party ] );
 
-	// Pre-select the table clicked in the timeline, once it's confirmed available.
+	// Pre-select the table clicked in the timeline (or the edited booking's own
+	// table/combo), once it's confirmed available.
 	useEffect( () => {
 		if ( avail && prefillTable.current && ( avail.tables || [] ).some( ( t ) => t.id === prefillTable.current ) ) {
 			setTableId( prefillTable.current );
 			prefillTable.current = 0;
+		}
+		if ( avail && prefillCombo.current && ( avail.combos || [] ).some( ( c ) => c.id === prefillCombo.current ) ) {
+			setComboId( prefillCombo.current );
+			prefillCombo.current = 0;
 		}
 	}, [ avail ] );
 
@@ -620,7 +716,7 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 		setSaving( true );
 		setError( '' );
 		try {
-			const booking = await api.createBooking( {
+			const payload = {
 				date: form.date,
 				time: form.time,
 				party: Number( form.party ),
@@ -630,8 +726,10 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 				notes: form.notes,
 				tableId: tableId || 0,
 				comboId: comboId || 0,
-				status,
-			} );
+			};
+			const booking = editing
+				? await api.updateBooking( editing.id, payload )
+				: await api.createBooking( { ...payload, status } );
 			onCreated( booking );
 		} catch ( e ) {
 			setError( e.message || 'Could not save the booking.' );
@@ -642,16 +740,18 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 
 	return (
 		<Box
-			sx={ {
-				bgcolor: tokens.surface,
-				border: `1px solid ${ tokens.border }`,
-				borderRadius: 3,
-				p: 2.5,
-				mb: 2,
-			} }
+			sx={ bare
+				? { p: 3 }
+				: {
+					bgcolor: tokens.surface,
+					border: `1px solid ${ tokens.border }`,
+					borderRadius: 3,
+					p: 2.5,
+					mb: 2,
+				} }
 		>
 			<Typography variant="subtitle2" sx={ { mb: 2, color: tokens.ink } }>
-				New booking
+				{ editing ? 'Edit booking' : 'New booking' }
 			</Typography>
 
 			<Stack direction="row" flexWrap="wrap" gap={ 1.5 }>
@@ -814,7 +914,15 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 				<Button onClick={ onCancel } sx={ { color: tokens.muted } }>
 					Cancel
 				</Button>
-				{ noTables ? (
+				{ editing ? (
+					<Button
+						variant="contained"
+						disabled={ saving || checking }
+						onClick={ () => save( editing.status ) }
+					>
+						{ saving ? 'Saving…' : 'Save changes' }
+					</Button>
+				) : noTables ? (
 					<Button
 						variant="contained"
 						color="warning"

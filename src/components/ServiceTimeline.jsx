@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography, Tooltip } from '@mui/material';
+import { Box, Stack, Typography, Tooltip } from '../ui';
 import { tokens } from '../theme';
 
 // Full-width service view: tables down the left, the day's clock across the top,
@@ -23,7 +23,7 @@ const colorFor = ( s ) => STATUS_COLOR[ s ] || tokens.muted;
 
 const LABEL_W = 150;
 
-export default function ServiceTimeline( { bookings, tables, areas, combos, events, eventCovers, openMin, closeMin, turnMin, onSelect, onCreate } ) {
+export default function ServiceTimeline( { bookings, tables, areas, combos, events, eventCovers, openMin, closeMin, turnMin, onSelect, onCreate, onMove } ) {
 	const span = Math.max( 60, closeMin - openMin );
 	const hourPct = ( 60 / span ) * 100; // Width of one hour, for the gridlines.
 	const active = bookings.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) );
@@ -49,8 +49,10 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 		const width = Math.max( 4, Math.min( 100 - left, ( turnMin / span ) * 100 ) );
 		const soft = 'provisional' === b.status || 'waitlist' === b.status;
 		return (
-			<Tooltip title={ `${ b.time } · ${ b.name || 'Guest' } · ${ b.party }p · ${ b.status }` }>
+			<Tooltip title={ `${ b.time } · ${ b.name || 'Guest' } · ${ b.party }p · ${ b.status }${ onMove ? ' — drag to move, click to edit' : '' }` }>
 				<Box
+					draggable={ !! onMove }
+					onDragStart={ onMove ? ( e ) => { e.dataTransfer.setData( 'text/dk-booking', String( b.id ) ); e.dataTransfer.effectAllowed = 'move'; } : undefined }
 					onClick={ ( e ) => { e.stopPropagation(); onSelect && onSelect( b ); } }
 					sx={ {
 						position: 'absolute',
@@ -67,7 +69,7 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 						overflow: 'hidden',
 						fontSize: 11,
 						fontWeight: 700,
-						cursor: onSelect ? 'pointer' : 'default',
+						cursor: onMove ? 'grab' : ( onSelect ? 'pointer' : 'default' ),
 						opacity: soft ? 0.82 : 1,
 						border: soft ? '1px dashed rgba(255,255,255,0.6)' : '1px solid rgba(255,255,255,0.25)',
 					} }
@@ -103,6 +105,18 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 				</Box>
 				<Box
 					onClick={ clickable ? ( e ) => createAt( tableId, e ) : undefined }
+					onDragOver={ onMove && tableId ? ( e ) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } : undefined }
+					onDrop={ onMove && tableId ? ( e ) => {
+						e.preventDefault();
+						const id = parseInt( e.dataTransfer.getData( 'text/dk-booking' ), 10 );
+						if ( ! id ) {
+							return;
+						}
+						const rect = e.currentTarget.getBoundingClientRect();
+						let min = openMin + ( ( e.clientX - rect.left ) / rect.width ) * span;
+						min = Math.max( openMin, Math.min( closeMin, Math.round( min / 15 ) * 15 ) );
+						onMove( id, tableId, hhmm( min ) );
+					} : undefined }
 					title={ clickable ? 'Click to add a booking here' : undefined }
 					sx={ {
 						position: 'relative',
