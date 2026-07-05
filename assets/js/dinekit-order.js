@@ -101,8 +101,18 @@
 		}
 
 		/* ---- render ---- */
+		// Motion state: animate on view change + pulse the cart when it grows.
+		// All animations are CSS and gated by prefers-reduced-motion.
+		var lastView = null;
+		var lastCount = 0;
+		var justAdded = false;
 		function render() {
 			app.innerHTML = '';
+			var viewChanged = lastView !== state.view;
+			lastView = state.view;
+			var count = state.lines.reduce( function ( s, l ) { return s + l.qty; }, 0 );
+			justAdded = count > lastCount;
+			lastCount = count;
 			// The "Order online" heading is redundant once we're on the receipt.
 			var heading = root.querySelector( '.dinekit-order__heading' );
 			if ( heading ) { heading.style.display = state.view === 'done' ? 'none' : ''; }
@@ -114,6 +124,10 @@
 				renderCheckout();
 			} else {
 				renderMenu();
+			}
+			// Subtle enter animation when the view changes (menu→checkout→pay→done).
+			if ( viewChanged && app.firstChild && app.firstChild.classList ) {
+				app.firstChild.classList.add( 'dinekit-order__enter' );
 			}
 			renderBar();
 		}
@@ -136,6 +150,9 @@
 				bar.disabled = true;
 				bar.classList.add( 'is-min' );
 				label.textContent = ( t.minOrder || 'Minimum order' ) + ' ' + money( min );
+			}
+			if ( justAdded && ! bar.disabled ) {
+				bar.classList.add( 'is-bump' );
 			}
 			bar.addEventListener( 'click', function () { state.view = 'checkout'; render(); } );
 			app.appendChild( bar );
@@ -223,6 +240,9 @@
 			var sub = el( 'div', 'dinekit-order__subtotal' );
 			sub.appendChild( el( 'span', null, t.total || 'Total' ) );
 			sub.appendChild( el( 'strong', null, money( subtotal() ) ) );
+			if ( justAdded ) {
+				sub.classList.add( 'is-bump' );
+			}
 			cart.appendChild( sub );
 			var min = cfg.minOrder || 0;
 			var co = el( 'button', 'dinekit-order__checkout', t.checkout || 'Checkout' );
@@ -567,6 +587,13 @@
 		function renderPay() {
 			var box = el( 'div', 'dinekit-order__pay' );
 			box.appendChild( el( 'div', 'dinekit-order__done-title', t.payTitle || 'Pay for your order' ) );
+			// Shimmer placeholder while the PaymentIntent is fetched + Stripe.js mounts.
+			var skel = el( 'div', 'dinekit-order__pay-skel' );
+			skel.appendChild( el( 'div', 'dinekit-order__skel-line' ) );
+			skel.appendChild( el( 'div', 'dinekit-order__skel-line' ) );
+			skel.appendChild( el( 'div', 'dinekit-order__skel-line dinekit-order__skel-line--short' ) );
+			box.appendChild( skel );
+			var removeSkel = function () { if ( skel.parentNode ) { skel.parentNode.removeChild( skel ); } };
 			var host = el( 'div', 'dinekit-order__pay-element' );
 			box.appendChild( host );
 			var err = el( 'p', 'dinekit-order__result' );
@@ -586,6 +613,7 @@
 				.then( function ( r ) { return r.json().then( function ( d ) { return { ok: r.ok, d: d }; } ); } )
 				.then( function ( res ) {
 					if ( ! res.ok || ! res.d || ! res.d.clientSecret ) {
+						removeSkel();
 						err.textContent = ( res.d && res.d.message ) || t.payError || '';
 						err.classList.add( 'is-no' );
 						return;
@@ -594,7 +622,9 @@
 						btn.textContent = ( t.payNow || 'Pay now' ) + ' · ' + money( res.d.amount / 100 );
 					}
 					var elements = stripe.elements( { clientSecret: res.d.clientSecret } );
-					elements.create( 'payment' ).mount( host );
+					var paymentEl = elements.create( 'payment' );
+					paymentEl.on( 'ready', removeSkel );
+					paymentEl.mount( host );
 					btn.disabled = false;
 					btn.addEventListener( 'click', function () {
 						btn.disabled = true;
@@ -621,13 +651,35 @@
 					} );
 				} )
 				.catch( function () {
+					removeSkel();
 					err.textContent = t.networkError || '';
 					err.classList.add( 'is-no' );
 				} );
 		}
 
+		// Animated success tick (SVG stroke draw) for the receipt screen.
+		function successTick() {
+			var ns = 'http://www.w3.org/2000/svg';
+			var svg = document.createElementNS( ns, 'svg' );
+			svg.setAttribute( 'class', 'dinekit-order__tick' );
+			svg.setAttribute( 'viewBox', '0 0 52 52' );
+			svg.setAttribute( 'aria-hidden', 'true' );
+			var circle = document.createElementNS( ns, 'circle' );
+			circle.setAttribute( 'class', 'dinekit-order__tick-circle' );
+			circle.setAttribute( 'cx', '26' );
+			circle.setAttribute( 'cy', '26' );
+			circle.setAttribute( 'r', '24' );
+			var path = document.createElementNS( ns, 'path' );
+			path.setAttribute( 'class', 'dinekit-order__tick-check' );
+			path.setAttribute( 'd', 'M14 27l8 8 16-16' );
+			svg.appendChild( circle );
+			svg.appendChild( path );
+			return svg;
+		}
+
 		function renderDone() {
 			var box = el( 'div', 'dinekit-order__done' );
+			box.appendChild( successTick() );
 			box.appendChild( el( 'div', 'dinekit-order__done-title', state.held ? ( t.held || t.placed ) : state.paid ? ( t.paid || t.placed || 'Payment received' ) : ( t.placed || 'Order placed!' ) ) );
 			box.appendChild( el( 'div', 'dinekit-order__done-num', ( t.orderNumber || 'Your order number is' ) + ' #' + ( state.done && state.done.number ) ) );
 			box.appendChild( el( 'p', null, t.collectMsg || '' ) );

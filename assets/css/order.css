@@ -424,15 +424,6 @@
 	letter-spacing: -0.01em;
 	color: var(--dko-ink);
 }
-.dinekit-order__done-title::before {
-	content: "";
-	display: block;
-	width: 56px;
-	height: 56px;
-	margin: 0 auto 16px;
-	border-radius: 50%;
-	background: #dcfce7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / 28px no-repeat;
-}
 .dinekit-order__done-num {
 	font-size: 18px;
 	font-weight: 700;
@@ -540,5 +531,118 @@
 	}
 	.dinekit-order__bar {
 		display: flex;
+	}
+}
+
+/* ============================================================
+ * Motion & micro-interactions (all opt-out via prefers-reduced-motion)
+ * ============================================================ */
+
+/* View enter (menu → checkout → pay → done). */
+@keyframes dinekit-order-enter {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+.dinekit-order__enter {
+	animation: dinekit-order-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Cart grew — pulse the total / sticky bar. */
+@keyframes dinekit-order-bump {
+	0% { transform: scale(1); }
+	35% { transform: scale(1.06); }
+	100% { transform: scale(1); }
+}
+.dinekit-order__subtotal.is-bump,
+.dinekit-order__bar.is-bump {
+	animation: dinekit-order-bump 0.34s ease;
+}
+
+/* Tactile button press. */
+.dinekit-order__add,
+.dinekit-order__checkout,
+.dinekit-order__place,
+.dinekit-order__modal-add,
+.dinekit-order__fulfil-btn,
+.dinekit-order__bar {
+	transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+}
+.dinekit-order__add:active,
+.dinekit-order__checkout:active,
+.dinekit-order__place:active,
+.dinekit-order__modal-add:active,
+.dinekit-order__bar:not(:disabled):active {
+	transform: scale(0.97);
+}
+
+/* Stripe.js loading skeleton (shimmer). */
+.dinekit-order__pay-skel {
+	margin: 18px 0;
+	display: grid;
+	gap: 12px;
+}
+.dinekit-order__skel-line {
+	height: 44px;
+	border-radius: 10px;
+	background: linear-gradient( 100deg, var(--dko-soft) 30%, #eef1f6 50%, var(--dko-soft) 70% );
+	background-size: 200% 100%;
+	animation: dinekit-order-shimmer 1.2s ease-in-out infinite;
+}
+.dinekit-order__skel-line--short {
+	width: 55%;
+}
+@keyframes dinekit-order-shimmer {
+	from { background-position: 200% 0; }
+	to   { background-position: -200% 0; }
+}
+
+/* Animated success tick on the receipt. */
+.dinekit-order__tick {
+	width: 64px;
+	height: 64px;
+	display: block;
+	margin: 0 auto 8px;
+}
+.dinekit-order__tick-circle {
+	fill: none;
+	stroke: var(--dko-accent);
+	stroke-width: 3;
+	stroke-dasharray: 151;
+	stroke-dashoffset: 151;
+	animation: dinekit-order-tick-circle 0.5s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.dinekit-order__tick-check {
+	fill: none;
+	stroke: var(--dko-accent);
+	stroke-width: 4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-dasharray: 40;
+	stroke-dashoffset: 40;
+	animation: dinekit-order-tick-check 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.45s forwards;
+}
+@keyframes dinekit-order-tick-circle { to { stroke-dashoffset: 0; } }
+@keyframes dinekit-order-tick-check { to { stroke-dashoffset: 0; } }
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dinekit-order__enter,
+	.dinekit-order__subtotal.is-bump,
+	.dinekit-order__bar.is-bump,
+	.dinekit-order__skel-line,
+	.dinekit-order__tick-circle,
+	.dinekit-order__tick-check {
+		animation: none;
+	}
+	.dinekit-order__add:active,
+	.dinekit-order__checkout:active,
+	.dinekit-order__place:active,
+	.dinekit-order__modal-add:active,
+	.dinekit-order__bar:not(:disabled):active {
+		transform: none;
+	}
+	/* With motion off, don't leave the tick hidden by its dash offset. */
+	.dinekit-order__tick-circle,
+	.dinekit-order__tick-check {
+		stroke-dashoffset: 0;
 	}
 }
