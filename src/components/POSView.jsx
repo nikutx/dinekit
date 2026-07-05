@@ -9,6 +9,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import TakeoutDiningIcon from '@mui/icons-material/TakeoutDining';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { printDoc, esc } from '../lib/print';
@@ -411,6 +412,8 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const [ tipInput, setTipInput ] = useState( order.tip && Number( order.tip ) ? String( order.tip ) : '' );
 	const [ shares, setShares ] = useState( 1 );
 	const [ sharesPaid, setSharesPaid ] = useState( 0 );
+	const [ qr, setQr ] = useState( '' ); // pay-by-QR svg
+	const [ payToken, setPayToken ] = useState( '' );
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -453,6 +456,33 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	};
 	// Empty cash box = exact amount; a smaller amount = a partial payment.
 	const takeCash = () => tender( 'cash', cashN > 0 && cashN < charge ? round2( cashN ) : charge );
+
+	// Pay-by-QR: mint a pay link, show its QR, and poll until the customer pays.
+	const showQr = async () => {
+		setBusy( true );
+		try {
+			const updated = await api.updateOrder( order.id, { action: 'pay_link' } );
+			onUpdate( updated );
+			const url = updated.payUrl || '';
+			setPayToken( url ? ( new URL( url ).searchParams.get( 'dinekit_pay' ) || '' ) : '' );
+			const r = await api.getQr( url );
+			setQr( r.svg || '' );
+		} finally { setBusy( false ); }
+	};
+	useEffect( () => {
+		if ( ! payToken ) {
+			return;
+		}
+		const iv = setInterval( () => {
+			api.payStatus( payToken ).then( ( s ) => {
+				if ( s && Number( s.balance ) <= 0 ) {
+					clearInterval( iv );
+					onSettled();
+				}
+			} ).catch( () => {} );
+		}, 3000 );
+		return () => clearInterval( iv );
+	}, [ payToken ] );
 
 	const printReceipt = ( o, changeGiven ) => {
 		const rows = ( o.items || [] ).map( ( l ) =>
@@ -526,9 +556,23 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'card', charge ) }>Card · { money( charge ) }</Button>
 					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'voucher', charge ) }>Voucher</Button>
 					<Button variant="outlined" disabled={ busy || balance <= 0 || ! caps.refunds } onClick={ () => tender( 'comp', balance ) }>Comp</Button>
+					<Button variant="outlined" startIcon={ <QrCode2Icon /> } disabled={ busy || balance <= 0 } onClick={ showQr }>Pay by QR</Button>
 					<Box sx={ { flex: 1 } } />
 					<Button variant="text" onClick={ () => printReceipt( order, 0 ) }>Print receipt</Button>
 				</Stack>
+
+				{ qr && balance > 0 && (
+					<Box sx={ { mt: 2, p: 2, border: `1px solid ${ tokens.border }`, borderRadius: '12px', textAlign: 'center' } }>
+						<Typography sx={ { fontSize: 13, fontWeight: 600, color: tokens.ink, mb: 1 } }>
+							Ask the customer to scan to pay { money( balance ) }
+						</Typography>
+						<Box sx={ { width: 180, mx: 'auto', '& svg': { width: '100%', height: 'auto', display: 'block' } } } dangerouslySetInnerHTML={ { __html: qr } } />
+						<Stack direction="row" alignItems="center" justifyContent="center" spacing={ 1 } sx={ { mt: 1 } }>
+							<CircularProgress size={ 14 } />
+							<Typography sx={ { fontSize: 12, color: tokens.muted } }>Waiting for payment…</Typography>
+						</Stack>
+					</Box>
+				) }
 			</Box>
 		</Modal>
 	);

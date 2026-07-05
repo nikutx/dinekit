@@ -296,7 +296,15 @@ function handle_webhook( $request ) {
 
 	if ( 'payment_intent.succeeded' === $type ) {
 		if ( $order_id && 'dinekit_order' === get_post_type( $order_id ) ) {
-			update_post_meta( $order_id, 'dinekit_order_payment', 'paid' );
+			if ( ! empty( $meta['pos_pay'] ) ) {
+				// Pay-by-QR against a POS tab: record a card tender + auto-close.
+				$obj = $event['data']['object'];
+				$got = isset( $obj['amount_received'] ) ? (int) $obj['amount_received'] : (int) ( $obj['amount'] ?? 0 );
+				require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+				\DineKit\Ordering\add_tender( $order_id, 'card', $got / 100, 'qr' );
+			} else {
+				update_post_meta( $order_id, 'dinekit_order_payment', 'paid' );
+			}
 		}
 		if ( $booking_id && 'dinekit_booking' === get_post_type( $booking_id ) ) {
 			update_post_meta( $booking_id, 'dinekit_deposit_paid', 1 );

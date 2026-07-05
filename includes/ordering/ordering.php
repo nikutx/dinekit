@@ -229,6 +229,7 @@ function register() {
 		'dinekit_order_service'    => 'string',  // Service charge (decimal string).
 		'dinekit_order_tip'        => 'string',  // Tip (decimal string).
 		'dinekit_order_discount'   => 'string',  // Discount (decimal string).
+		'dinekit_order_pay_token'  => 'string',  // Public pay-by-QR token.
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
@@ -538,4 +539,61 @@ function recompute( $lines ) {
 		'items' => $items,
 		'total' => round( $total, 2 ),
 	);
+}
+
+/**
+ * Grand total of an order = food subtotal + service + tip − discount.
+ *
+ * @param int $order_id Order id.
+ * @return float
+ */
+function grand_total( $order_id ) {
+	return round(
+		(float) get_post_meta( $order_id, 'dinekit_order_total', true )
+		+ (float) get_post_meta( $order_id, 'dinekit_order_service', true )
+		+ (float) get_post_meta( $order_id, 'dinekit_order_tip', true )
+		- (float) get_post_meta( $order_id, 'dinekit_order_discount', true ),
+		2
+	);
+}
+
+/**
+ * Record a payment (tender) against an order and auto-close the tab once the
+ * balance is covered. Shared by the POS tender action and the pay-by-QR webhook.
+ *
+ * @param int    $order_id Order id.
+ * @param string $type     Tender type (cash|card|voucher|comp|account).
+ * @param float  $amount   Amount.
+ * @param string $via      Optional channel note (e.g. 'qr').
+ * @return void
+ */
+function add_tender( $order_id, $type, $amount, $via = '' ) {
+	$amount = round( (float) $amount, 2 );
+	if ( $amount <= 0 ) {
+		return;
+	}
+	$tenders   = json_decode( (string) get_post_meta( $order_id, 'dinekit_order_tenders', true ), true );
+	$tenders   = is_array( $tenders ) ? $tenders : array();
+	$tender    = array(
+		'type'   => $type,
+		'amount' => $amount,
+		't'      => current_time( 'c' ),
+	);
+	if ( '' !== $via ) {
+		$tender['via'] = $via;
+	}
+	$tenders[] = $tender;
+	update_post_meta( $order_id, 'dinekit_order_tenders', wp_json_encode( $tenders ) );
+	/* translators: 1: tender type, 2: amount. */
+	log_event( $order_id, sprintf( __( 'Payment taken: %1$s %2$s', 'dinekit' ), $type, number_format( $amount, 2 ) ) );
+
+	$paid = 0.0;
+	foreach ( $tenders as $t ) {
+		$paid += (float) $t['amount'];
+	}
+	if ( round( $paid - grand_total( $order_id ), 2 ) >= 0 ) {
+		update_post_meta( $order_id, 'dinekit_order_payment', 'paid' );
+		update_post_meta( $order_id, 'dinekit_order_status', 'completed' );
+		log_event( $order_id, __( 'Tab settled & closed', 'dinekit' ) );
+	}
 }
