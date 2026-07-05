@@ -414,6 +414,9 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const [ sharesPaid, setSharesPaid ] = useState( 0 );
 	const [ qr, setQr ] = useState( '' ); // pay-by-QR svg
 	const [ payToken, setPayToken ] = useState( '' );
+	const [ mode, setMode ] = useState( 'even' ); // split mode: even | item
+	const [ paidIdx, setPaidIdx ] = useState( [] ); // line indexes already settled (by-item)
+	const [ sel, setSel ] = useState( [] ); // currently selected line indexes (by-item)
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -424,9 +427,13 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 	const grand = Number( order.grandTotal );
 	const balance = Number( order.balance );
 	const cashN = Number( cash || 0 );
-	// The amount the current tender settles: an even share while splitting, else
-	// the whole remaining balance.
-	const charge = round2( Math.min( shares > 1 ? balance / Math.max( 1, shares - sharesPaid ) : balance, balance ) );
+	const lines = order.items || [];
+	const selSubtotal = round2( sel.reduce( ( s, i ) => s + Number( ( lines[ i ] || {} ).lineTotal || 0 ), 0 ) );
+	// The amount the current tender settles: selected items (by-item), an even
+	// share (even split), else the whole remaining balance.
+	const charge = 'item' === mode
+		? round2( Math.min( sel.length ? selSubtotal : balance, balance ) )
+		: round2( Math.min( shares > 1 ? balance / Math.max( 1, shares - sharesPaid ) : balance, balance ) );
 	const change = cashN > charge ? round2( cashN - charge ) : 0;
 
 	const setCharges = async ( patch ) => {
@@ -448,7 +455,10 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 				onSettled();
 			} else {
 				setCash( '' );
-				if ( shares > 1 ) {
+				if ( 'item' === mode ) {
+					setPaidIdx( ( p ) => [ ...p, ...sel ] );
+					setSel( [] );
+				} else if ( shares > 1 ) {
 					setSharesPaid( ( p ) => p + 1 );
 				}
 			}
@@ -539,15 +549,44 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 
 				{ /* Payment */ }
 				<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Take payment</Typography>
-				<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
-					<Typography sx={ { fontSize: 13, color: tokens.muted } }>Split evenly</Typography>
-					<IconButton size="small" disabled={ shares <= 1 } onClick={ () => setShares( ( s ) => Math.max( 1, s - 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><RemoveIcon fontSize="small" /></IconButton>
-					<Typography sx={ { fontWeight: 700, width: 20, textAlign: 'center' } }>{ shares }</Typography>
-					<IconButton size="small" onClick={ () => setShares( ( s ) => Math.min( 12, s + 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><AddIcon fontSize="small" /></IconButton>
-					<Typography sx={ { fontSize: 13, color: tokens.muted } }>{ shares > 1 ? `${ sharesPaid }/${ shares } paid · ${ money( charge ) }/share` : 'whole bill' }</Typography>
+				<Stack direction="row" spacing={ 1 } sx={ { mb: 1.5 } }>
+					<Chip label="Even split" onClick={ () => { setMode( 'even' ); setSel( [] ); } } sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: 'even' === mode ? tokens.accentSoft : tokens.soft, color: 'even' === mode ? tokens.accentDark : tokens.ink2 } } />
+					<Chip label="By item" onClick={ () => setMode( 'item' ) } sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: 'item' === mode ? tokens.accentSoft : tokens.soft, color: 'item' === mode ? tokens.accentDark : tokens.ink2 } } />
 				</Stack>
+				{ 'even' === mode ? (
+					<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
+						<Typography sx={ { fontSize: 13, color: tokens.muted } }>Split evenly</Typography>
+						<IconButton size="small" disabled={ shares <= 1 } onClick={ () => setShares( ( s ) => Math.max( 1, s - 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><RemoveIcon fontSize="small" /></IconButton>
+						<Typography sx={ { fontWeight: 700, width: 20, textAlign: 'center' } }>{ shares }</Typography>
+						<IconButton size="small" onClick={ () => setShares( ( s ) => Math.min( 12, s + 1 ) ) } sx={ { border: `1px solid ${ tokens.border }` } }><AddIcon fontSize="small" /></IconButton>
+						<Typography sx={ { fontSize: 13, color: tokens.muted } }>{ shares > 1 ? `${ sharesPaid }/${ shares } paid · ${ money( charge ) }/share` : 'whole bill' }</Typography>
+					</Stack>
+				) : (
+					<Box sx={ { mb: 1.5, border: `1px solid ${ tokens.border }`, borderRadius: '10px', overflow: 'hidden' } }>
+						{ lines.map( ( l, i ) => {
+							const done = paidIdx.includes( i );
+							const on = sel.includes( i );
+							return (
+								<Stack
+									key={ i }
+									direction="row"
+									justifyContent="space-between"
+									alignItems="center"
+									onClick={ done ? undefined : () => setSel( ( s ) => s.includes( i ) ? s.filter( ( x ) => x !== i ) : [ ...s, i ] ) }
+									sx={ { px: 1.25, py: 0.75, borderBottom: `1px solid ${ tokens.soft }`, cursor: done ? 'default' : 'pointer', bgcolor: on ? tokens.accentSoft : 'transparent', opacity: done ? 0.5 : 1 } }
+								>
+									<Typography sx={ { fontSize: 13, color: tokens.ink, textDecoration: done ? 'line-through' : 'none' } }>{ l.qty }× { l.title }</Typography>
+									<Typography sx={ { fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }>{ done ? 'paid' : money( l.lineTotal ) }</Typography>
+								</Stack>
+							);
+						} ) }
+						<Box sx={ { px: 1.25, py: 0.75, bgcolor: tokens.soft } }>
+							<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>{ sel.length ? `Selected: ${ money( selSubtotal ) }` : 'Tap items to pay for them — or leave none to pay the remainder.' }</Typography>
+						</Box>
+					</Box>
+				) }
 				<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
-					<Box component="input" type="number" inputMode="decimal" placeholder={ shares > 1 ? `Cash for ${ money( charge ) }` : 'Cash received' } value={ cash } onChange={ ( e ) => setCash( e.target.value ) }
+					<Box component="input" type="number" inputMode="decimal" placeholder={ charge < balance ? `Cash for ${ money( charge ) }` : 'Cash received' } value={ cash } onChange={ ( e ) => setCash( e.target.value ) }
 						sx={ { width: 160, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
 					<Button variant="contained" disabled={ busy || balance <= 0 } onClick={ takeCash }>Take cash</Button>
 					{ change > 0 && <Typography sx={ { fontWeight: 700, color: tokens.green } }>Change { money( change ) }</Typography> }
