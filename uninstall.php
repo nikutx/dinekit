@@ -40,7 +40,6 @@ delete_option( 'dinekit_feedback_page' );
 delete_option( 'dinekit_reviews' );
 delete_option( 'dinekit_staff' );
 delete_option( 'dinekit_email' );
-delete_option( 'dinekit_prefix_migrated' );
 delete_option( 'dinekit_access' );
 delete_option( 'dinekit_roles_ready' );
 
