@@ -259,6 +259,8 @@ function update_order( $request ) {
 		update_post_meta( $id, 'dk_order_status', 'preparing' );
 		Ordering\log_event( $id, __( 'Accepted', 'dinekit' ) );
 		Ordering\capture_payment( $id ); // Captures an authorized hold when present (no-op otherwise).
+		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
+		Ordering\Emails\printer_ticket( $id ); // Auto-print the kitchen ticket on accept.
 	} elseif ( 'reject' === $action ) {
 		update_post_meta( $id, 'dk_order_status', 'cancelled' );
 		Ordering\log_event( $id, __( 'Rejected & cancelled', 'dinekit' ) );
@@ -458,6 +460,11 @@ function place_order( $request ) {
 
 	require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 	\DineKit\Ordering\Emails\new_order( $post_id );
+	// Auto-accepted orders are confirmed on arrival — print the kitchen ticket
+	// now. Held orders print when a staff member accepts them (see update_order).
+	if ( $auto ) {
+		\DineKit\Ordering\Emails\printer_ticket( $post_id );
+	}
 
 	return rest_ensure_response(
 		array(

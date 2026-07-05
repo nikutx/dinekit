@@ -249,6 +249,7 @@ function get_settings() {
 		'min_order'        => 0,     // Minimum order value (0 = none).
 		'emails_enabled'   => true,  // Send customer + kitchen order emails.
 		'notify_email'     => '',    // Kitchen recipient (empty = site admin).
+		'printer_email'    => '',    // Email-to-print device address (auto-print tickets).
 		// Delivery (non-tracked). Live driver/Maps tracking is a later expansion.
 		'delivery_enabled' => false, // Offer delivery alongside collection.
 		'delivery_fee'     => 0,     // Flat delivery fee.
@@ -286,6 +287,10 @@ function save_settings( $data ) {
 	if ( isset( $data['notify_email'] ) ) {
 		$email                   = sanitize_email( (string) $data['notify_email'] );
 		$current['notify_email'] = is_email( $email ) ? $email : '';
+	}
+	if ( isset( $data['printer_email'] ) ) {
+		$pemail                   = sanitize_email( (string) $data['printer_email'] );
+		$current['printer_email'] = is_email( $pemail ) ? $pemail : '';
 	}
 	if ( isset( $data['delivery_enabled'] ) ) {
 		$current['delivery_enabled'] = (bool) $data['delivery_enabled'];

@@ -180,6 +180,65 @@ function cancelled( $id ) {
 }
 
 /**
+ * Send a plain-text kitchen ticket to an email-to-print device (e.g. Epson
+ * Connect / Star email print). Independent of the customer/kitchen email
+ * toggle — it's an operational feed — and only fires when a printer address is
+ * configured. Deliberately narrow + unstyled so thermal printers render it
+ * cleanly. Logged like any other send so staff can see it went out.
+ *
+ * @param int $id Order id.
+ * @return void
+ */
+function printer_ticket( $id ) {
+	$settings = Ordering\get_settings();
+	$to       = isset( $settings['printer_email'] ) ? (string) $settings['printer_email'] : '';
+	if ( ! is_email( $to ) ) {
+		return;
+	}
+	$d    = order_data( $id );
+	$rule = str_repeat( '-', 32 );
+	$when = 'asap' === $d['when'] ? __( 'ASAP', 'dinekit' ) : $d['when'];
+
+	$lines   = array();
+	$lines[] = 'delivery' === $d['fulfilment'] ? '*** ' . __( 'DELIVERY', 'dinekit' ) . ' ***' : '*** ' . __( 'COLLECTION', 'dinekit' ) . ' ***';
+	/* translators: %d: order number. */
+	$lines[] = sprintf( __( 'ORDER #%d', 'dinekit' ), $d['number'] );
+	$lines[] = __( 'Time:', 'dinekit' ) . ' ' . $when;
+	$lines[] = $d['name'];
+	if ( $d['phone'] ) {
+		$lines[] = $d['phone'];
+	}
+	if ( 'delivery' === $d['fulfilment'] && $d['address'] ) {
+		$lines[] = $d['address'];
+	}
+	$lines[] = $rule;
+	foreach ( $d['items'] as $line ) {
+		$lines[] = $line['qty'] . 'x ' . $line['title'] . ( ! empty( $line['priceLabel'] ) ? ' (' . $line['priceLabel'] . ')' : '' );
+		$mods    = array();
+		foreach ( (array) ( $line['chosen'] ?? array() ) as $c ) {
+			$mods[] = $c['label'];
+		}
+		foreach ( (array) ( $line['removed'] ?? array() ) as $r ) {
+			$mods[] = 'no ' . $r;
+		}
+		if ( $mods ) {
+			$lines[] = '   + ' . implode( ', ', $mods );
+		}
+	}
+	$lines[] = $rule;
+	$lines[] = __( 'TOTAL', 'dinekit' ) . ' ' . money( $d['total'] );
+	if ( $d['notes'] ) {
+		$lines[] = '';
+		$lines[] = __( 'Notes:', 'dinekit' ) . ' ' . $d['notes'];
+	}
+
+	/* translators: %d: order number. */
+	$subject = sprintf( __( 'Order #%d', 'dinekit' ), $d['number'] );
+	$ok      = wp_mail( $to, $subject, implode( "\n", $lines ) ); // Plain text (default content type) for thermal devices.
+	Ordering\log_email( $id, $to, 'printer', $ok );
+}
+
+/**
  * Resend the customer confirmation (admin "resend receipt"). Logs the result.
  *
  * @param int $id Order id.

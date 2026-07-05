@@ -590,6 +590,20 @@ function OrderSettings() {
 			</Stack>
 
 			<Divider sx={ { my: 2 } } />
+			<Typography sx={ { fontSize: 14, fontWeight: 700, mb: 0.5 } }>Kitchen printer</Typography>
+			<Typography sx={ { fontSize: 12.5, color: tokens.muted2, mb: 1.5 } }>
+				Auto-print tickets to a network thermal printer with its own email address. When an order is accepted (or auto-accepted), DineKit emails a plain ticket the printer prints itself — no computer needed. Works with email-to-print printers such as <strong>Epson TM-m30 (Epson Connect)</strong> or <strong>Star mC-Print</strong>; find the printer’s address in its Epson Connect / Star CloudPRNT setup.
+			</Typography>
+			<TextField
+				label="Printer email" type="email" size="small"
+				placeholder="e.g. abc123@print.epsonconnect.com"
+				value={ cfg.printer_email || '' }
+				onChange={ ( e ) => patch( { printer_email: e.target.value } ) }
+				helperText="Leave blank to print manually from the order card."
+				sx={ { width: 320 } }
+			/>
+
+			<Divider sx={ { my: 2 } } />
 			<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: cfg.delivery_enabled ? 1.5 : 0 } }>
 				<Switch checked={ !! cfg.delivery_enabled } onChange={ ( e ) => patch( { delivery_enabled: e.target.checked } ) } />
 				<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Offer delivery</Typography>
