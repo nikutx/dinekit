@@ -26,9 +26,9 @@ function defaults() {
 		'currency'         => '£',
 		'currencyPosition' => 'before', // before | after.
 		'businessType'     => 'both',   // dinein | takeaway | both — gates features.
-		// Menu look. `template` picks the flavour (maison | counter | noir); the
-		// colours below are OPTIONAL overrides — empty means "use the template's".
-		'template'         => 'maison', // maison (classic) | counter (modern) | noir (dark).
+		// Menu look. `template` picks the flavour (see templates()); the colours
+		// below are OPTIONAL overrides — empty means "use the template's".
+		'template'         => 'maison', // One of the flavours from templates().
 		'menu_ink'         => '',       // Body text.
 		'menu_muted'       => '',       // Secondary text.
 		'menu_line'        => '',       // Borders/rules.
@@ -43,7 +43,7 @@ function defaults() {
  * @return string[]
  */
 function templates() {
-	return array( 'maison', 'counter', 'noir' );
+	return array( 'maison', 'counter', 'noir', 'bistro', 'fresh', 'mono' );
 }
 
 /**

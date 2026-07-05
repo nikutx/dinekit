@@ -33,11 +33,17 @@ const TEMPLATES = [
 	{ value: 'maison', label: 'Maison', desc: 'Classic fine-dining' },
 	{ value: 'counter', label: 'Counter', desc: 'Modern & clean' },
 	{ value: 'noir', label: 'Noir', desc: 'Upscale, dark' },
+	{ value: 'bistro', label: 'Bistro', desc: 'Warm, dotted leaders' },
+	{ value: 'fresh', label: 'Fresh', desc: 'Bright & friendly café' },
+	{ value: 'mono', label: 'Mono', desc: 'Minimalist monochrome' },
 ];
 const TEMPLATE_PALETTE = {
 	maison: { accent: '#7c2d3a', menu_ink: '#2b2622', menu_muted: '#8a7f73', menu_line: '#e4dccd', menu_bg: '#faf7f1' },
 	counter: { accent: '#4f46e5', menu_ink: '#101319', menu_muted: '#667085', menu_line: '#edeff3', menu_bg: '' },
 	noir: { accent: '#c9a26a', menu_ink: '#ece3d4', menu_muted: '#a2937c', menu_line: '#342f27', menu_bg: '#17130e' },
+	bistro: { accent: '#2f5d4c', menu_ink: '#23201c', menu_muted: '#7a7367', menu_line: '#d8cfbf', menu_bg: '#f6f2e9' },
+	fresh: { accent: '#0d9488', menu_ink: '#0f172a', menu_muted: '#64748b', menu_line: '#e2eeeb', menu_bg: '' },
+	mono: { accent: '#111111', menu_ink: '#111111', menu_muted: '#767676', menu_line: '#e5e5e5', menu_bg: '' },
 };
 
 // Design & Preview: pick a style, see an isolated live preview of the real
