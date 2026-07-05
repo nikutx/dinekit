@@ -239,7 +239,7 @@ function AreaChart( { perDay, metric, money } ) {
 	const labelStep = Math.ceil( perDay.length / 10 );
 	return (
 		<Box sx={ { position: 'relative' } }>
-			<svg viewBox={ `0 0 ${ W } ${ H }` } width="100%" height="auto" style={ { display: 'block' } }>
+			<svg viewBox={ `0 0 ${ W } ${ H }` } width="100%" style={ { display: 'block', height: 'auto' } }>
 				<defs>
 					<linearGradient id="dkArea" x1="0" y1="0" x2="0" y2="1">
 						<stop offset="0%" stopColor={ tokens.accent } stopOpacity="0.20" />

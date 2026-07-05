@@ -146,7 +146,7 @@ function on_leave( $date ) {
 	}
 	$rows = get_posts(
 		array(
-			'post_type'      => 'dk_leave',
+			'post_type'      => 'dinekit_leave',
 			'post_status'    => 'publish',
 			'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- leave active on a single day.
 			'no_found_rows'  => true,
@@ -154,17 +154,17 @@ function on_leave( $date ) {
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				'relation' => 'AND',
 				array(
-					'key'   => 'dk_leave_status',
+					'key'   => 'dinekit_leave_status',
 					'value' => 'approved',
 				),
 				array(
-					'key'     => 'dk_leave_from',
+					'key'     => 'dinekit_leave_from',
 					'value'   => $date,
 					'compare' => '<=',
 					'type'    => 'DATE',
 				),
 				array(
-					'key'     => 'dk_leave_to',
+					'key'     => 'dinekit_leave_to',
 					'value'   => $date,
 					'compare' => '>=',
 					'type'    => 'DATE',
@@ -174,11 +174,11 @@ function on_leave( $date ) {
 	);
 	$map  = array();
 	foreach ( $rows as $lid ) {
-		$sid = (int) get_post_meta( $lid, 'dk_leave_staff', true );
+		$sid = (int) get_post_meta( $lid, 'dinekit_leave_staff', true );
 		if ( $sid ) {
 			$map[ $sid ] = array(
-				'from' => (string) get_post_meta( $lid, 'dk_leave_from', true ),
-				'to'   => (string) get_post_meta( $lid, 'dk_leave_to', true ),
+				'from' => (string) get_post_meta( $lid, 'dinekit_leave_from', true ),
+				'to'   => (string) get_post_meta( $lid, 'dinekit_leave_to', true ),
 			);
 		}
 	}
@@ -213,36 +213,36 @@ function register() {
 		'has_archive'  => false,
 		'map_meta_cap' => true,
 	);
-	register_post_type( 'dk_staff', array_merge( $common, array( 'label' => __( 'Staff', 'dinekit' ) ) ) );
-	register_post_type( 'dk_shift', array_merge( $common, array( 'label' => __( 'Shifts', 'dinekit' ) ) ) );
-	register_post_type( 'dk_leave', array_merge( $common, array( 'label' => __( 'Leave', 'dinekit' ) ) ) );
+	register_post_type( 'dinekit_staff', array_merge( $common, array( 'label' => __( 'Staff', 'dinekit' ) ) ) );
+	register_post_type( 'dinekit_shift', array_merge( $common, array( 'label' => __( 'Shifts', 'dinekit' ) ) ) );
+	register_post_type( 'dinekit_leave', array_merge( $common, array( 'label' => __( 'Leave', 'dinekit' ) ) ) );
 
 	$meta = array(
-		'dk_staff' => array(
-			'dk_role'    => 'string',
-			'dk_area'    => 'string',
-			'dk_email'   => 'string',
-			'dk_phone'   => 'string',
-			'dk_rate'    => 'string', // Hourly rate (decimal string).
-			'dk_holiday' => 'integer', // Annual holiday allowance, days.
-			'dk_color'   => 'string',
-			'dk_active'  => 'integer', // 1 | 0.
+		'dinekit_staff' => array(
+			'dinekit_role'    => 'string',
+			'dinekit_area'    => 'string',
+			'dinekit_email'   => 'string',
+			'dinekit_phone'   => 'string',
+			'dinekit_rate'    => 'string', // Hourly rate (decimal string).
+			'dinekit_holiday' => 'integer', // Annual holiday allowance, days.
+			'dinekit_color'   => 'string',
+			'dinekit_active'  => 'integer', // 1 | 0.
 		),
-		'dk_shift' => array(
-			'dk_shift_staff' => 'integer',
-			'dk_shift_date'  => 'string',  // Y-m-d.
-			'dk_shift_start' => 'string',  // H:i.
-			'dk_shift_end'   => 'string',  // H:i.
-			'dk_shift_role'  => 'string',
-			'dk_shift_note'  => 'string',
+		'dinekit_shift' => array(
+			'dinekit_shift_staff' => 'integer',
+			'dinekit_shift_date'  => 'string',  // Y-m-d.
+			'dinekit_shift_start' => 'string',  // H:i.
+			'dinekit_shift_end'   => 'string',  // H:i.
+			'dinekit_shift_role'  => 'string',
+			'dinekit_shift_note'  => 'string',
 		),
-		'dk_leave' => array(
-			'dk_leave_staff'  => 'integer',
-			'dk_leave_from'   => 'string', // Y-m-d.
-			'dk_leave_to'     => 'string', // Y-m-d.
-			'dk_leave_days'   => 'string', // Decimal string (supports half days).
-			'dk_leave_status' => 'string', // pending | approved | denied.
-			'dk_leave_note'   => 'string',
+		'dinekit_leave' => array(
+			'dinekit_leave_staff'  => 'integer',
+			'dinekit_leave_from'   => 'string', // Y-m-d.
+			'dinekit_leave_to'     => 'string', // Y-m-d.
+			'dinekit_leave_days'   => 'string', // Decimal string (supports half days).
+			'dinekit_leave_status' => 'string', // pending | approved | denied.
+			'dinekit_leave_note'   => 'string',
 		),
 	);
 	foreach ( $meta as $post_type => $fields ) {
@@ -307,7 +307,7 @@ function save_settings( $input ) {
 function all_staff( $active_only = false ) {
 	$posts = get_posts(
 		array(
-			'post_type'      => 'dk_staff',
+			'post_type'      => 'dinekit_staff',
 			'post_status'    => 'publish',
 			// A venue has a bounded team; we need them all for rota/dashboard.
 			'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page
@@ -323,7 +323,7 @@ function all_staff( $active_only = false ) {
 		array_filter(
 			$posts,
 			static function ( $p ) {
-				return '0' !== (string) get_post_meta( $p->ID, 'dk_active', true );
+				return '0' !== (string) get_post_meta( $p->ID, 'dinekit_active', true );
 			}
 		)
 	);
@@ -378,31 +378,31 @@ function ops( $date ) {
 	$clashes     = array();           // Shifts scheduled on someone's approved holiday.
 	$shifts      = get_posts(
 		array(
-			'post_type'      => 'dk_shift',
+			'post_type'      => 'dinekit_shift',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- one day's shifts.
 			'no_found_rows'  => true,
 			'fields'         => 'ids',
-			'meta_key'       => 'dk_shift_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_shift_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'meta_value'     => $date, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
 	foreach ( $shifts as $sid ) {
 		++$staff_on;
-		$role = (string) get_post_meta( $sid, 'dk_shift_role', true );
+		$role = (string) get_post_meta( $sid, 'dinekit_shift_role', true );
 		if ( 'boh' !== area_for_role( $role ) ) {
 			++$servers_on;
 		}
-		$start_hm = (string) get_post_meta( $sid, 'dk_shift_start', true );
-		$end_hm   = (string) get_post_meta( $sid, 'dk_shift_end', true );
+		$start_hm = (string) get_post_meta( $sid, 'dinekit_shift_start', true );
+		$end_hm   = (string) get_post_meta( $sid, 'dinekit_shift_end', true );
 		$start    = \DineKit\Bookings\Availability\to_minutes( $start_hm );
 		$end      = \DineKit\Bookings\Availability\to_minutes( $end_hm );
 		$mins     = $end - $start;
 		if ( $mins <= 0 ) {
 			$mins += 1440;
 		}
-		$staff_id     = (int) get_post_meta( $sid, 'dk_shift_staff', true );
-		$labour_cost += ( $mins / 60 ) * (float) get_post_meta( $staff_id, 'dk_rate', true );
+		$staff_id     = (int) get_post_meta( $sid, 'dinekit_shift_staff', true );
+		$labour_cost += ( $mins / 60 ) * (float) get_post_meta( $staff_id, 'dinekit_rate', true );
 
 		// Clash: this shift falls on the member's approved holiday. They still
 		// count above (if the manager leaves it, both the holiday and the shift

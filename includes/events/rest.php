@@ -119,11 +119,11 @@ function register_routes() {
 function guests_of( $event_id ) {
 	return get_posts(
 		array(
-			'post_type'      => 'dk_guest',
+			'post_type'      => 'dinekit_guest',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'no_found_rows'  => true,
-			'meta_key'       => 'dk_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'meta_value'     => (int) $event_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
@@ -137,14 +137,14 @@ function guests_of( $event_id ) {
  */
 function event_response( $id ) {
 	$post  = get_post( $id );
-	$token = (string) get_post_meta( $id, 'dk_event_token', true );
+	$token = (string) get_post_meta( $id, 'dinekit_event_token', true );
 	$page  = \DineKit\Events\events_page_url();
 
 	// Groups (companies/teams) with their own guest counts + share links.
 	$guests = guests_of( $id );
 	$counts = array();
 	foreach ( $guests as $g ) {
-		$gg = (string) get_post_meta( $g->ID, 'dk_guest_group', true );
+		$gg = (string) get_post_meta( $g->ID, 'dinekit_guest_group', true );
 		if ( '' !== $gg ) {
 			$counts[ $gg ] = ( $counts[ $gg ] ?? 0 ) + 1;
 		}
@@ -170,14 +170,14 @@ function event_response( $id ) {
 	return array(
 		'id'         => (int) $id,
 		'name'       => $post->post_title,
-		'date'       => (string) get_post_meta( $id, 'dk_event_date', true ),
-		'time'       => (string) get_post_meta( $id, 'dk_event_time', true ),
-		'menu'       => (int) get_post_meta( $id, 'dk_event_menu', true ),
-		'capacity'   => (int) get_post_meta( $id, 'dk_event_capacity', true ),
-		'deadline'   => (string) get_post_meta( $id, 'dk_event_deadline', true ),
-		'price'      => (int) get_post_meta( $id, 'dk_event_price', true ),
-		'status'     => (string) get_post_meta( $id, 'dk_event_status', true ) ?: 'draft',
-		'intro'      => (string) get_post_meta( $id, 'dk_event_intro', true ),
+		'date'       => (string) get_post_meta( $id, 'dinekit_event_date', true ),
+		'time'       => (string) get_post_meta( $id, 'dinekit_event_time', true ),
+		'menu'       => (int) get_post_meta( $id, 'dinekit_event_menu', true ),
+		'capacity'   => (int) get_post_meta( $id, 'dinekit_event_capacity', true ),
+		'deadline'   => (string) get_post_meta( $id, 'dinekit_event_deadline', true ),
+		'price'      => (int) get_post_meta( $id, 'dinekit_event_price', true ),
+		'status'     => (string) get_post_meta( $id, 'dinekit_event_status', true ) ?: 'draft',
+		'intro'      => (string) get_post_meta( $id, 'dinekit_event_intro', true ),
 		'token'      => $token,
 		'shareUrl'   => $page ? add_query_arg( 'dkevent', $token, $page ) : '',
 		'groups'     => $groups,
@@ -192,7 +192,7 @@ function event_response( $id ) {
  * @return array<string,mixed>
  */
 function guest_response( $post ) {
-	$sel = json_decode( (string) get_post_meta( $post->ID, 'dk_guest_selections', true ), true );
+	$sel = json_decode( (string) get_post_meta( $post->ID, 'dinekit_guest_selections', true ), true );
 	$ids = static function ( $key ) use ( $post ) {
 		return array_values( array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $post->ID, $key, true ) ) ) ) );
 	};
@@ -206,19 +206,19 @@ function guest_response( $post ) {
 		}
 		return $out;
 	};
-	$allergen_ids = $ids( 'dk_guest_allergens' );
-	$dietary_ids  = $ids( 'dk_guest_dietary' );
+	$allergen_ids = $ids( 'dinekit_guest_allergens' );
+	$dietary_ids  = $ids( 'dinekit_guest_dietary' );
 	return array(
 		'id'            => (int) $post->ID,
 		'name'          => $post->post_title,
-		'email'         => (string) get_post_meta( $post->ID, 'dk_guest_email', true ),
-		'group'         => (string) get_post_meta( $post->ID, 'dk_guest_group', true ),
+		'email'         => (string) get_post_meta( $post->ID, 'dinekit_guest_email', true ),
+		'group'         => (string) get_post_meta( $post->ID, 'dinekit_guest_group', true ),
 		'selections'    => is_array( $sel ) ? $sel : array(),
 		'allergens'     => $allergen_ids,
 		'dietary'       => $dietary_ids,
-		'allergenNames' => $names( $allergen_ids, 'dk_allergen' ),
-		'dietaryNames'  => $names( $dietary_ids, 'dk_dietary' ),
-		'notes'         => (string) get_post_meta( $post->ID, 'dk_guest_notes', true ),
+		'allergenNames' => $names( $allergen_ids, 'dinekit_allergen' ),
+		'dietaryNames'  => $names( $dietary_ids, 'dinekit_dietary' ),
+		'notes'         => (string) get_post_meta( $post->ID, 'dinekit_guest_notes', true ),
 	);
 }
 
@@ -234,7 +234,7 @@ function prep_sheet( $event_id ) {
 	$allergens   = array();
 
 	foreach ( $guests as $g ) {
-		$sel = json_decode( (string) get_post_meta( $g->ID, 'dk_guest_selections', true ), true );
+		$sel = json_decode( (string) get_post_meta( $g->ID, 'dinekit_guest_selections', true ), true );
 		if ( is_array( $sel ) ) {
 			foreach ( $sel as $item_id ) {
 				$item_id = (int) $item_id;
@@ -243,9 +243,9 @@ function prep_sheet( $event_id ) {
 				}
 			}
 		}
-		$aids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $g->ID, 'dk_guest_allergens', true ) ) ) );
+		$aids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $g->ID, 'dinekit_guest_allergens', true ) ) ) );
 		foreach ( $aids as $aid ) {
-			$term = get_term( $aid, 'dk_allergen' );
+			$term = get_term( $aid, 'dinekit_allergen' );
 			if ( $term && ! is_wp_error( $term ) ) {
 				$allergens[ $aid ]['name']      = $term->name;
 				$allergens[ $aid ]['guests'][]  = $g->post_title;
@@ -283,12 +283,12 @@ function list_events() {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$posts  = get_posts(
 		array(
-			'post_type'      => 'dk_event',
+			'post_type'      => 'dinekit_event',
 			'post_status'    => 'publish',
 			'posts_per_page' => 200,
 			'no_found_rows'  => true,
 			'orderby'        => 'meta_value',
-			'meta_key'       => 'dk_event_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_event_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'order'          => 'ASC',
 		)
 	);
@@ -311,14 +311,14 @@ function apply_event_fields( $id, $request ) {
 		wp_update_post( array( 'ID' => $id, 'post_title' => sanitize_text_field( (string) $request->get_param( 'name' ) ) ) );
 	}
 	$map = array(
-		'date'     => array( 'dk_event_date', 'text' ),
-		'time'     => array( 'dk_event_time', 'text' ),
-		'deadline' => array( 'dk_event_deadline', 'text' ),
-		'status'   => array( 'dk_event_status', 'text' ),
-		'intro'    => array( 'dk_event_intro', 'text' ),
-		'menu'     => array( 'dk_event_menu', 'int' ),
-		'capacity' => array( 'dk_event_capacity', 'int' ),
-		'price'    => array( 'dk_event_price', 'int' ),
+		'date'     => array( 'dinekit_event_date', 'text' ),
+		'time'     => array( 'dinekit_event_time', 'text' ),
+		'deadline' => array( 'dinekit_event_deadline', 'text' ),
+		'status'   => array( 'dinekit_event_status', 'text' ),
+		'intro'    => array( 'dinekit_event_intro', 'text' ),
+		'menu'     => array( 'dinekit_event_menu', 'int' ),
+		'capacity' => array( 'dinekit_event_capacity', 'int' ),
+		'price'    => array( 'dinekit_event_price', 'int' ),
 	);
 	foreach ( $map as $param => $conf ) {
 		$value = $request->get_param( $param );
@@ -350,7 +350,7 @@ function apply_event_fields( $id, $request ) {
 				'size' => absint( $g['size'] ?? 0 ),
 			);
 		}
-		update_post_meta( $id, 'dk_event_groups', wp_json_encode( $clean ) );
+		update_post_meta( $id, 'dinekit_event_groups', wp_json_encode( $clean ) );
 	}
 }
 
@@ -365,7 +365,7 @@ function create_event( $request ) {
 	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$id   = wp_insert_post(
 		array(
-			'post_type'   => 'dk_event',
+			'post_type'   => 'dinekit_event',
 			'post_status' => 'publish',
 			'post_title'  => '' !== $name ? $name : __( 'New event', 'dinekit' ),
 		),
@@ -374,9 +374,9 @@ function create_event( $request ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	update_post_meta( $id, 'dk_event_token', \DineKit\Events\make_token() );
-	update_post_meta( $id, 'dk_event_status', 'draft' );
-	update_post_meta( $id, 'dk_event_capacity', 0 );
+	update_post_meta( $id, 'dinekit_event_token', \DineKit\Events\make_token() );
+	update_post_meta( $id, 'dinekit_event_status', 'draft' );
+	update_post_meta( $id, 'dinekit_event_capacity', 0 );
 	apply_event_fields( $id, $request );
 	return rest_ensure_response( event_response( $id ) );
 }
@@ -390,7 +390,7 @@ function create_event( $request ) {
 function get_event( $request ) {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$id       = (int) $request['id'];
-	$menu     = (int) get_post_meta( $id, 'dk_event_menu', true );
+	$menu     = (int) get_post_meta( $id, 'dinekit_event_menu', true );
 	$response = event_response( $id );
 	$response['courses'] = $menu ? \DineKit\Events\courses( $menu ) : array();
 	$response['guests']  = array_map( __NAMESPACE__ . '\\guest_response', guests_of( $id ) );
@@ -450,27 +450,27 @@ function delete_guest( $request ) {
 function public_event( $request ) {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$event = \DineKit\Events\event_by_token( (string) $request['token'] );
-	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dk_event_status', true ) ) {
+	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dinekit_event_status', true ) ) {
 		return new \WP_Error( 'dinekit_event_missing', __( 'Event not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
-	$menu     = (int) get_post_meta( $event->ID, 'dk_event_menu', true );
-	$deadline = (string) get_post_meta( $event->ID, 'dk_event_deadline', true );
+	$menu     = (int) get_post_meta( $event->ID, 'dinekit_event_menu', true );
+	$deadline = (string) get_post_meta( $event->ID, 'dinekit_event_deadline', true );
 
 	$group = sanitize_key( (string) $request->get_param( 'g' ) );
 
 	return rest_ensure_response(
 		array(
 			'name'     => $event->post_title,
-			'date'     => (string) get_post_meta( $event->ID, 'dk_event_date', true ),
-			'time'     => (string) get_post_meta( $event->ID, 'dk_event_time', true ),
-			'intro'    => (string) get_post_meta( $event->ID, 'dk_event_intro', true ),
+			'date'     => (string) get_post_meta( $event->ID, 'dinekit_event_date', true ),
+			'time'     => (string) get_post_meta( $event->ID, 'dinekit_event_time', true ),
+			'intro'    => (string) get_post_meta( $event->ID, 'dinekit_event_intro', true ),
 			'deadline' => $deadline,
 			'closed'   => deadline_passed( $deadline ) || full( $event->ID ),
 			'courses'  => $menu ? \DineKit\Events\courses( $menu ) : array(),
 			'group'     => $group,
 			'groupName' => $group ? \DineKit\Events\group_name( $event->ID, $group ) : '',
-			'allergens' => taxonomy_options( 'dk_allergen' ),
-			'dietary'   => taxonomy_options( 'dk_dietary' ),
+			'allergens' => taxonomy_options( 'dinekit_allergen' ),
+			'dietary'   => taxonomy_options( 'dinekit_dietary' ),
 		)
 	);
 }
@@ -495,7 +495,7 @@ function deadline_passed( $deadline ) {
  * @return bool
  */
 function full( $event_id ) {
-	$cap = (int) get_post_meta( $event_id, 'dk_event_capacity', true );
+	$cap = (int) get_post_meta( $event_id, 'dinekit_event_capacity', true );
 	return $cap > 0 && count( guests_of( $event_id ) ) >= $cap;
 }
 
@@ -525,7 +525,7 @@ function taxonomy_options( $taxonomy ) {
 function public_submit( $request ) {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$event = \DineKit\Events\event_by_token( (string) $request['token'] );
-	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dk_event_status', true ) ) {
+	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dinekit_event_status', true ) ) {
 		return new \WP_Error( 'dinekit_event_missing', __( 'Event not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 
@@ -542,7 +542,7 @@ function public_submit( $request ) {
 	}
 	set_transient( $rl, $hits + 1, HOUR_IN_SECONDS );
 
-	$deadline = (string) get_post_meta( $event->ID, 'dk_event_deadline', true );
+	$deadline = (string) get_post_meta( $event->ID, 'dinekit_event_deadline', true );
 	if ( deadline_passed( $deadline ) || full( $event->ID ) ) {
 		return new \WP_Error( 'dinekit_event_closed', __( 'Sorry, this event is closed for orders.', 'dinekit' ), array( 'status' => 409 ) );
 	}
@@ -563,7 +563,7 @@ function public_submit( $request ) {
 
 	$gid = wp_insert_post(
 		array(
-			'post_type'   => 'dk_guest',
+			'post_type'   => 'dinekit_guest',
 			'post_status' => 'publish',
 			'post_title'  => $name,
 		),
@@ -577,13 +577,13 @@ function public_submit( $request ) {
 	$group    = sanitize_key( (string) $request->get_param( 'group' ) );
 	$group_ok = '' !== $group && '' !== \DineKit\Events\group_name( $event->ID, $group );
 
-	update_post_meta( $gid, 'dk_guest_event', (int) $event->ID );
-	update_post_meta( $gid, 'dk_guest_group', $group_ok ? $group : '' );
-	update_post_meta( $gid, 'dk_guest_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
-	update_post_meta( $gid, 'dk_guest_selections', wp_json_encode( $sel ) );
-	update_post_meta( $gid, 'dk_guest_allergens', $to_ids( $request->get_param( 'allergens' ) ) );
-	update_post_meta( $gid, 'dk_guest_dietary', $to_ids( $request->get_param( 'dietary' ) ) );
-	update_post_meta( $gid, 'dk_guest_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
+	update_post_meta( $gid, 'dinekit_guest_event', (int) $event->ID );
+	update_post_meta( $gid, 'dinekit_guest_group', $group_ok ? $group : '' );
+	update_post_meta( $gid, 'dinekit_guest_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
+	update_post_meta( $gid, 'dinekit_guest_selections', wp_json_encode( $sel ) );
+	update_post_meta( $gid, 'dinekit_guest_allergens', $to_ids( $request->get_param( 'allergens' ) ) );
+	update_post_meta( $gid, 'dinekit_guest_dietary', $to_ids( $request->get_param( 'dietary' ) ) );
+	update_post_meta( $gid, 'dinekit_guest_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 
 	return rest_ensure_response(
 		array(

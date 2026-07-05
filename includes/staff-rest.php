@@ -185,16 +185,16 @@ function day_span( $from, $to ) {
  * @return array<string,mixed>
  */
 function leave_response( $id ) {
-	$staff_id = (int) get_post_meta( $id, 'dk_leave_staff', true );
-	$status   = (string) get_post_meta( $id, 'dk_leave_status', true );
+	$staff_id = (int) get_post_meta( $id, 'dinekit_leave_staff', true );
+	$status   = (string) get_post_meta( $id, 'dinekit_leave_status', true );
 	return array(
 		'id'      => (int) $id,
 		'staffId' => $staff_id,
-		'from'    => (string) get_post_meta( $id, 'dk_leave_from', true ),
-		'to'      => (string) get_post_meta( $id, 'dk_leave_to', true ),
-		'days'    => (float) get_post_meta( $id, 'dk_leave_days', true ),
+		'from'    => (string) get_post_meta( $id, 'dinekit_leave_from', true ),
+		'to'      => (string) get_post_meta( $id, 'dinekit_leave_to', true ),
+		'days'    => (float) get_post_meta( $id, 'dinekit_leave_days', true ),
 		'status'  => '' !== $status ? $status : 'pending',
-		'note'    => (string) get_post_meta( $id, 'dk_leave_note', true ),
+		'note'    => (string) get_post_meta( $id, 'dinekit_leave_note', true ),
 	);
 }
 
@@ -207,7 +207,7 @@ function list_leave() {
 	require_once DINEKIT_DIR . 'includes/staff.php';
 	$posts    = get_posts(
 		array(
-			'post_type'      => 'dk_leave',
+			'post_type'      => 'dinekit_leave',
 			'post_status'    => 'publish',
 			'posts_per_page' => 1000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded team leave.
 			'no_found_rows'  => true,
@@ -222,11 +222,11 @@ function list_leave() {
 		}
 	);
 
-	// Balances: allowance (dk_holiday) minus approved days taken this year.
+	// Balances: allowance (dinekit_holiday) minus approved days taken this year.
 	$year     = (int) gmdate( 'Y' );
 	$balances = array();
 	foreach ( Staff\all_staff() as $post ) {
-		$allowance = (int) get_post_meta( $post->ID, 'dk_holiday', true );
+		$allowance = (int) get_post_meta( $post->ID, 'dinekit_holiday', true );
 		$taken     = 0.0;
 		foreach ( $requests as $r ) {
 			if ( $r['staffId'] === (int) $post->ID && 'approved' === $r['status'] && (int) substr( $r['from'], 0, 4 ) === $year ) {
@@ -257,12 +257,12 @@ function list_leave() {
  */
 function apply_leave_fields( $id, $request ) {
 	if ( null !== $request->get_param( 'staffId' ) ) {
-		update_post_meta( $id, 'dk_leave_staff', absint( $request->get_param( 'staffId' ) ) );
+		update_post_meta( $id, 'dinekit_leave_staff', absint( $request->get_param( 'staffId' ) ) );
 	}
 	foreach ( array(
-		'from' => 'dk_leave_from',
-		'to'   => 'dk_leave_to',
-		'note' => 'dk_leave_note',
+		'from' => 'dinekit_leave_from',
+		'to'   => 'dinekit_leave_to',
+		'note' => 'dinekit_leave_note',
 	) as $param => $key ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $key, sanitize_text_field( (string) $request->get_param( $param ) ) );
@@ -270,16 +270,16 @@ function apply_leave_fields( $id, $request ) {
 	}
 	if ( null !== $request->get_param( 'status' ) ) {
 		$status = sanitize_key( (string) $request->get_param( 'status' ) );
-		update_post_meta( $id, 'dk_leave_status', in_array( $status, array( 'pending', 'approved', 'denied' ), true ) ? $status : 'pending' );
+		update_post_meta( $id, 'dinekit_leave_status', in_array( $status, array( 'pending', 'approved', 'denied' ), true ) ? $status : 'pending' );
 	}
 	// Days: explicit value wins (half-days), else derive from the date span.
 	if ( null !== $request->get_param( 'days' ) ) {
-		update_post_meta( $id, 'dk_leave_days', number_format( max( 0, (float) $request->get_param( 'days' ) ), 2, '.', '' ) );
+		update_post_meta( $id, 'dinekit_leave_days', number_format( max( 0, (float) $request->get_param( 'days' ) ), 2, '.', '' ) );
 	} else {
-		$from = (string) get_post_meta( $id, 'dk_leave_from', true );
-		$to   = (string) get_post_meta( $id, 'dk_leave_to', true );
+		$from = (string) get_post_meta( $id, 'dinekit_leave_from', true );
+		$to   = (string) get_post_meta( $id, 'dinekit_leave_to', true );
 		if ( '' !== $from && '' !== $to ) {
-			update_post_meta( $id, 'dk_leave_days', number_format( day_span( $from, $to ), 2, '.', '' ) );
+			update_post_meta( $id, 'dinekit_leave_days', number_format( day_span( $from, $to ), 2, '.', '' ) );
 		}
 	}
 }
@@ -293,7 +293,7 @@ function apply_leave_fields( $id, $request ) {
 function create_leave( $request ) {
 	$id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_leave',
+			'post_type'   => 'dinekit_leave',
 			'post_status' => 'publish',
 			'post_title'  => 'leave',
 		),
@@ -302,7 +302,7 @@ function create_leave( $request ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	update_post_meta( $id, 'dk_leave_status', 'pending' );
+	update_post_meta( $id, 'dinekit_leave_status', 'pending' );
 	apply_leave_fields( $id, $request );
 	return rest_ensure_response( leave_response( $id ) );
 }
@@ -347,24 +347,24 @@ function to_min( $t ) {
  * @return array<string,mixed>
  */
 function shift_response( $id ) {
-	$staff_id = (int) get_post_meta( $id, 'dk_shift_staff', true );
-	$start    = (string) get_post_meta( $id, 'dk_shift_start', true );
-	$end      = (string) get_post_meta( $id, 'dk_shift_end', true );
+	$staff_id = (int) get_post_meta( $id, 'dinekit_shift_staff', true );
+	$start    = (string) get_post_meta( $id, 'dinekit_shift_start', true );
+	$end      = (string) get_post_meta( $id, 'dinekit_shift_end', true );
 	$mins     = to_min( $end ) - to_min( $start );
 	if ( $mins <= 0 ) {
 		$mins += 1440; // Over-midnight shift.
 	}
 	$hours = round( $mins / 60, 2 );
-	$rate  = (float) get_post_meta( $staff_id, 'dk_rate', true );
-	$date  = (string) get_post_meta( $id, 'dk_shift_date', true );
+	$rate  = (float) get_post_meta( $staff_id, 'dinekit_rate', true );
+	$date  = (string) get_post_meta( $id, 'dinekit_shift_date', true );
 	return array(
 		'id'      => (int) $id,
 		'staffId' => $staff_id,
 		'date'    => $date,
 		'start'   => $start,
 		'end'     => $end,
-		'role'    => (string) get_post_meta( $id, 'dk_shift_role', true ),
-		'note'    => (string) get_post_meta( $id, 'dk_shift_note', true ),
+		'role'    => (string) get_post_meta( $id, 'dinekit_shift_role', true ),
+		'note'    => (string) get_post_meta( $id, 'dinekit_shift_note', true ),
 		'hours'   => $hours,
 		'cost'    => round( $hours * $rate, 2 ),
 		// True when this shift falls on the member's approved holiday — the rota
@@ -385,7 +385,7 @@ function list_shifts( $request ) {
 	$meta = array();
 	if ( $from && $to ) {
 		$meta[] = array(
-			'key'     => 'dk_shift_date',
+			'key'     => 'dinekit_shift_date',
 			'value'   => array( $from, $to ),
 			'compare' => 'BETWEEN',
 			'type'    => 'DATE',
@@ -393,7 +393,7 @@ function list_shifts( $request ) {
 	}
 	$posts = get_posts(
 		array(
-			'post_type'      => 'dk_shift',
+			'post_type'      => 'dinekit_shift',
 			'post_status'    => 'publish',
 			'posts_per_page' => 1000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- one week of a venue's shifts.
 			'no_found_rows'  => true,
@@ -413,14 +413,14 @@ function list_shifts( $request ) {
  */
 function apply_shift_fields( $id, $request ) {
 	if ( null !== $request->get_param( 'staffId' ) ) {
-		update_post_meta( $id, 'dk_shift_staff', absint( $request->get_param( 'staffId' ) ) );
+		update_post_meta( $id, 'dinekit_shift_staff', absint( $request->get_param( 'staffId' ) ) );
 	}
 	foreach ( array(
-		'date'  => 'dk_shift_date',
-		'start' => 'dk_shift_start',
-		'end'   => 'dk_shift_end',
-		'role'  => 'dk_shift_role',
-		'note'  => 'dk_shift_note',
+		'date'  => 'dinekit_shift_date',
+		'start' => 'dinekit_shift_start',
+		'end'   => 'dinekit_shift_end',
+		'role'  => 'dinekit_shift_role',
+		'note'  => 'dinekit_shift_note',
 	) as $param => $key ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $key, sanitize_text_field( (string) $request->get_param( $param ) ) );
@@ -437,7 +437,7 @@ function apply_shift_fields( $id, $request ) {
 function create_shift( $request ) {
 	$id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_shift',
+			'post_type'   => 'dinekit_shift',
 			'post_status' => 'publish',
 			'post_title'  => 'shift',
 		),
@@ -481,20 +481,20 @@ function delete_shift( $request ) {
  */
 function staff_response( $id ) {
 	$post  = get_post( $id );
-	$role  = (string) get_post_meta( $id, 'dk_role', true );
-	$area  = (string) get_post_meta( $id, 'dk_area', true );
-	$color = (string) get_post_meta( $id, 'dk_color', true );
+	$role  = (string) get_post_meta( $id, 'dinekit_role', true );
+	$area  = (string) get_post_meta( $id, 'dinekit_area', true );
+	$color = (string) get_post_meta( $id, 'dinekit_color', true );
 	return array(
 		'id'      => (int) $id,
 		'name'    => $post->post_title,
 		'role'    => '' !== $role ? $role : 'server',
 		'area'    => '' !== $area ? $area : 'foh',
-		'email'   => (string) get_post_meta( $id, 'dk_email', true ),
-		'phone'   => (string) get_post_meta( $id, 'dk_phone', true ),
-		'rate'    => (string) get_post_meta( $id, 'dk_rate', true ),
-		'holiday' => (int) get_post_meta( $id, 'dk_holiday', true ),
+		'email'   => (string) get_post_meta( $id, 'dinekit_email', true ),
+		'phone'   => (string) get_post_meta( $id, 'dinekit_phone', true ),
+		'rate'    => (string) get_post_meta( $id, 'dinekit_rate', true ),
+		'holiday' => (int) get_post_meta( $id, 'dinekit_holiday', true ),
 		'color'   => '' !== $color ? $color : '#4f46e5',
-		'active'  => '0' !== (string) get_post_meta( $id, 'dk_active', true ),
+		'active'  => '0' !== (string) get_post_meta( $id, 'dinekit_active', true ),
 	);
 }
 
@@ -533,34 +533,34 @@ function apply_staff_fields( $id, $request ) {
 	if ( null !== $request->get_param( 'role' ) ) {
 		$role = sanitize_key( (string) $request->get_param( 'role' ) );
 		if ( in_array( $role, $role_keys, true ) ) {
-			update_post_meta( $id, 'dk_role', $role );
+			update_post_meta( $id, 'dinekit_role', $role );
 			// Keep area sensible unless explicitly overridden below.
 			if ( null === $request->get_param( 'area' ) ) {
-				update_post_meta( $id, 'dk_area', Staff\area_for_role( $role ) );
+				update_post_meta( $id, 'dinekit_area', Staff\area_for_role( $role ) );
 			}
 		}
 	}
 	if ( null !== $request->get_param( 'area' ) ) {
 		$area = sanitize_key( (string) $request->get_param( 'area' ) );
-		update_post_meta( $id, 'dk_area', in_array( $area, array( 'foh', 'boh', 'both' ), true ) ? $area : 'both' );
+		update_post_meta( $id, 'dinekit_area', in_array( $area, array( 'foh', 'boh', 'both' ), true ) ? $area : 'both' );
 	}
 	if ( null !== $request->get_param( 'email' ) ) {
-		update_post_meta( $id, 'dk_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
+		update_post_meta( $id, 'dinekit_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
 	}
 	if ( null !== $request->get_param( 'phone' ) ) {
-		update_post_meta( $id, 'dk_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
+		update_post_meta( $id, 'dinekit_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
 	}
 	if ( null !== $request->get_param( 'rate' ) ) {
-		update_post_meta( $id, 'dk_rate', number_format( max( 0, (float) $request->get_param( 'rate' ) ), 2, '.', '' ) );
+		update_post_meta( $id, 'dinekit_rate', number_format( max( 0, (float) $request->get_param( 'rate' ) ), 2, '.', '' ) );
 	}
 	if ( null !== $request->get_param( 'holiday' ) ) {
-		update_post_meta( $id, 'dk_holiday', max( 0, min( 60, absint( $request->get_param( 'holiday' ) ) ) ) );
+		update_post_meta( $id, 'dinekit_holiday', max( 0, min( 60, absint( $request->get_param( 'holiday' ) ) ) ) );
 	}
 	if ( null !== $request->get_param( 'color' ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $request->get_param( 'color' ) ) ) {
-		update_post_meta( $id, 'dk_color', strtolower( (string) $request->get_param( 'color' ) ) );
+		update_post_meta( $id, 'dinekit_color', strtolower( (string) $request->get_param( 'color' ) ) );
 	}
 	if ( null !== $request->get_param( 'active' ) ) {
-		update_post_meta( $id, 'dk_active', $request->get_param( 'active' ) ? 1 : 0 );
+		update_post_meta( $id, 'dinekit_active', $request->get_param( 'active' ) ? 1 : 0 );
 	}
 }
 
@@ -575,7 +575,7 @@ function create_staff( $request ) {
 	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$id   = wp_insert_post(
 		array(
-			'post_type'   => 'dk_staff',
+			'post_type'   => 'dinekit_staff',
 			'post_status' => 'publish',
 			'post_title'  => '' !== $name ? $name : __( 'New team member', 'dinekit' ),
 		),
@@ -585,11 +585,11 @@ function create_staff( $request ) {
 		return $id;
 	}
 	// Sensible defaults, then apply request overrides.
-	update_post_meta( $id, 'dk_role', 'server' );
-	update_post_meta( $id, 'dk_area', 'foh' );
-	update_post_meta( $id, 'dk_holiday', 28 );
-	update_post_meta( $id, 'dk_active', 1 );
-	update_post_meta( $id, 'dk_color', COLORS[ count( Staff\all_staff() ) % count( COLORS ) ] );
+	update_post_meta( $id, 'dinekit_role', 'server' );
+	update_post_meta( $id, 'dinekit_area', 'foh' );
+	update_post_meta( $id, 'dinekit_holiday', 28 );
+	update_post_meta( $id, 'dinekit_active', 1 );
+	update_post_meta( $id, 'dinekit_color', COLORS[ count( Staff\all_staff() ) % count( COLORS ) ] );
 	apply_staff_fields( $id, $request );
 	return rest_ensure_response( staff_response( $id ) );
 }
@@ -615,8 +615,8 @@ function update_staff( $request ) {
 function delete_staff( $request ) {
 	$id = (int) $request['id'];
 	foreach ( array(
-		'dk_shift' => 'dk_shift_staff',
-		'dk_leave' => 'dk_leave_staff',
+		'dinekit_shift' => 'dinekit_shift_staff',
+		'dinekit_leave' => 'dinekit_leave_staff',
 	) as $type => $key ) {
 		$rows = get_posts(
 			array(

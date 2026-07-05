@@ -291,33 +291,33 @@ function EventDetail( { detail, menus, onPatch, onDelete, onRemoveGuest, onCopy,
 		const d = detail;
 		const when = [ d.date && prettyDate( d.date ), d.time ].filter( Boolean ).join( ' · ' );
 		let body = '<h1>' + esc( d.name ) + '</h1>';
-		body += '<p class="dk-sub">' + esc( when ) + ' · ' + d.prep.totalGuests + ' guests</p>';
+		body += '<p class="dinekit-sub">' + esc( when ) + ' · ' + d.prep.totalGuests + ' guests</p>';
 		if ( d.prep.items.length ) {
-			body += '<div class="dk-section-title">Prep totals</div>';
+			body += '<div class="dinekit-section-title">Prep totals</div>';
 			d.prep.items.forEach( ( it ) => {
-				body += '<div class="dk-row"><span>' + esc( it.title ) + '</span><strong>×' + it.count + '</strong></div>';
+				body += '<div class="dinekit-row"><span>' + esc( it.title ) + '</span><strong>×' + it.count + '</strong></div>';
 			} );
 		}
 		if ( d.prep.allergens.length ) {
-			body += '<div class="dk-section-title">Allergens</div>';
+			body += '<div class="dinekit-section-title">Allergens</div>';
 			d.prep.allergens.forEach( ( a ) => {
-				body += '<div class="dk-row"><span class="dk-allergen">' + esc( a.name ) + '</span><span>' + esc( a.guests.join( ', ' ) ) + '</span></div>';
+				body += '<div class="dinekit-row"><span class="dinekit-allergen">' + esc( a.name ) + '</span><span>' + esc( a.guests.join( ', ' ) ) + '</span></div>';
 			} );
 		}
 		if ( d.guests.length ) {
-			body += '<div class="dk-section-title">Guest tickets</div><div class="dk-grid">';
+			body += '<div class="dinekit-section-title">Guest tickets</div><div class="dinekit-grid">';
 			d.guests.forEach( ( g ) => {
 				const dishes = Object.values( g.selections ).map( ( id ) => itemName( id ) );
-				body += '<div class="dk-ticket"><h3>' + esc( g.name ) + '</h3>';
+				body += '<div class="dinekit-ticket"><h3>' + esc( g.name ) + '</h3>';
 				body += '<ul>' + dishes.map( ( x ) => '<li>' + esc( x ) + '</li>' ).join( '' ) + '</ul>';
 				if ( ( g.allergenNames || [] ).length ) {
-					body += '<p class="dk-flag dk-allergen">Allergens: ' + esc( g.allergenNames.join( ', ' ) ) + '</p>';
+					body += '<p class="dinekit-flag dinekit-allergen">Allergens: ' + esc( g.allergenNames.join( ', ' ) ) + '</p>';
 				}
 				if ( ( g.dietaryNames || [] ).length ) {
-					body += '<p class="dk-flag">' + esc( g.dietaryNames.join( ', ' ) ) + '</p>';
+					body += '<p class="dinekit-flag">' + esc( g.dietaryNames.join( ', ' ) ) + '</p>';
 				}
 				if ( g.notes ) {
-					body += '<p class="dk-flag">“' + esc( g.notes ) + '”</p>';
+					body += '<p class="dinekit-flag">“' + esc( g.notes ) + '”</p>';
 				}
 				body += '</div>';
 			} );

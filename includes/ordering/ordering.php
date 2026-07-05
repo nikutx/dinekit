@@ -2,7 +2,7 @@
 /**
  * Ordering module — commission-free takeaway/collection orders.
  *
- * Orders are dk_order posts. Line totals are ALWAYS recomputed server-side from
+ * Orders are dinekit_order posts. Line totals are ALWAYS recomputed server-side from
  * the item's stored price + modifier prices — the client's numbers are never
  * trusted. CPT/meta only, no custom tables.
  *
@@ -51,12 +51,12 @@ function register_frontend() {
  * The orderable menu: published items (optionally within a menu) grouped by
  * section, each with prices + modifiers. Items without a price can't be ordered.
  *
- * @param int $menu_id Optional dk_menu term id to limit to.
+ * @param int $menu_id Optional dinekit_menu term id to limit to.
  * @return array<int,array<string,mixed>>
  */
 function orderable_menu( $menu_id = 0 ) {
 	$args = array(
-		'post_type'      => 'dk_menu_item',
+		'post_type'      => 'dinekit_menu_item',
 		'post_status'    => 'publish',
 		'posts_per_page' => 500,
 		'orderby'        => 'menu_order',
@@ -67,7 +67,7 @@ function orderable_menu( $menu_id = 0 ) {
 		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 		$args['tax_query'] = array(
 			array(
-				'taxonomy' => 'dk_menu',
+				'taxonomy' => 'dinekit_menu',
 				'field'    => 'term_id',
 				'terms'    => (int) $menu_id,
 			),
@@ -78,12 +78,12 @@ function orderable_menu( $menu_id = 0 ) {
 	$sections    = array();
 	$unsectioned = array();
 	foreach ( $query->posts as $post ) {
-		$prices = get_post_meta( $post->ID, 'dk_prices', true );
+		$prices = get_post_meta( $post->ID, 'dinekit_prices', true );
 		$prices = is_array( $prices ) ? array_values( $prices ) : array();
 		if ( empty( $prices ) ) {
 			continue;
 		}
-		$mods     = get_post_meta( $post->ID, 'dk_modifiers', true );
+		$mods     = get_post_meta( $post->ID, 'dinekit_modifiers', true );
 		$thumb_id = get_post_thumbnail_id( $post );
 		$item     = array(
 			'id'        => (int) $post->ID,
@@ -94,14 +94,14 @@ function orderable_menu( $menu_id = 0 ) {
 			'image'     => $thumb_id ? array( 'thumb' => (string) wp_get_attachment_image_url( $thumb_id, 'medium' ) ) : null,
 		);
 
-		$terms = get_the_terms( $post, 'dk_section' );
+		$terms = get_the_terms( $post, 'dinekit_section' );
 		if ( is_array( $terms ) && $terms ) {
 			$sec = $terms[0];
 			if ( ! isset( $sections[ $sec->term_id ] ) ) {
 				$sections[ $sec->term_id ] = array(
 					'id'    => (int) $sec->term_id,
 					'name'  => $sec->name,
-					'order' => (int) get_term_meta( $sec->term_id, 'dk_order', true ),
+					'order' => (int) get_term_meta( $sec->term_id, 'dinekit_order', true ),
 					'items' => array(),
 				);
 			}
@@ -181,7 +181,7 @@ function statuses() {
  */
 function register() {
 	register_post_type(
-		'dk_order',
+		'dinekit_order',
 		array(
 			'labels'       => array(
 				'name'          => __( 'Orders', 'dinekit' ),
@@ -200,30 +200,30 @@ function register() {
 	);
 
 	$meta = array(
-		'dk_order_number'     => 'integer',
-		'dk_order_items'      => 'string',  // JSON of recomputed lines.
-		'dk_order_total'      => 'string',  // Decimal string.
-		'dk_order_status'     => 'string',
-		'dk_order_name'       => 'string',
-		'dk_order_email'      => 'string',
-		'dk_order_phone'      => 'string',
-		'dk_order_notes'      => 'string',
-		'dk_order_when'       => 'string',  // 'asap' or H:i.
-		'dk_order_payment'    => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
-		'dk_order_source'     => 'string',
-		'dk_order_pi'         => 'string',  // Stripe PaymentIntent id.
-		'dk_order_archived'   => 'integer', // 1 = archived (never hard-deleted).
-		'dk_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
-		'dk_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
-		'dk_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
-		'dk_order_printed'    => 'string',  // ISO time the ticket was last printed.
-		'dk_order_fulfilment' => 'string',  // collection | delivery.
-		'dk_order_address'    => 'string',  // Delivery address (when delivery).
-		'dk_order_fee'        => 'string',  // Delivery fee (decimal string).
+		'dinekit_order_number'     => 'integer',
+		'dinekit_order_items'      => 'string',  // JSON of recomputed lines.
+		'dinekit_order_total'      => 'string',  // Decimal string.
+		'dinekit_order_status'     => 'string',
+		'dinekit_order_name'       => 'string',
+		'dinekit_order_email'      => 'string',
+		'dinekit_order_phone'      => 'string',
+		'dinekit_order_notes'      => 'string',
+		'dinekit_order_when'       => 'string',  // 'asap' or H:i.
+		'dinekit_order_payment'    => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
+		'dinekit_order_source'     => 'string',
+		'dinekit_order_pi'         => 'string',  // Stripe PaymentIntent id.
+		'dinekit_order_archived'   => 'integer', // 1 = archived (never hard-deleted).
+		'dinekit_order_history'    => 'string',  // JSON: [{t:ISO, e:event}] audit trail.
+		'dinekit_order_refund_due' => 'integer', // 1 = a refund is owed but failed automatically.
+		'dinekit_order_email_log'  => 'string',  // JSON: [{t,to,type,ok}] email sends.
+		'dinekit_order_printed'    => 'string',  // ISO time the ticket was last printed.
+		'dinekit_order_fulfilment' => 'string',  // collection | delivery.
+		'dinekit_order_address'    => 'string',  // Delivery address (when delivery).
+		'dinekit_order_fee'        => 'string',  // Delivery fee (decimal string).
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
-			'dk_order',
+			'dinekit_order',
 			$key,
 			array(
 				'type'              => $type,
@@ -319,7 +319,7 @@ function save_settings( $data ) {
  * @return void
  */
 function log_event( $id, $event ) {
-	$log = json_decode( (string) get_post_meta( $id, 'dk_order_history', true ), true );
+	$log = json_decode( (string) get_post_meta( $id, 'dinekit_order_history', true ), true );
 	if ( ! is_array( $log ) ) {
 		$log = array();
 	}
@@ -330,7 +330,7 @@ function log_event( $id, $event ) {
 	if ( count( $log ) > 100 ) {
 		$log = array_slice( $log, -100 );
 	}
-	update_post_meta( $id, 'dk_order_history', wp_json_encode( $log ) );
+	update_post_meta( $id, 'dinekit_order_history', wp_json_encode( $log ) );
 }
 
 /**
@@ -342,8 +342,8 @@ function log_event( $id, $event ) {
  * @return void
  */
 function capture_payment( $id ) {
-	$pi  = (string) get_post_meta( $id, 'dk_order_pi', true );
-	$pay = (string) get_post_meta( $id, 'dk_order_payment', true );
+	$pi  = (string) get_post_meta( $id, 'dinekit_order_pi', true );
+	$pay = (string) get_post_meta( $id, 'dinekit_order_payment', true );
 	// 'authorized' = webhook confirmed the hold; 'pending' = hold placed but the
 	// webhook may not have landed yet — capture is safe either way (Stripe errors
 	// harmlessly if there's nothing to capture).
@@ -356,7 +356,7 @@ function capture_payment( $id ) {
 		log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Card capture failed: %s', 'dinekit' ), $res->get_error_message() ) );
 		return;
 	}
-	update_post_meta( $id, 'dk_order_payment', 'paid' );
+	update_post_meta( $id, 'dinekit_order_payment', 'paid' );
 	log_event( $id, __( 'Card captured — payment taken', 'dinekit' ) );
 }
 
@@ -369,8 +369,8 @@ function capture_payment( $id ) {
  * @return void
  */
 function release_or_refund( $id ) {
-	$pi  = (string) get_post_meta( $id, 'dk_order_pi', true );
-	$pay = (string) get_post_meta( $id, 'dk_order_payment', true );
+	$pi  = (string) get_post_meta( $id, 'dinekit_order_pi', true );
+	$pay = (string) get_post_meta( $id, 'dinekit_order_payment', true );
 	if ( '' === $pi ) {
 		return;
 	}
@@ -379,7 +379,7 @@ function release_or_refund( $id ) {
 	if ( 'authorized' === $pay || 'pending' === $pay ) {
 		$res = \DineKit\Payments\stripe_post( 'payment_intents/' . rawurlencode( $pi ) . '/cancel', array() );
 		if ( ! is_wp_error( $res ) ) {
-			update_post_meta( $id, 'dk_order_payment', 'released' );
+			update_post_meta( $id, 'dinekit_order_payment', 'released' );
 			log_event( $id, __( 'Hold released — customer was not charged', 'dinekit' ) );
 		} else {
 			log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Hold release failed: %s', 'dinekit' ), $res->get_error_message() ) );
@@ -390,11 +390,11 @@ function release_or_refund( $id ) {
 	if ( 'paid' === $pay ) {
 		$res = \DineKit\Payments\stripe_post( 'refunds', array( 'payment_intent' => $pi ) );
 		if ( ! is_wp_error( $res ) ) {
-			update_post_meta( $id, 'dk_order_payment', 'refunded' );
-			update_post_meta( $id, 'dk_order_refund_due', 0 );
+			update_post_meta( $id, 'dinekit_order_payment', 'refunded' );
+			update_post_meta( $id, 'dinekit_order_refund_due', 0 );
 			log_event( $id, __( 'Refunded — please let the customer know', 'dinekit' ) );
 		} else {
-			update_post_meta( $id, 'dk_order_refund_due', 1 );
+			update_post_meta( $id, 'dinekit_order_refund_due', 1 );
 			log_event( $id, sprintf( /* translators: %s: error message. */ __( 'Refund failed (needs manual action): %s', 'dinekit' ), $res->get_error_message() ) );
 		}
 	}
@@ -411,7 +411,7 @@ function release_or_refund( $id ) {
  * @return void
  */
 function log_email( $id, $to, $type, $ok ) {
-	$log = json_decode( (string) get_post_meta( $id, 'dk_order_email_log', true ), true );
+	$log = json_decode( (string) get_post_meta( $id, 'dinekit_order_email_log', true ), true );
 	if ( ! is_array( $log ) ) {
 		$log = array();
 	}
@@ -424,7 +424,7 @@ function log_email( $id, $to, $type, $ok ) {
 	if ( count( $log ) > 50 ) {
 		$log = array_slice( $log, -50 );
 	}
-	update_post_meta( $id, 'dk_order_email_log', wp_json_encode( $log ) );
+	update_post_meta( $id, 'dinekit_order_email_log', wp_json_encode( $log ) );
 }
 
 /**
@@ -454,19 +454,19 @@ function recompute( $lines ) {
 	foreach ( (array) $lines as $line ) {
 		$item_id = isset( $line['itemId'] ) ? (int) $line['itemId'] : 0;
 		$post    = get_post( $item_id );
-		if ( ! $post || 'dk_menu_item' !== $post->post_type || 'publish' !== $post->post_status ) {
+		if ( ! $post || 'dinekit_menu_item' !== $post->post_type || 'publish' !== $post->post_status ) {
 			continue;
 		}
 		$qty = max( 1, min( 20, isset( $line['qty'] ) ? (int) $line['qty'] : 1 ) );
 
-		$prices = get_post_meta( $item_id, 'dk_prices', true );
+		$prices = get_post_meta( $item_id, 'dinekit_prices', true );
 		$prices = is_array( $prices ) ? $prices : array();
 		$pidx   = isset( $line['priceIndex'] ) ? (int) $line['priceIndex'] : 0;
 		$row    = $prices[ $pidx ] ?? ( $prices[0] ?? array() );
 		$unit   = isset( $row['amount'] ) ? (float) $row['amount'] : 0.0;
 		$plabel = isset( $row['label'] ) ? (string) $row['label'] : '';
 
-		$mods    = get_post_meta( $item_id, 'dk_modifiers', true );
+		$mods    = get_post_meta( $item_id, 'dinekit_modifiers', true );
 		$mods    = is_array( $mods ) ? $mods : array();
 		$chosen  = array();
 		$removed = array();
@@ -516,7 +516,7 @@ function recompute( $lines ) {
 			'lineTotal'  => $line_total,
 			'chosen'     => $chosen,
 			'removed'    => $removed,
-			'station'    => 'bar' === get_post_meta( $item_id, 'dk_station', true ) ? 'bar' : 'kitchen',
+			'station'    => 'bar' === get_post_meta( $item_id, 'dinekit_station', true ) ? 'bar' : 'kitchen',
 		);
 	}
 

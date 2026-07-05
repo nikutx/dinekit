@@ -62,6 +62,12 @@ final class Plugin {
 	private function boot() {
 		// Translations load automatically on wp.org-hosted plugins (WP 4.6+);
 		// no load_plugin_textdomain() call needed.
+
+		// One-time data migration for the dk_ → dinekit_ prefix rename. Runs on
+		// init (front + admin) at an early priority, gated by an option flag.
+		if ( $this->load( 'migrate.php' ) ) {
+			add_action( 'init', __NAMESPACE__ . '\\Migrate\\maybe_run', 1 );
+		}
 		if ( $this->load( 'post-types.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\PostTypes\\register' );
 		}

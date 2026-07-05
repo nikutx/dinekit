@@ -45,7 +45,7 @@ function can_manage() {
  */
 function register() {
 	register_post_type(
-		'dk_event',
+		'dinekit_event',
 		array(
 			'labels'       => array(
 				'name'          => __( 'Events', 'dinekit' ),
@@ -64,7 +64,7 @@ function register() {
 	);
 
 	register_post_type(
-		'dk_guest',
+		'dinekit_guest',
 		array(
 			'labels'       => array(
 				'name'          => __( 'Event guests', 'dinekit' ),
@@ -83,20 +83,20 @@ function register() {
 	);
 
 	$event_meta = array(
-		'dk_event_date'     => 'string',
-		'dk_event_time'     => 'string',
-		'dk_event_menu'     => 'integer', // Linked dk_menu term id.
-		'dk_event_capacity' => 'integer', // Max guests (0 = unlimited).
-		'dk_event_deadline' => 'string',  // Order-by date (Y-m-d).
-		'dk_event_token'    => 'string',
-		'dk_event_price'    => 'integer',
-		'dk_event_status'   => 'string',  // draft | published.
-		'dk_event_intro'    => 'string',
-		'dk_event_groups'   => 'string',  // JSON: [{ id, name, size }] — companies/teams within the event.
+		'dinekit_event_date'     => 'string',
+		'dinekit_event_time'     => 'string',
+		'dinekit_event_menu'     => 'integer', // Linked dinekit_menu term id.
+		'dinekit_event_capacity' => 'integer', // Max guests (0 = unlimited).
+		'dinekit_event_deadline' => 'string',  // Order-by date (Y-m-d).
+		'dinekit_event_token'    => 'string',
+		'dinekit_event_price'    => 'integer',
+		'dinekit_event_status'   => 'string',  // draft | published.
+		'dinekit_event_intro'    => 'string',
+		'dinekit_event_groups'   => 'string',  // JSON: [{ id, name, size }] — companies/teams within the event.
 	);
 	foreach ( $event_meta as $key => $type ) {
 		register_post_meta(
-			'dk_event',
+			'dinekit_event',
 			$key,
 			array(
 				'type'              => $type,
@@ -109,17 +109,17 @@ function register() {
 	}
 
 	$guest_meta = array(
-		'dk_guest_event'      => 'integer',
-		'dk_guest_email'      => 'string',
-		'dk_guest_selections' => 'string', // JSON: { sectionId: itemId }.
-		'dk_guest_allergens'  => 'string', // Comma term ids.
-		'dk_guest_dietary'    => 'string', // Comma term ids.
-		'dk_guest_notes'      => 'string',
-		'dk_guest_group'      => 'string', // Group/company id within the event (empty = general).
+		'dinekit_guest_event'      => 'integer',
+		'dinekit_guest_email'      => 'string',
+		'dinekit_guest_selections' => 'string', // JSON: { sectionId: itemId }.
+		'dinekit_guest_allergens'  => 'string', // Comma term ids.
+		'dinekit_guest_dietary'    => 'string', // Comma term ids.
+		'dinekit_guest_notes'      => 'string',
+		'dinekit_guest_group'      => 'string', // Group/company id within the event (empty = general).
 	);
 	foreach ( $guest_meta as $key => $type ) {
 		register_post_meta(
-			'dk_guest',
+			'dinekit_guest',
 			$key,
 			array(
 				'type'              => $type,
@@ -199,7 +199,7 @@ function events_page_url() {
  * @return array<int,array{id:string,name:string,size:int}>
  */
 function event_groups( $event_id ) {
-	$raw = json_decode( (string) get_post_meta( $event_id, 'dk_event_groups', true ), true );
+	$raw = json_decode( (string) get_post_meta( $event_id, 'dinekit_event_groups', true ), true );
 	return is_array( $raw ) ? $raw : array();
 }
 
@@ -231,11 +231,11 @@ function event_by_token( $token ) {
 	}
 	$posts = get_posts(
 		array(
-			'post_type'      => 'dk_event',
+			'post_type'      => 'dinekit_event',
 			'post_status'    => 'publish',
 			'posts_per_page' => 1,
 			'no_found_rows'  => true,
-			'meta_key'       => 'dk_event_token', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_event_token', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'meta_value'     => sanitize_text_field( $token ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
@@ -245,7 +245,7 @@ function event_by_token( $token ) {
 /**
  * Build the courses (sections + their items) for a linked menu.
  *
- * @param int $menu_id dk_menu term id.
+ * @param int $menu_id dinekit_menu term id.
  * @return array<int,array<string,mixed>>
  */
 function courses( $menu_id ) {
@@ -253,7 +253,7 @@ function courses( $menu_id ) {
 
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_menu_item',
+			'post_type'      => 'dinekit_menu_item',
 			'post_status'    => 'publish',
 			'posts_per_page' => 300,
 			'no_found_rows'  => true,
@@ -262,7 +262,7 @@ function courses( $menu_id ) {
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 			'tax_query'      => array(
 				array(
-					'taxonomy' => 'dk_menu',
+					'taxonomy' => 'dinekit_menu',
 					'field'    => 'term_id',
 					'terms'    => (int) $menu_id,
 				),
@@ -272,7 +272,7 @@ function courses( $menu_id ) {
 
 	$sections = array();
 	foreach ( $query->posts as $post ) {
-		$terms = get_the_terms( $post, 'dk_section' );
+		$terms = get_the_terms( $post, 'dinekit_section' );
 		if ( ! is_array( $terms ) ) {
 			continue;
 		}
@@ -281,7 +281,7 @@ function courses( $menu_id ) {
 				$sections[ $term->term_id ] = array(
 					'id'    => (int) $term->term_id,
 					'name'  => $term->name,
-					'order' => (int) get_term_meta( $term->term_id, 'dk_order', true ),
+					'order' => (int) get_term_meta( $term->term_id, 'dinekit_order', true ),
 					'items' => array(),
 				);
 			}

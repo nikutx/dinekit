@@ -58,19 +58,19 @@ function money( $n ) {
  * @return array<string,mixed>
  */
 function order_data( $id ) {
-	$items = json_decode( (string) get_post_meta( $id, 'dk_order_items', true ), true );
+	$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 	return array(
-		'number'     => (int) get_post_meta( $id, 'dk_order_number', true ),
+		'number'     => (int) get_post_meta( $id, 'dinekit_order_number', true ),
 		'items'      => is_array( $items ) ? $items : array(),
-		'total'      => (float) get_post_meta( $id, 'dk_order_total', true ),
-		'name'       => (string) get_post_meta( $id, 'dk_order_name', true ),
-		'email'      => (string) get_post_meta( $id, 'dk_order_email', true ),
-		'phone'      => (string) get_post_meta( $id, 'dk_order_phone', true ),
-		'when'       => (string) get_post_meta( $id, 'dk_order_when', true ),
-		'notes'      => (string) get_post_meta( $id, 'dk_order_notes', true ),
-		'fulfilment' => 'delivery' === get_post_meta( $id, 'dk_order_fulfilment', true ) ? 'delivery' : 'collection',
-		'address'    => (string) get_post_meta( $id, 'dk_order_address', true ),
-		'fee'        => (float) get_post_meta( $id, 'dk_order_fee', true ),
+		'total'      => (float) get_post_meta( $id, 'dinekit_order_total', true ),
+		'name'       => (string) get_post_meta( $id, 'dinekit_order_name', true ),
+		'email'      => (string) get_post_meta( $id, 'dinekit_order_email', true ),
+		'phone'      => (string) get_post_meta( $id, 'dinekit_order_phone', true ),
+		'when'       => (string) get_post_meta( $id, 'dinekit_order_when', true ),
+		'notes'      => (string) get_post_meta( $id, 'dinekit_order_notes', true ),
+		'fulfilment' => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
+		'address'    => (string) get_post_meta( $id, 'dinekit_order_address', true ),
+		'fee'        => (float) get_post_meta( $id, 'dinekit_order_fee', true ),
 	);
 }
 

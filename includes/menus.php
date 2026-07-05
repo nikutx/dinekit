@@ -1,10 +1,10 @@
 <?php
 /**
- * Menu (dk_menu) scheduling, status and duplication.
+ * Menu (dinekit_menu) scheduling, status and duplication.
  *
  * A menu can be scheduled with a go-live date/time and optional recurring
- * availability (days + daily time window). Stored in the `dk_menu_schedule`
- * term meta; the creation time is stored in `dk_menu_created`.
+ * availability (days + daily time window). Stored in the `dinekit_menu_schedule`
+ * term meta; the creation time is stored in `dinekit_menu_created`.
  *
  * @package DineKit
  */
@@ -46,7 +46,7 @@ function day_keys() {
  * @return array<string,mixed>
  */
 function get_schedule( $term_id ) {
-	$stored = get_term_meta( $term_id, 'dk_menu_schedule', true );
+	$stored = get_term_meta( $term_id, 'dinekit_menu_schedule', true );
 	if ( ! is_array( $stored ) ) {
 		return default_schedule();
 	}
@@ -75,7 +75,7 @@ function save_schedule( $term_id, $input ) {
 		}
 	}
 
-	update_term_meta( $term_id, 'dk_menu_schedule', $clean );
+	update_term_meta( $term_id, 'dinekit_menu_schedule', $clean );
 	return $clean;
 }
 
@@ -89,7 +89,7 @@ function status( $term_id ) {
 	$tz       = wp_timezone();
 	$now      = new \DateTimeImmutable( 'now', $tz );
 	$sched    = get_schedule( $term_id );
-	$created  = (int) get_term_meta( $term_id, 'dk_menu_created', true );
+	$created  = (int) get_term_meta( $term_id, 'dinekit_menu_created', true );
 
 	// Scheduled for the future?
 	if ( '' !== $sched['goLive'] ) {
@@ -195,35 +195,35 @@ function describe( $sched ) {
  * @return array{id:int,name:string}|null
  */
 function duplicate( $term_id ) {
-	$source = get_term( $term_id, 'dk_menu' );
+	$source = get_term( $term_id, 'dinekit_menu' );
 	if ( ! $source || is_wp_error( $source ) ) {
 		return null;
 	}
 
 	/* translators: %s: source menu name. */
 	$name   = sprintf( __( '%s (copy)', 'dinekit' ), $source->name );
-	$result = wp_insert_term( $name, 'dk_menu' );
+	$result = wp_insert_term( $name, 'dinekit_menu' );
 	if ( is_wp_error( $result ) ) {
 		return null;
 	}
 	$new_id = (int) $result['term_id'];
 
-	update_term_meta( $new_id, 'dk_menu_created', time() );
-	$order = get_term_meta( $term_id, 'dk_order', true );
-	update_term_meta( $new_id, 'dk_order', '' !== $order ? (int) $order + 1 : 0 );
+	update_term_meta( $new_id, 'dinekit_menu_created', time() );
+	$order = get_term_meta( $term_id, 'dinekit_order', true );
+	update_term_meta( $new_id, 'dinekit_order', '' !== $order ? (int) $order + 1 : 0 );
 
 	// Copy the schedule.
-	update_term_meta( $new_id, 'dk_menu_schedule', get_schedule( $term_id ) );
+	update_term_meta( $new_id, 'dinekit_menu_schedule', get_schedule( $term_id ) );
 
 	// Assign the same items to the new menu.
-	$items = get_objects_in_term( $term_id, 'dk_menu' );
+	$items = get_objects_in_term( $term_id, 'dinekit_menu' );
 	if ( is_array( $items ) ) {
 		foreach ( $items as $item_id ) {
-			wp_add_object_terms( (int) $item_id, $new_id, 'dk_menu' );
+			wp_add_object_terms( (int) $item_id, $new_id, 'dinekit_menu' );
 		}
 	}
 
-	$term = get_term( $new_id, 'dk_menu' );
+	$term = get_term( $new_id, 'dinekit_menu' );
 	return array(
 		'id'   => $new_id,
 		'name' => $term->name,

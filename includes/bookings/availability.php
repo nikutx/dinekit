@@ -172,7 +172,7 @@ function time_in_service( $date, $time ) {
 function all_tables() {
 	$posts = get_posts(
 		array(
-			'post_type'   => 'dk_table',
+			'post_type'   => 'dinekit_table',
 			'post_status' => 'publish',
 			'numberposts' => 300,
 			'orderby'     => 'menu_order',
@@ -182,14 +182,14 @@ function all_tables() {
 
 	$tables = array();
 	foreach ( $posts as $post ) {
-		$seats = (int) get_post_meta( $post->ID, 'dk_seats', true );
-		$min   = (int) get_post_meta( $post->ID, 'dk_min_party', true );
-		$max   = (int) get_post_meta( $post->ID, 'dk_max_party', true );
-		$areas = get_the_terms( $post, 'dk_area' );
+		$seats = (int) get_post_meta( $post->ID, 'dinekit_seats', true );
+		$min   = (int) get_post_meta( $post->ID, 'dinekit_min_party', true );
+		$max   = (int) get_post_meta( $post->ID, 'dinekit_max_party', true );
+		$areas = get_the_terms( $post, 'dinekit_area' );
 		$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
 
-		$shape  = (string) get_post_meta( $post->ID, 'dk_shape', true );
-		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
+		$shape  = (string) get_post_meta( $post->ID, 'dinekit_shape', true );
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
 
 		$tables[] = array(
 			'id'       => (int) $post->ID,
@@ -200,9 +200,9 @@ function all_tables() {
 			'areaId'   => $area ? (int) $area->term_id : 0,
 			'area'     => $area ? $area->name : '',
 			'order'    => (int) $post->menu_order,
-			'x'        => (int) get_post_meta( $post->ID, 'dk_pos_x', true ),
-			'y'        => (int) get_post_meta( $post->ID, 'dk_pos_y', true ),
-			'rotation' => (int) get_post_meta( $post->ID, 'dk_rotation', true ),
+			'x'        => (int) get_post_meta( $post->ID, 'dinekit_pos_x', true ),
+			'y'        => (int) get_post_meta( $post->ID, 'dinekit_pos_y', true ),
+			'rotation' => (int) get_post_meta( $post->ID, 'dinekit_rotation', true ),
 			'shape'    => $shape ? $shape : 'round',
 			'status'   => 'maintenance' === $status ? 'maintenance' : 'active',
 		);
@@ -220,13 +220,13 @@ function all_tables() {
 function bookings_on( $date, $exclude_id = 0 ) {
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'no_found_rows'  => true,
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				array(
-					'key'   => 'dk_date',
+					'key'   => 'dinekit_date',
 					'value' => $date,
 				),
 			),
@@ -238,16 +238,16 @@ function bookings_on( $date, $exclude_id = 0 ) {
 		if ( $exclude_id && (int) $post->ID === (int) $exclude_id ) {
 			continue;
 		}
-		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
 		if ( ! in_array( $status, occupying_statuses(), true ) ) {
 			continue;
 		}
 		$out[] = array(
 			'id'       => (int) $post->ID,
-			'table_id' => (int) get_post_meta( $post->ID, 'dk_table_id', true ),
-			'combo_id' => (int) get_post_meta( $post->ID, 'dk_combo_id', true ),
-			'time'     => (string) get_post_meta( $post->ID, 'dk_time', true ),
-			'party'    => (int) get_post_meta( $post->ID, 'dk_party', true ),
+			'table_id' => (int) get_post_meta( $post->ID, 'dinekit_table_id', true ),
+			'combo_id' => (int) get_post_meta( $post->ID, 'dinekit_combo_id', true ),
+			'time'     => (string) get_post_meta( $post->ID, 'dinekit_time', true ),
+			'party'    => (int) get_post_meta( $post->ID, 'dinekit_party', true ),
 			'status'   => $status,
 		);
 	}
@@ -262,7 +262,7 @@ function bookings_on( $date, $exclude_id = 0 ) {
 function all_combos() {
 	$posts = get_posts(
 		array(
-			'post_type'   => 'dk_table_combo',
+			'post_type'   => 'dinekit_table_combo',
 			'post_status' => 'publish',
 			'numberposts' => 200,
 			'orderby'     => 'menu_order',
@@ -272,13 +272,13 @@ function all_combos() {
 
 	$combos = array();
 	foreach ( $posts as $post ) {
-		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $post->ID, 'dk_combo_tables', true ) ) ) );
+		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $post->ID, 'dinekit_combo_tables', true ) ) ) );
 		$combos[] = array(
 			'id'       => (int) $post->ID,
 			'name'     => $post->post_title,
 			'tables'   => array_values( $ids ),
-			'min'      => (int) get_post_meta( $post->ID, 'dk_combo_min', true ) ?: 2,
-			'max'      => (int) get_post_meta( $post->ID, 'dk_combo_max', true ) ?: 4,
+			'min'      => (int) get_post_meta( $post->ID, 'dinekit_combo_min', true ) ?: 2,
+			'max'      => (int) get_post_meta( $post->ID, 'dinekit_combo_max', true ) ?: 4,
 			'priority' => (int) $post->menu_order,
 		);
 	}

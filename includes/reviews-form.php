@@ -33,7 +33,7 @@ function render( $token ) {
 
 	$cfg       = \DineKit\Reviews\get();
 	$site      = get_bloginfo( 'name' );
-	$submitted = '' !== (string) get_post_meta( $booking->ID, 'dk_fb_at', true );
+	$submitted = '' !== (string) get_post_meta( $booking->ID, 'dinekit_fb_at', true );
 
 	$config = wp_json_encode(
 		array(

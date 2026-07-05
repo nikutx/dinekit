@@ -134,14 +134,14 @@ export default function BookingsView() {
 	const printDay = () => {
 		const active = bookings.filter( ( b ) => ! [ 'cancelled', 'no_show' ].includes( b.status ) );
 		let body = '<h1>Bookings — ' + esc( prettyDate( date ) ) + '</h1>';
-		body += '<p class="dk-sub">' + active.length + ' bookings · ' + covers + ' covers</p><div class="dk-grid">';
+		body += '<p class="dinekit-sub">' + active.length + ' bookings · ' + covers + ' covers</p><div class="dinekit-grid">';
 		active.forEach( ( b ) => {
-			body += '<div class="dk-ticket"><h3>' + esc( b.time ) + ' — ' + esc( b.name || 'Guest' ) + '</h3>';
-			body += '<p class="dk-meta">' + b.party + ' guests' + ( b.table ? ' · ' + esc( b.table ) : '' ) +
+			body += '<div class="dinekit-ticket"><h3>' + esc( b.time ) + ' — ' + esc( b.name || 'Guest' ) + '</h3>';
+			body += '<p class="dinekit-meta">' + b.party + ' guests' + ( b.table ? ' · ' + esc( b.table ) : '' ) +
 				( b.phone ? ' · ' + esc( b.phone ) : '' ) + '</p>';
-			body += '<p class="dk-meta">' + esc( statusMeta( b.status ).label ) + '</p>';
+			body += '<p class="dinekit-meta">' + esc( statusMeta( b.status ).label ) + '</p>';
 			if ( b.notes ) {
-				body += '<p class="dk-flag">“' + esc( b.notes ) + '”</p>';
+				body += '<p class="dinekit-flag">“' + esc( b.notes ) + '”</p>';
 			}
 			body += '</div>';
 		} );
@@ -154,18 +154,18 @@ export default function BookingsView() {
 	const printServiceSheet = async () => {
 		const s = await api.getServiceSheet( date );
 		let body = '<h1>Service sheet — ' + esc( prettyDate( date ) ) + '</h1>';
-		body += '<p class="dk-sub">' + s.bookings + ' booking' + ( s.bookings === 1 ? '' : 's' ) +
+		body += '<p class="dinekit-sub">' + s.bookings + ' booking' + ( s.bookings === 1 ? '' : 's' ) +
 			' · ' + s.covers + ' covers</p>';
 
 		if ( s.allergenAlert.length ) {
-			body += '<div class="dk-section-title">⚠ Allergen alerts</div>';
-			body += '<p class="dk-allergen" style="font-size:15px">' +
+			body += '<div class="dinekit-section-title">⚠ Allergen alerts</div>';
+			body += '<p class="dinekit-allergen" style="font-size:15px">' +
 				s.allergenAlert.map( esc ).join( ' · ' ) + '</p>';
 		}
 
-		body += '<div class="dk-section-title">Run sheet</div>';
+		body += '<div class="dinekit-section-title">Run sheet</div>';
 		if ( ! s.rows.length ) {
-			body += '<p class="dk-sub">No bookings for this day.</p>';
+			body += '<p class="dinekit-sub">No bookings for this day.</p>';
 		}
 		s.rows.forEach( ( r ) => {
 			const flags = [];
@@ -173,37 +173,37 @@ export default function BookingsView() {
 				flags.push( '★ VIP' );
 			}
 			( r.tags || [] ).forEach( ( t ) => flags.push( t ) );
-			body += '<div class="dk-ticket"><h3>' + esc( r.time ) + ' — ' + esc( r.name || 'Guest' ) +
+			body += '<div class="dinekit-ticket"><h3>' + esc( r.time ) + ' — ' + esc( r.name || 'Guest' ) +
 				' <span style="font-weight:400;color:#64748b">(' + r.party + 'p)</span></h3>';
-			body += '<p class="dk-meta">' + ( r.table ? esc( r.table ) : 'Table TBC' ) +
+			body += '<p class="dinekit-meta">' + ( r.table ? esc( r.table ) : 'Table TBC' ) +
 				( r.phone ? ' · ' + esc( r.phone ) : '' ) + '</p>';
 			if ( flags.length ) {
-				body += '<p class="dk-flag"><strong>' + flags.map( esc ).join( ' · ' ) + '</strong></p>';
+				body += '<p class="dinekit-flag"><strong>' + flags.map( esc ).join( ' · ' ) + '</strong></p>';
 			}
 			if ( r.allergens ) {
-				body += '<p class="dk-flag dk-allergen">Allergies: ' + esc( r.allergens ) + '</p>';
+				body += '<p class="dinekit-flag dinekit-allergen">Allergies: ' + esc( r.allergens ) + '</p>';
 			}
 			if ( r.guestNote ) {
-				body += '<p class="dk-flag">Note: ' + esc( r.guestNote ) + '</p>';
+				body += '<p class="dinekit-flag">Note: ' + esc( r.guestNote ) + '</p>';
 			}
 			if ( r.notes ) {
-				body += '<p class="dk-flag">“' + esc( r.notes ) + '”</p>';
+				body += '<p class="dinekit-flag">“' + esc( r.notes ) + '”</p>';
 			}
 			body += '</div>';
 		} );
 
 		if ( s.prep.length ) {
-			body += '<div class="dk-section-title">Covers by hour</div>';
+			body += '<div class="dinekit-section-title">Covers by hour</div>';
 			s.prep.forEach( ( p ) => {
-				body += '<div class="dk-row"><span>' + esc( p.hour ) + '</span><strong>' +
+				body += '<div class="dinekit-row"><span>' + esc( p.hour ) + '</span><strong>' +
 					p.covers + ' covers</strong></div>';
 			} );
 		}
 
 		if ( s.events.length ) {
-			body += '<div class="dk-section-title">Events today</div>';
+			body += '<div class="dinekit-section-title">Events today</div>';
 			s.events.forEach( ( e ) => {
-				body += '<div class="dk-row"><span>' + esc( e.name ) + '</span><strong>' +
+				body += '<div class="dinekit-row"><span>' + esc( e.name ) + '</span><strong>' +
 					esc( e.time || '' ) + '</strong></div>';
 			} );
 		}

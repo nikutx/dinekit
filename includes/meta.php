@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Register menu item meta.
  *
- * `dk_prices` is the canonical price store: an array of { label, amount }
+ * `dinekit_prices` is the canonical price store: an array of { label, amount }
  * rows so items can carry multiple prices (pint/half, small/large). A single
  * price is simply one row with an empty label.
  *
@@ -23,8 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function register() {
 	register_post_meta(
-		'dk_menu_item',
-		'dk_prices',
+		'dinekit_menu_item',
+		'dinekit_prices',
 		array(
 			'type'              => 'array',
 			'description'       => __( 'Item prices (label + amount rows).', 'dinekit' ),
@@ -47,10 +47,10 @@ function register() {
 		)
 	);
 
-	foreach ( array( 'dk_section', 'dk_menu' ) as $taxonomy ) {
+	foreach ( array( 'dinekit_section', 'dinekit_menu' ) as $taxonomy ) {
 		register_term_meta(
 			$taxonomy,
-			'dk_order',
+			'dinekit_order',
 			array(
 				'type'              => 'integer',
 				'description'       => __( 'Display order within DineKit menus.', 'dinekit' ),
@@ -63,8 +63,8 @@ function register() {
 	}
 
 	register_post_meta(
-		'dk_menu_item',
-		'dk_badge',
+		'dinekit_menu_item',
+		'dinekit_badge',
 		array(
 			'type'              => 'string',
 			'description'       => __( 'Optional badge, e.g. New, Popular, Chef\'s Special.', 'dinekit' ),
@@ -78,8 +78,8 @@ function register() {
 
 	// Prep station for order-ticket routing: 'kitchen' (default) or 'bar'.
 	register_post_meta(
-		'dk_menu_item',
-		'dk_station',
+		'dinekit_menu_item',
+		'dinekit_station',
 		array(
 			'type'              => 'string',
 			'description'       => __( 'Prep station for order tickets: kitchen or bar.', 'dinekit' ),
@@ -95,8 +95,8 @@ function register() {
 
 	// Dish customizations: groups of options a diner can pick or remove.
 	register_post_meta(
-		'dk_menu_item',
-		'dk_modifiers',
+		'dinekit_menu_item',
+		'dinekit_modifiers',
 		array(
 			'type'              => 'array',
 			'description'       => __( 'Customization groups (removable ingredients + choice options).', 'dinekit' ),

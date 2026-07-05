@@ -41,15 +41,15 @@ function term_ids( $taxonomy, $slugs ) {
  * @return int
  */
 function make_section( $name, $order ) {
-	$existing = get_term_by( 'name', $name, 'dk_section' );
+	$existing = get_term_by( 'name', $name, 'dinekit_section' );
 	if ( $existing ) {
 		return (int) $existing->term_id;
 	}
-	$result = wp_insert_term( $name, 'dk_section' );
+	$result = wp_insert_term( $name, 'dinekit_section' );
 	if ( is_wp_error( $result ) ) {
 		return 0;
 	}
-	update_term_meta( (int) $result['term_id'], 'dk_order', $order );
+	update_term_meta( (int) $result['term_id'], 'dinekit_order', $order );
 	return (int) $result['term_id'];
 }
 
@@ -62,7 +62,7 @@ function make_section( $name, $order ) {
 function make_item( $item ) {
 	$post_id = wp_insert_post(
 		array(
-			'post_type'    => 'dk_menu_item',
+			'post_type'    => 'dinekit_menu_item',
 			'post_status'  => 'publish',
 			'post_title'   => $item['title'],
 			'post_content' => isset( $item['desc'] ) ? $item['desc'] : '',
@@ -73,19 +73,19 @@ function make_item( $item ) {
 		return;
 	}
 	if ( ! empty( $item['section'] ) ) {
-		wp_set_object_terms( $post_id, array( (int) $item['section'] ), 'dk_section' );
+		wp_set_object_terms( $post_id, array( (int) $item['section'] ), 'dinekit_section' );
 	}
 	if ( ! empty( $item['prices'] ) ) {
-		update_post_meta( $post_id, 'dk_prices', $item['prices'] );
+		update_post_meta( $post_id, 'dinekit_prices', $item['prices'] );
 	}
 	if ( ! empty( $item['badge'] ) ) {
-		update_post_meta( $post_id, 'dk_badge', $item['badge'] );
+		update_post_meta( $post_id, 'dinekit_badge', $item['badge'] );
 	}
 	if ( ! empty( $item['allergens'] ) ) {
-		wp_set_object_terms( $post_id, $item['allergens'], 'dk_allergen' );
+		wp_set_object_terms( $post_id, $item['allergens'], 'dinekit_allergen' );
 	}
 	if ( ! empty( $item['dietary'] ) ) {
-		wp_set_object_terms( $post_id, $item['dietary'], 'dk_dietary' );
+		wp_set_object_terms( $post_id, $item['dietary'], 'dinekit_dietary' );
 	}
 }
 
@@ -95,7 +95,7 @@ function make_item( $item ) {
  * @return void
  */
 function seed_menu() {
-	$count = (int) wp_count_posts( 'dk_menu_item' )->publish;
+	$count = (int) wp_count_posts( 'dinekit_menu_item' )->publish;
 	if ( $count > 0 ) {
 		return;
 	}
@@ -104,11 +104,11 @@ function seed_menu() {
 	$mains    = make_section( __( 'Mains', 'dinekit' ), 1 );
 	$desserts = make_section( __( 'Desserts', 'dinekit' ), 2 );
 
-	$gluten = term_ids( 'dk_allergen', array( 'gluten' ) );
-	$milk   = term_ids( 'dk_allergen', array( 'milk' ) );
-	$fish   = term_ids( 'dk_allergen', array( 'fish' ) );
-	$eggs   = term_ids( 'dk_allergen', array( 'eggs' ) );
-	$veg    = term_ids( 'dk_dietary', array( 'vegetarian' ) );
+	$gluten = term_ids( 'dinekit_allergen', array( 'gluten' ) );
+	$milk   = term_ids( 'dinekit_allergen', array( 'milk' ) );
+	$fish   = term_ids( 'dinekit_allergen', array( 'fish' ) );
+	$eggs   = term_ids( 'dinekit_allergen', array( 'eggs' ) );
+	$veg    = term_ids( 'dinekit_dietary', array( 'vegetarian' ) );
 
 	$items = array(
 		array(

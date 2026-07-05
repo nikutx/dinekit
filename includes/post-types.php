@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function register() {
 	register_post_type(
-		'dk_menu_item',
+		'dinekit_menu_item',
 		array(
 			'labels'        => array(
 				'name'               => __( 'Menu Items', 'dinekit' ),
@@ -50,8 +50,8 @@ function register() {
 	);
 
 	register_taxonomy(
-		'dk_menu',
-		'dk_menu_item',
+		'dinekit_menu',
+		'dinekit_menu_item',
 		array(
 			'labels'            => array(
 				'name'          => __( 'Menus', 'dinekit' ),
@@ -70,8 +70,8 @@ function register() {
 	);
 
 	register_taxonomy(
-		'dk_section',
-		'dk_menu_item',
+		'dinekit_section',
+		'dinekit_menu_item',
 		array(
 			'labels'            => array(
 				'name'          => __( 'Sections', 'dinekit' ),
@@ -90,8 +90,8 @@ function register() {
 	);
 
 	register_taxonomy(
-		'dk_dietary',
-		'dk_menu_item',
+		'dinekit_dietary',
+		'dinekit_menu_item',
 		array(
 			'labels'            => array(
 				'name'          => __( 'Dietary Labels', 'dinekit' ),
@@ -110,8 +110,8 @@ function register() {
 	);
 
 	register_taxonomy(
-		'dk_allergen',
-		'dk_menu_item',
+		'dinekit_allergen',
+		'dinekit_menu_item',
 		array(
 			'labels'            => array(
 				'name'          => __( 'Allergens', 'dinekit' ),
@@ -131,7 +131,7 @@ function register() {
 }
 
 /**
- * Terms of a taxonomy ordered by the `dk_order` term meta, then name.
+ * Terms of a taxonomy ordered by the `dinekit_order` term meta, then name.
  *
  * @param string $taxonomy   Taxonomy slug.
  * @param bool   $hide_empty Whether to hide unused terms.
@@ -150,8 +150,8 @@ function ordered_terms( $taxonomy, $hide_empty = false ) {
 	usort(
 		$terms,
 		function ( $a, $b ) {
-			$order_a = get_term_meta( $a->term_id, 'dk_order', true );
-			$order_b = get_term_meta( $b->term_id, 'dk_order', true );
+			$order_a = get_term_meta( $a->term_id, 'dinekit_order', true );
+			$order_b = get_term_meta( $b->term_id, 'dinekit_order', true );
 			$order_a = ( '' === $order_a ) ? PHP_INT_MAX : (int) $order_a;
 			$order_b = ( '' === $order_b ) ? PHP_INT_MAX : (int) $order_b;
 			if ( $order_a === $order_b ) {
@@ -212,15 +212,15 @@ function default_dietary() {
  * @return void
  */
 function seed_allergens() {
-	if ( ! taxonomy_exists( 'dk_allergen' ) ) {
+	if ( ! taxonomy_exists( 'dinekit_allergen' ) ) {
 		register();
 	}
 	foreach ( uk_allergens() as $slug => $name ) {
-		if ( ! term_exists( $slug, 'dk_allergen' ) ) {
-			$result = wp_insert_term( $name, 'dk_allergen', array( 'slug' => $slug ) );
+		if ( ! term_exists( $slug, 'dinekit_allergen' ) ) {
+			$result = wp_insert_term( $name, 'dinekit_allergen', array( 'slug' => $slug ) );
 			if ( ! is_wp_error( $result ) && isset( $result['term_id'] ) ) {
 				// Mark as a DineKit-seeded core allergen (icons keyed off slug).
-				update_term_meta( $result['term_id'], 'dk_core_allergen', 1 );
+				update_term_meta( $result['term_id'], 'dinekit_core_allergen', 1 );
 			}
 		}
 	}
@@ -233,15 +233,15 @@ function seed_allergens() {
  * @return void
  */
 function seed_dietary() {
-	if ( ! taxonomy_exists( 'dk_dietary' ) ) {
+	if ( ! taxonomy_exists( 'dinekit_dietary' ) ) {
 		register();
 	}
 	if ( get_option( 'dinekit_dietary_seeded' ) ) {
 		return;
 	}
 	foreach ( default_dietary() as $slug => $name ) {
-		if ( ! term_exists( $slug, 'dk_dietary' ) ) {
-			wp_insert_term( $name, 'dk_dietary', array( 'slug' => $slug ) );
+		if ( ! term_exists( $slug, 'dinekit_dietary' ) ) {
+			wp_insert_term( $name, 'dinekit_dietary', array( 'slug' => $slug ) );
 		}
 	}
 	update_option( 'dinekit_dietary_seeded', 1 );

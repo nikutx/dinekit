@@ -29,7 +29,7 @@ function currency() {
 }
 
 /**
- * Bookings whose dk_date falls in [from, to].
+ * Bookings whose dinekit_date falls in [from, to].
  *
  * @param string $from Y-m-d.
  * @param string $to   Y-m-d.
@@ -38,13 +38,13 @@ function currency() {
 function bookings_between( $from, $to ) {
 	$q = new \WP_Query(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 2000,
 			'no_found_rows'  => true,
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				array(
-					'key'     => 'dk_date',
+					'key'     => 'dinekit_date',
 					'value'   => array( $from, $to ),
 					'compare' => 'BETWEEN',
 					'type'    => 'DATE',
@@ -90,10 +90,10 @@ function range_data( $from, $to, $with_prev = true ) {
 	$by_hour    = array();
 
 	foreach ( bookings_between( $from, $to ) as $post ) {
-		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
-		$party  = (int) get_post_meta( $post->ID, 'dk_party', true );
-		$date   = (string) get_post_meta( $post->ID, 'dk_date', true );
-		$source = (string) get_post_meta( $post->ID, 'dk_source', true );
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
+		$party  = (int) get_post_meta( $post->ID, 'dinekit_party', true );
+		$date   = (string) get_post_meta( $post->ID, 'dinekit_date', true );
+		$source = (string) get_post_meta( $post->ID, 'dinekit_source', true );
 		$source = '' !== $source ? $source : 'admin';
 
 		if ( 'no_show' === $status ) {
@@ -119,7 +119,7 @@ function range_data( $from, $to, $with_prev = true ) {
 		if ( $ts ) {
 			$by_weekday[ (int) gmdate( 'w', $ts ) ] += $party;
 		}
-		$hour = (int) substr( (string) get_post_meta( $post->ID, 'dk_time', true ), 0, 2 );
+		$hour = (int) substr( (string) get_post_meta( $post->ID, 'dinekit_time', true ), 0, 2 );
 		if ( $hour >= 0 && $hour <= 23 ) {
 			$by_hour[ $hour ] = ( $by_hour[ $hour ] ?? 0 ) + $party;
 		}
@@ -131,7 +131,7 @@ function range_data( $from, $to, $with_prev = true ) {
 	$dish_map    = array();
 	$order_posts = get_posts(
 		array(
-			'post_type'      => 'dk_order',
+			'post_type'      => 'dinekit_order',
 			'post_status'    => 'publish',
 			'posts_per_page' => 2000,
 			'no_found_rows'  => true,
@@ -142,17 +142,17 @@ function range_data( $from, $to, $with_prev = true ) {
 		if ( $date < $from || $date > $to ) {
 			continue;
 		}
-		if ( 'cancelled' === (string) get_post_meta( $post->ID, 'dk_order_status', true ) ) {
+		if ( 'cancelled' === (string) get_post_meta( $post->ID, 'dinekit_order_status', true ) ) {
 			continue;
 		}
-		$total    = (float) get_post_meta( $post->ID, 'dk_order_total', true );
+		$total    = (float) get_post_meta( $post->ID, 'dinekit_order_total', true );
 		$revenue += $total;
 		++$orders_n;
 		if ( isset( $per_day[ $date ] ) ) {
 			$per_day[ $date ]['revenue'] += $total;
 			$per_day[ $date ]['orders']  += 1;
 		}
-		$lines = json_decode( (string) get_post_meta( $post->ID, 'dk_order_items', true ), true );
+		$lines = json_decode( (string) get_post_meta( $post->ID, 'dinekit_order_items', true ), true );
 		foreach ( (array) $lines as $line ) {
 			$title = (string) ( $line['title'] ?? '' );
 			if ( '' === $title ) {
@@ -271,28 +271,28 @@ function service_sheet( $date ) {
 
 	$posts = new \WP_Query(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'no_found_rows'  => true,
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				array(
-					'key'   => 'dk_date',
+					'key'   => 'dinekit_date',
 					'value' => $date,
 				),
 			),
 		)
 	);
 	foreach ( $posts->posts as $post ) {
-		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
 		if ( in_array( $status, array( 'cancelled', 'no_show' ), true ) ) {
 			continue;
 		}
-		$party    = (int) get_post_meta( $post->ID, 'dk_party', true );
-		$name     = (string) get_post_meta( $post->ID, 'dk_name', true );
-		$email    = (string) get_post_meta( $post->ID, 'dk_email', true );
-		$table_id = (int) get_post_meta( $post->ID, 'dk_table_id', true );
-		$combo_id = (int) get_post_meta( $post->ID, 'dk_combo_id', true );
+		$party    = (int) get_post_meta( $post->ID, 'dinekit_party', true );
+		$name     = (string) get_post_meta( $post->ID, 'dinekit_name', true );
+		$email    = (string) get_post_meta( $post->ID, 'dinekit_email', true );
+		$table_id = (int) get_post_meta( $post->ID, 'dinekit_table_id', true );
+		$combo_id = (int) get_post_meta( $post->ID, 'dinekit_combo_id', true );
 		$profile  = \DineKit\Guests\get_profile( $email, $name );
 
 		$covers += $party;
@@ -306,13 +306,13 @@ function service_sheet( $date ) {
 		}
 
 		$rows[] = array(
-			'time'      => (string) get_post_meta( $post->ID, 'dk_time', true ),
+			'time'      => (string) get_post_meta( $post->ID, 'dinekit_time', true ),
 			'name'      => $name,
 			'party'     => $party,
-			'phone'     => (string) get_post_meta( $post->ID, 'dk_phone', true ),
+			'phone'     => (string) get_post_meta( $post->ID, 'dinekit_phone', true ),
 			'table'     => $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' ),
 			'status'    => $status,
-			'notes'     => (string) get_post_meta( $post->ID, 'dk_notes', true ),
+			'notes'     => (string) get_post_meta( $post->ID, 'dinekit_notes', true ),
 			'vip'       => $profile['vip'],
 			'tags'      => $profile['tags'],
 			'allergens' => $profile['allergens'],
@@ -345,18 +345,18 @@ function service_sheet( $date ) {
 	$events = array();
 	foreach ( get_posts(
 		array(
-			'post_type'      => 'dk_event',
+			'post_type'      => 'dinekit_event',
 			'post_status'    => 'publish',
 			'posts_per_page' => 50,
 			'no_found_rows'  => true,
 		)
 	) as $post ) {
-		if ( (string) get_post_meta( $post->ID, 'dk_event_date', true ) !== $date ) {
+		if ( (string) get_post_meta( $post->ID, 'dinekit_event_date', true ) !== $date ) {
 			continue;
 		}
 		$events[] = array(
 			'name' => $post->post_title,
-			'time' => (string) get_post_meta( $post->ID, 'dk_event_time', true ),
+			'time' => (string) get_post_meta( $post->ID, 'dinekit_event_time', true ),
 		);
 	}
 

@@ -111,7 +111,7 @@ function create_intent( $request ) {
  */
 function booking_deposit_pence( $booking_id ) {
 	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
-	$party = (int) get_post_meta( $booking_id, 'dk_party', true );
+	$party = (int) get_post_meta( $booking_id, 'dinekit_party', true );
 	if ( ! \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
 		return 0;
 	}
@@ -129,14 +129,14 @@ function booking_deposit_pence( $booking_id ) {
 function create_booking_intent( $request ) {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
 	$booking_id = absint( $request->get_param( 'booking' ) );
-	if ( ! $booking_id || 'dk_booking' !== get_post_type( $booking_id ) ) {
+	if ( ! $booking_id || 'dinekit_booking' !== get_post_type( $booking_id ) ) {
 		return new \WP_Error( 'dinekit_pay_booking', __( 'Booking not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 	$pence = booking_deposit_pence( $booking_id );
 	if ( $pence < 1 ) {
 		return new \WP_Error( 'dinekit_pay_nodep', __( 'No deposit is required for this booking.', 'dinekit' ), array( 'status' => 400 ) );
 	}
-	if ( '1' === (string) get_post_meta( $booking_id, 'dk_deposit_paid', true ) ) {
+	if ( '1' === (string) get_post_meta( $booking_id, 'dinekit_deposit_paid', true ) ) {
 		return new \WP_Error( 'dinekit_pay_paid', __( 'This deposit has already been paid.', 'dinekit' ), array( 'status' => 409 ) );
 	}
 
@@ -155,8 +155,8 @@ function create_booking_intent( $request ) {
 		return $intent;
 	}
 
-	update_post_meta( $booking_id, 'dk_deposit_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
-	update_post_meta( $booking_id, 'dk_deposit_amount', $pence );
+	update_post_meta( $booking_id, 'dinekit_deposit_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
+	update_post_meta( $booking_id, 'dinekit_deposit_amount', $pence );
 
 	return rest_ensure_response(
 		array(
@@ -178,10 +178,10 @@ function create_booking_intent( $request ) {
 function create_order_intent( $request ) {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
 	$order_id = absint( $request->get_param( 'order' ) );
-	if ( ! $order_id || 'dk_order' !== get_post_type( $order_id ) ) {
+	if ( ! $order_id || 'dinekit_order' !== get_post_type( $order_id ) ) {
 		return new \WP_Error( 'dinekit_pay_order', __( 'Order not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
-	$total = (float) get_post_meta( $order_id, 'dk_order_total', true );
+	$total = (float) get_post_meta( $order_id, 'dinekit_order_total', true );
 	$pence = (int) round( $total * 100 );
 	if ( $pence < 1 ) {
 		return new \WP_Error( 'dinekit_pay_amount', __( 'This order has no payable total.', 'dinekit' ), array( 'status' => 400 ) );
@@ -207,7 +207,7 @@ function create_order_intent( $request ) {
 		return $intent;
 	}
 
-	update_post_meta( $order_id, 'dk_order_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
+	update_post_meta( $order_id, 'dinekit_order_pi', sanitize_text_field( (string) ( $intent['id'] ?? '' ) ) );
 
 	return rest_ensure_response(
 		array(
@@ -288,23 +288,23 @@ function handle_webhook( $request ) {
 
 	// A held (manual-capture) card fires amount_capturable_updated on authorize,
 	// before it's captured — reflect that as "authorized" so the board shows it.
-	if ( 'payment_intent.amount_capturable_updated' === $type && $order_id && 'dk_order' === get_post_type( $order_id ) ) {
-		if ( 'paid' !== (string) get_post_meta( $order_id, 'dk_order_payment', true ) ) {
-			update_post_meta( $order_id, 'dk_order_payment', 'authorized' );
+	if ( 'payment_intent.amount_capturable_updated' === $type && $order_id && 'dinekit_order' === get_post_type( $order_id ) ) {
+		if ( 'paid' !== (string) get_post_meta( $order_id, 'dinekit_order_payment', true ) ) {
+			update_post_meta( $order_id, 'dinekit_order_payment', 'authorized' );
 		}
 	}
 
 	if ( 'payment_intent.succeeded' === $type ) {
-		if ( $order_id && 'dk_order' === get_post_type( $order_id ) ) {
-			update_post_meta( $order_id, 'dk_order_payment', 'paid' );
+		if ( $order_id && 'dinekit_order' === get_post_type( $order_id ) ) {
+			update_post_meta( $order_id, 'dinekit_order_payment', 'paid' );
 		}
-		if ( $booking_id && 'dk_booking' === get_post_type( $booking_id ) ) {
-			update_post_meta( $booking_id, 'dk_deposit_paid', 1 );
+		if ( $booking_id && 'dinekit_booking' === get_post_type( $booking_id ) ) {
+			update_post_meta( $booking_id, 'dinekit_deposit_paid', 1 );
 			require_once DINEKIT_DIR . 'includes/bookings/register.php';
 			\DineKit\Bookings\log_event( $booking_id, __( 'Deposit paid', 'dinekit' ) );
 			// A paid deposit secures the table — promote a pending request to confirmed.
-			if ( 'pending' === (string) get_post_meta( $booking_id, 'dk_status', true ) ) {
-				update_post_meta( $booking_id, 'dk_status', 'confirmed' );
+			if ( 'pending' === (string) get_post_meta( $booking_id, 'dinekit_status', true ) ) {
+				update_post_meta( $booking_id, 'dinekit_status', 'confirmed' );
 			}
 		}
 	}

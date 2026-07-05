@@ -57,7 +57,7 @@ export default function MenuTabs( { menus, selected, onSelect, store } ) {
 		if ( ! name ) {
 			return;
 		}
-		const term = await store.createTerm( 'dk_menu', name );
+		const term = await store.createTerm( 'dinekit_menu', name );
 		if ( term && term.id ) {
 			onSelect( term.id );
 		}
@@ -67,7 +67,7 @@ export default function MenuTabs( { menus, selected, onSelect, store } ) {
 		const name = renameValue.trim();
 		setRenaming( false );
 		if ( name && activeMenu && name !== activeMenu.name ) {
-			store.renameTerm( 'dk_menu', activeMenu.id, name );
+			store.renameTerm( 'dinekit_menu', activeMenu.id, name );
 		}
 	};
 
@@ -183,7 +183,7 @@ export default function MenuTabs( { menus, selected, onSelect, store } ) {
 						</IconButton>
 					</Tooltip>
 					<Tooltip title="Delete this menu (dishes are kept)">
-						<IconButton size="small" onClick={ () => { store.deleteTerm( 'dk_menu', activeMenu.id ); onSelect( 0 ); } } sx={ { color: tokens.muted2 } }>
+						<IconButton size="small" onClick={ () => { store.deleteTerm( 'dinekit_menu', activeMenu.id ); onSelect( 0 ); } } sx={ { color: tokens.muted2 } }>
 							<DeleteOutlineIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>

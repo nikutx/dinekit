@@ -7,8 +7,8 @@ import { tokens } from '../theme';
 // A lightweight, skippable first-run explainer shown once per page. "Got it"
 // dismisses this page's tip; "Don't show tips" silences them everywhere. State
 // lives in localStorage so it's per-user without a backend round-trip.
-const key = ( id ) => 'dk_tour_' + id;
-const OFF = 'dk_tours_off';
+const key = ( id ) => 'dinekit_tour_' + id;
+const OFF = 'dinekit_tours_off';
 
 function read( k ) {
 	try {

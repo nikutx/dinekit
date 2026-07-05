@@ -189,7 +189,7 @@ export default function OrdersView() {
 			return;
 		}
 		const line = ( li ) => {
-			let s = '<div class="dk-row"><span><strong>' + li.qty + '×</strong> ' + esc( li.title ) +
+			let s = '<div class="dinekit-row"><span><strong>' + li.qty + '×</strong> ' + esc( li.title ) +
 				( li.priceLabel ? ' (' + esc( li.priceLabel ) + ')' : '' ) + '</span></div>';
 			const mods = li.chosen.map( ( c ) => c.label ).concat( ( li.removed || [] ).map( ( r ) => 'no ' + r ) );
 			if ( mods.length ) {
@@ -198,7 +198,7 @@ export default function OrdersView() {
 			return s;
 		};
 		let body = '<h1>Order #' + o.number + '</h1>';
-		body += '<p class="dk-sub">' + esc( o.name ) + ( o.phone ? ' · ' + esc( o.phone ) : '' ) +
+		body += '<p class="dinekit-sub">' + esc( o.name ) + ( o.phone ? ' · ' + esc( o.phone ) : '' ) +
 			' · ' + ( o.when === 'asap' ? 'ASAP' : esc( o.when ) ) + '</p>';
 		const stations = station === 'all' ? [ 'kitchen', 'bar' ] : [ station ];
 		stations.forEach( ( st ) => {
@@ -212,7 +212,7 @@ export default function OrdersView() {
 			rows.forEach( ( li ) => { body += line( li ); } );
 		} );
 		if ( o.notes ) {
-			body += '<p class="dk-flag">“' + esc( o.notes ) + '”</p>';
+			body += '<p class="dinekit-flag">“' + esc( o.notes ) + '”</p>';
 		}
 		printDoc( 'Order #' + o.number + ( station === 'all' ? '' : ' · ' + station ), body );
 		markPrinted( o.id, station );

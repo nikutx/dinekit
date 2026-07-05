@@ -47,23 +47,23 @@ function admin_recipient() {
  * @return array<string,mixed>
  */
 function booking_data( $id ) {
-	$table_id = (int) get_post_meta( $id, 'dk_table_id', true );
-	$combo_id = (int) get_post_meta( $id, 'dk_combo_id', true );
+	$table_id = (int) get_post_meta( $id, 'dinekit_table_id', true );
+	$combo_id = (int) get_post_meta( $id, 'dinekit_combo_id', true );
 	$table    = $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' );
-	$date     = (string) get_post_meta( $id, 'dk_date', true );
+	$date     = (string) get_post_meta( $id, 'dinekit_date', true );
 
 	return array(
-		'name'    => (string) get_post_meta( $id, 'dk_name', true ),
-		'email'   => (string) get_post_meta( $id, 'dk_email', true ),
-		'phone'   => (string) get_post_meta( $id, 'dk_phone', true ),
+		'name'    => (string) get_post_meta( $id, 'dinekit_name', true ),
+		'email'   => (string) get_post_meta( $id, 'dinekit_email', true ),
+		'phone'   => (string) get_post_meta( $id, 'dinekit_phone', true ),
 		'date'    => $date,
 		'dateFmt' => $date ? date_i18n( (string) get_option( 'date_format', 'j M Y' ), strtotime( $date . ' 00:00:00' ) ) : '',
-		'time'    => (string) get_post_meta( $id, 'dk_time', true ),
-		'party'   => (int) get_post_meta( $id, 'dk_party', true ),
-		'notes'   => (string) get_post_meta( $id, 'dk_notes', true ),
-		'status'  => (string) get_post_meta( $id, 'dk_status', true ),
+		'time'    => (string) get_post_meta( $id, 'dinekit_time', true ),
+		'party'   => (int) get_post_meta( $id, 'dinekit_party', true ),
+		'notes'   => (string) get_post_meta( $id, 'dinekit_notes', true ),
+		'status'  => (string) get_post_meta( $id, 'dinekit_status', true ),
 		'table'   => $table,
-		'deposit' => (int) get_post_meta( $id, 'dk_deposit_required', true ),
+		'deposit' => (int) get_post_meta( $id, 'dinekit_deposit_required', true ),
 	);
 }
 

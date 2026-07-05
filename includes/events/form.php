@@ -25,7 +25,7 @@ function render( $token, $group = '' ) {
 	require_once DINEKIT_DIR . 'includes/events/events.php';
 	$event = \DineKit\Events\event_by_token( $token );
 
-	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dk_event_status', true ) ) {
+	if ( ! $event || 'published' !== get_post_meta( $event->ID, 'dinekit_event_status', true ) ) {
 		return '<div class="dinekit-booking dinekit-booking--off"><p>' .
 			esc_html__( 'This event link is not valid.', 'dinekit' ) . '</p></div>';
 	}
@@ -33,25 +33,25 @@ function render( $token, $group = '' ) {
 	wp_enqueue_style( 'dinekit-event' );
 	wp_enqueue_script( 'dinekit-event' );
 
-	$menu     = (int) get_post_meta( $event->ID, 'dk_event_menu', true );
-	$date     = (string) get_post_meta( $event->ID, 'dk_event_date', true );
-	$time     = (string) get_post_meta( $event->ID, 'dk_event_time', true );
-	$intro    = (string) get_post_meta( $event->ID, 'dk_event_intro', true );
-	$deadline = (string) get_post_meta( $event->ID, 'dk_event_deadline', true );
+	$menu     = (int) get_post_meta( $event->ID, 'dinekit_event_menu', true );
+	$date     = (string) get_post_meta( $event->ID, 'dinekit_event_date', true );
+	$time     = (string) get_post_meta( $event->ID, 'dinekit_event_time', true );
+	$intro    = (string) get_post_meta( $event->ID, 'dinekit_event_intro', true );
+	$deadline = (string) get_post_meta( $event->ID, 'dinekit_event_deadline', true );
 	$courses  = $menu ? \DineKit\Events\courses( $menu ) : array();
 
 	$closed = ( '' !== $deadline && strtotime( $deadline . ' 23:59:59' ) < (int) current_time( 'timestamp' ) );
-	$cap    = (int) get_post_meta( $event->ID, 'dk_event_capacity', true );
+	$cap    = (int) get_post_meta( $event->ID, 'dinekit_event_capacity', true );
 	if ( ! $closed && $cap > 0 ) {
 		$taken = count(
 			get_posts(
 				array(
-					'post_type'      => 'dk_guest',
+					'post_type'      => 'dinekit_guest',
 					'post_status'    => 'publish',
 					'posts_per_page' => -1,
 					'fields'         => 'ids',
 					'no_found_rows'  => true,
-					'meta_key'       => 'dk_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'meta_key'       => 'dinekit_guest_event', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 					'meta_value'     => (int) $event->ID, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 				)
 			)
@@ -128,8 +128,8 @@ function render( $token, $group = '' ) {
 				<?php endforeach; ?>
 
 				<?php
-				$allergens = get_terms( array( 'taxonomy' => 'dk_allergen', 'hide_empty' => false ) );
-				$dietary   = get_terms( array( 'taxonomy' => 'dk_dietary', 'hide_empty' => false ) );
+				$allergens = get_terms( array( 'taxonomy' => 'dinekit_allergen', 'hide_empty' => false ) );
+				$dietary   = get_terms( array( 'taxonomy' => 'dinekit_dietary', 'hide_empty' => false ) );
 				?>
 				<?php if ( is_array( $allergens ) && $allergens ) : ?>
 					<div class="dinekit-event__group">

@@ -34,9 +34,16 @@ delete_option( 'dinekit_events_page' );
 delete_option( 'dinekit_order_settings' );
 delete_option( 'dinekit_order_counter' );
 delete_option( 'dinekit_guest_profiles' );
+delete_option( 'dinekit_secrets_encrypted' );
+delete_option( 'dinekit_stripe_events' );
+delete_option( 'dinekit_feedback_page' );
+delete_option( 'dinekit_reviews' );
+delete_option( 'dinekit_staff' );
+delete_option( 'dinekit_email' );
+delete_option( 'dinekit_prefix_migrated' );
 
 // Delete all DineKit posts (menu items + bookings/floor + events/guests + orders).
-foreach ( array( 'dk_menu_item', 'dk_table', 'dk_booking', 'dk_table_combo', 'dk_event', 'dk_guest', 'dk_order' ) as $dinekit_pt ) {
+foreach ( array( 'dinekit_menu_item', 'dinekit_table', 'dinekit_booking', 'dinekit_table_combo', 'dinekit_event', 'dinekit_guest', 'dinekit_order' ) as $dinekit_pt ) {
 	$dinekit_posts = get_posts(
 		array(
 			'post_type'     => $dinekit_pt,
@@ -53,9 +60,9 @@ foreach ( array( 'dk_menu_item', 'dk_table', 'dk_booking', 'dk_table_combo', 'dk
 
 // Delete all terms in DineKit taxonomies. The plugin is not loaded during
 // uninstall, so register each taxonomy barebones first or get_terms() errors.
-foreach ( array( 'dk_menu', 'dk_section', 'dk_dietary', 'dk_allergen', 'dk_area' ) as $dinekit_tax ) {
+foreach ( array( 'dinekit_menu', 'dinekit_section', 'dinekit_dietary', 'dinekit_allergen', 'dinekit_area' ) as $dinekit_tax ) {
 	if ( ! taxonomy_exists( $dinekit_tax ) ) {
-		register_taxonomy( $dinekit_tax, 'dk_menu_item' );
+		register_taxonomy( $dinekit_tax, 'dinekit_menu_item' );
 	}
 	$dinekit_terms = get_terms(
 		array(

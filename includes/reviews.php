@@ -67,14 +67,14 @@ function run_scheduled() {
 
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 100,
 			'no_found_rows'  => true,
 			'fields'         => 'ids',
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				array(
-					'key'     => 'dk_date',
+					'key'     => 'dinekit_date',
 					'value'   => array( $from, $to ),
 					'compare' => 'BETWEEN',
 					'type'    => 'DATE',
@@ -88,14 +88,14 @@ function run_scheduled() {
 		if ( $sent >= 50 ) {
 			break;
 		}
-		if ( '' !== (string) get_post_meta( $id, 'dk_review_sent', true ) ) {
+		if ( '' !== (string) get_post_meta( $id, 'dinekit_review_sent', true ) ) {
 			continue; // Already asked.
 		}
-		if ( ! in_array( (string) get_post_meta( $id, 'dk_status', true ), array( 'confirmed', 'seated' ), true ) ) {
+		if ( ! in_array( (string) get_post_meta( $id, 'dinekit_status', true ), array( 'confirmed', 'seated' ), true ) ) {
 			continue;
 		}
-		$date = (string) get_post_meta( $id, 'dk_date', true );
-		$time = (string) get_post_meta( $id, 'dk_time', true );
+		$date = (string) get_post_meta( $id, 'dinekit_date', true );
+		$time = (string) get_post_meta( $id, 'dinekit_time', true );
 		$ts   = strtotime( $date . ' ' . ( $time ? $time : '20:00' ) . ':00' );
 		if ( ! $ts || ( $ts + $delay ) > $now ) {
 			continue; // Visit hasn't finished long enough ago.
@@ -284,10 +284,10 @@ function rest_save( $request ) {
  * @return string
  */
 function review_token( $booking_id ) {
-	$t = (string) get_post_meta( $booking_id, 'dk_review_token', true );
+	$t = (string) get_post_meta( $booking_id, 'dinekit_review_token', true );
 	if ( '' === $t ) {
 		$t = strtolower( wp_generate_password( 20, false, false ) );
-		update_post_meta( $booking_id, 'dk_review_token', $t );
+		update_post_meta( $booking_id, 'dinekit_review_token', $t );
 	}
 	return $t;
 }
@@ -304,11 +304,11 @@ function booking_by_token( $token ) {
 	}
 	$posts = get_posts(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 1,
 			'no_found_rows'  => true,
-			'meta_key'       => 'dk_review_token', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_review_token', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'meta_value'     => sanitize_text_field( $token ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		)
 	);
@@ -363,8 +363,8 @@ function feedback_page_url() {
 function send_request( $booking_id ) {
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	$cfg   = get();
-	$email = (string) get_post_meta( $booking_id, 'dk_email', true );
-	$name  = (string) get_post_meta( $booking_id, 'dk_name', true );
+	$email = (string) get_post_meta( $booking_id, 'dinekit_email', true );
+	$name  = (string) get_post_meta( $booking_id, 'dinekit_name', true );
 	if ( ! is_email( $email ) ) {
 		return new \WP_Error( 'dinekit_review_email', __( 'This booking has no valid email address.', 'dinekit' ), array( 'status' => 400 ) );
 	}
@@ -389,7 +389,7 @@ function send_request( $booking_id ) {
 	$subject = sprintf( __( 'How was your visit to %s?', 'dinekit' ), $site );
 	\DineKit\Bookings\Emails\send( $email, $subject, $html );
 
-	update_post_meta( $booking_id, 'dk_review_sent', (string) time() );
+	update_post_meta( $booking_id, 'dinekit_review_sent', (string) time() );
 	return true;
 }
 
@@ -431,7 +431,7 @@ function public_feedback( $request ) {
 			'message'   => $cfg['message'],
 			'googleUrl' => $cfg['google_url'],
 			'tripUrl'   => $cfg['tripadvisor_url'],
-			'submitted' => '' !== (string) get_post_meta( $booking->ID, 'dk_fb_at', true ),
+			'submitted' => '' !== (string) get_post_meta( $booking->ID, 'dinekit_fb_at', true ),
 		)
 	);
 }
@@ -464,9 +464,9 @@ function public_submit( $request ) {
 	$rating  = max( 1, min( 5, absint( $request->get_param( 'rating' ) ) ) );
 	$comment = sanitize_textarea_field( (string) $request->get_param( 'comment' ) );
 
-	update_post_meta( $booking->ID, 'dk_fb_rating', $rating );
-	update_post_meta( $booking->ID, 'dk_fb_comment', $comment );
-	update_post_meta( $booking->ID, 'dk_fb_at', (string) time() );
+	update_post_meta( $booking->ID, 'dinekit_fb_rating', $rating );
+	update_post_meta( $booking->ID, 'dinekit_fb_comment', $comment );
+	update_post_meta( $booking->ID, 'dinekit_fb_at', (string) time() );
 
 	if ( $rating <= (int) $cfg['low_threshold'] ) {
 		alert_manager( $booking->ID, $rating, $comment );
@@ -493,8 +493,8 @@ function alert_manager( $booking_id, $rating, $comment ) {
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	$cfg  = get();
 	$to   = ! empty( $cfg['notify_email'] ) && is_email( $cfg['notify_email'] ) ? $cfg['notify_email'] : (string) get_option( 'admin_email' );
-	$name = (string) get_post_meta( $booking_id, 'dk_name', true );
-	$date = (string) get_post_meta( $booking_id, 'dk_date', true );
+	$name = (string) get_post_meta( $booking_id, 'dinekit_name', true );
+	$date = (string) get_post_meta( $booking_id, 'dinekit_date', true );
 
 	$html  = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">';
 	$html .= '<h2 style="font-size:18px;margin:0 0 8px;color:#e11d48">' . esc_html__( 'A guest left low feedback', 'dinekit' ) . '</h2>';
@@ -518,11 +518,11 @@ function alert_manager( $booking_id, $rating, $comment ) {
 function rest_feedback_list() {
 	$posts = get_posts(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 100,
 			'no_found_rows'  => true,
-			'meta_key'       => 'dk_fb_at', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_key'       => 'dinekit_fb_at', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			'orderby'        => 'meta_value_num',
 			'order'          => 'DESC',
 		)
@@ -531,10 +531,10 @@ function rest_feedback_list() {
 	foreach ( $posts as $post ) {
 		$out[] = array(
 			'id'      => (int) $post->ID,
-			'name'    => (string) get_post_meta( $post->ID, 'dk_name', true ),
-			'date'    => (string) get_post_meta( $post->ID, 'dk_date', true ),
-			'rating'  => (int) get_post_meta( $post->ID, 'dk_fb_rating', true ),
-			'comment' => (string) get_post_meta( $post->ID, 'dk_fb_comment', true ),
+			'name'    => (string) get_post_meta( $post->ID, 'dinekit_name', true ),
+			'date'    => (string) get_post_meta( $post->ID, 'dinekit_date', true ),
+			'rating'  => (int) get_post_meta( $post->ID, 'dinekit_fb_rating', true ),
+			'comment' => (string) get_post_meta( $post->ID, 'dinekit_fb_comment', true ),
 		);
 	}
 	return rest_ensure_response( $out );

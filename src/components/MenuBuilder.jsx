@@ -26,7 +26,7 @@ const keyFromContainerId = ( id ) => id.slice( 'container:'.length );
 
 // Build the ordered container→item-ids map from store data. Each item lives in
 // the first of its sections that still exists, else the "none" bucket.
-// menuFilter (a dk_menu term id, or 0 for all) limits which items are shown.
+// menuFilter (a dinekit_menu term id, or 0 for all) limits which items are shown.
 function buildBoard( data, menuFilter ) {
 	const secIds = data.sections.map( ( s ) => String( s.id ) );
 	const map = { [ NONE ]: [] };
@@ -199,7 +199,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 			return;
 		}
 		setNewSection( '' );
-		await store.createTerm( 'dk_section', name );
+		await store.createTerm( 'dinekit_section', name );
 	};
 
 	const addItem = async ( sectionKey ) => {
@@ -326,8 +326,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 								onMoveUp={ () => moveSection( index, -1 ) }
 								onMoveDown={ () => moveSection( index, 1 ) }
 								onAddItem={ () => addItem( key ) }
-								onRename={ ( name ) => store.renameTerm( 'dk_section', Number( key ), name ) }
-								onDelete={ () => store.deleteTerm( 'dk_section', Number( key ) ) }
+								onRename={ ( name ) => store.renameTerm( 'dinekit_section', Number( key ), name ) }
+								onDelete={ () => store.deleteTerm( 'dinekit_section', Number( key ) ) }
 								onEditItem={ setEditingId }
 								onDuplicateItem={ async ( id ) => {
 									const copy = await store.duplicateItem( id );

@@ -262,7 +262,7 @@ function get_floor() {
 	$areas      = array();
 	$area_terms = get_terms(
 		array(
-			'taxonomy'   => 'dk_area',
+			'taxonomy'   => 'dinekit_area',
 			'hide_empty' => false,
 		)
 	);
@@ -292,13 +292,13 @@ function get_floor() {
  */
 function combo_response( $id ) {
 	$post = get_post( $id );
-	$ids  = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $id, 'dk_combo_tables', true ) ) ) );
+	$ids  = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $id, 'dinekit_combo_tables', true ) ) ) );
 	return array(
 		'id'       => (int) $id,
 		'name'     => $post->post_title,
 		'tables'   => array_values( $ids ),
-		'min'      => (int) get_post_meta( $id, 'dk_combo_min', true ) ?: 2,
-		'max'      => (int) get_post_meta( $id, 'dk_combo_max', true ) ?: 4,
+		'min'      => (int) get_post_meta( $id, 'dinekit_combo_min', true ) ?: 2,
+		'max'      => (int) get_post_meta( $id, 'dinekit_combo_max', true ) ?: 4,
 		'priority' => (int) $post->menu_order,
 	);
 }
@@ -331,7 +331,7 @@ function apply_combo_fields( $id, $request ) {
 	$tables = $request->get_param( 'tables' );
 	if ( null !== $tables && is_array( $tables ) ) {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $tables ) ) ) );
-		update_post_meta( $id, 'dk_combo_tables', implode( ',', $ids ) );
+		update_post_meta( $id, 'dinekit_combo_tables', implode( ',', $ids ) );
 		// Auto-name unless the caller supplied one.
 		if ( null === $request->get_param( 'name' ) ) {
 			wp_update_post(
@@ -351,8 +351,8 @@ function apply_combo_fields( $id, $request ) {
 		);
 	}
 	foreach ( array(
-		'min' => 'dk_combo_min',
-		'max' => 'dk_combo_max',
+		'min' => 'dinekit_combo_min',
+		'max' => 'dinekit_combo_max',
 	) as $param => $meta ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $meta, absint( $request->get_param( $param ) ) );
@@ -381,7 +381,7 @@ function create_combo( $request ) {
 	}
 	$id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_table_combo',
+			'post_type'   => 'dinekit_table_combo',
 			'post_status' => 'publish',
 			'post_title'  => combo_name_from_tables( $tables ),
 			'menu_order'  => (int) $request->get_param( 'priority' ),
@@ -391,8 +391,8 @@ function create_combo( $request ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	update_post_meta( $id, 'dk_combo_min', 2 );
-	update_post_meta( $id, 'dk_combo_max', 4 );
+	update_post_meta( $id, 'dinekit_combo_min', 2 );
+	update_post_meta( $id, 'dinekit_combo_max', 4 );
 	apply_combo_fields( $id, $request );
 	return rest_ensure_response( combo_response( $id ) );
 }
@@ -431,11 +431,11 @@ function create_area( $request ) {
 	if ( '' === $name ) {
 		return new \WP_Error( 'dinekit_area_name', __( 'A name is required.', 'dinekit' ), array( 'status' => 400 ) );
 	}
-	$result = wp_insert_term( $name, 'dk_area' );
+	$result = wp_insert_term( $name, 'dinekit_area' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
-	$term = get_term( (int) $result['term_id'], 'dk_area' );
+	$term = get_term( (int) $result['term_id'], 'dinekit_area' );
 	return rest_ensure_response(
 		array(
 			'id'   => (int) $term->term_id,
@@ -453,11 +453,11 @@ function create_area( $request ) {
 function update_area( $request ) {
 	$id     = (int) $request['id'];
 	$name   = sanitize_text_field( (string) $request->get_param( 'name' ) );
-	$result = wp_update_term( $id, 'dk_area', array( 'name' => $name ) );
+	$result = wp_update_term( $id, 'dinekit_area', array( 'name' => $name ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
-	$term = get_term( $id, 'dk_area' );
+	$term = get_term( $id, 'dinekit_area' );
 	return rest_ensure_response(
 		array(
 			'id'   => (int) $term->term_id,
@@ -473,7 +473,7 @@ function update_area( $request ) {
  * @return \WP_REST_Response
  */
 function delete_area( $request ) {
-	wp_delete_term( (int) $request['id'], 'dk_area' );
+	wp_delete_term( (int) $request['id'], 'dinekit_area' );
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
@@ -485,23 +485,23 @@ function delete_area( $request ) {
  */
 function table_response( $id ) {
 	$post   = get_post( $id );
-	$seats  = (int) get_post_meta( $id, 'dk_seats', true );
-	$areas  = get_the_terms( $post, 'dk_area' );
+	$seats  = (int) get_post_meta( $id, 'dinekit_seats', true );
+	$areas  = get_the_terms( $post, 'dinekit_area' );
 	$area   = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
-	$shape  = (string) get_post_meta( $id, 'dk_shape', true );
-	$status = (string) get_post_meta( $id, 'dk_status', true );
+	$shape  = (string) get_post_meta( $id, 'dinekit_shape', true );
+	$status = (string) get_post_meta( $id, 'dinekit_status', true );
 	return array(
 		'id'       => (int) $id,
 		'name'     => $post->post_title,
 		'seats'    => $seats ? $seats : 2,
-		'min'      => (int) get_post_meta( $id, 'dk_min_party', true ) ?: 1,
-		'max'      => (int) get_post_meta( $id, 'dk_max_party', true ) ?: ( $seats ? $seats : 2 ),
+		'min'      => (int) get_post_meta( $id, 'dinekit_min_party', true ) ?: 1,
+		'max'      => (int) get_post_meta( $id, 'dinekit_max_party', true ) ?: ( $seats ? $seats : 2 ),
 		'areaId'   => $area ? (int) $area->term_id : 0,
 		'area'     => $area ? $area->name : '',
 		'order'    => (int) $post->menu_order,
-		'x'        => (int) get_post_meta( $id, 'dk_pos_x', true ),
-		'y'        => (int) get_post_meta( $id, 'dk_pos_y', true ),
-		'rotation' => (int) get_post_meta( $id, 'dk_rotation', true ),
+		'x'        => (int) get_post_meta( $id, 'dinekit_pos_x', true ),
+		'y'        => (int) get_post_meta( $id, 'dinekit_pos_y', true ),
+		'rotation' => (int) get_post_meta( $id, 'dinekit_rotation', true ),
 		'shape'    => $shape ? $shape : 'round',
 		'status'   => 'maintenance' === $status ? 'maintenance' : 'active',
 	);
@@ -524,12 +524,12 @@ function apply_table_fields( $id, $request ) {
 		);
 	}
 	$int_fields = array(
-		'seats'    => 'dk_seats',
-		'min'      => 'dk_min_party',
-		'max'      => 'dk_max_party',
-		'x'        => 'dk_pos_x',
-		'y'        => 'dk_pos_y',
-		'rotation' => 'dk_rotation',
+		'seats'    => 'dinekit_seats',
+		'min'      => 'dinekit_min_party',
+		'max'      => 'dinekit_max_party',
+		'x'        => 'dinekit_pos_x',
+		'y'        => 'dinekit_pos_y',
+		'rotation' => 'dinekit_rotation',
 	);
 	foreach ( $int_fields as $param => $meta ) {
 		if ( null !== $request->get_param( $param ) ) {
@@ -537,15 +537,15 @@ function apply_table_fields( $id, $request ) {
 		}
 	}
 	if ( null !== $request->get_param( 'shape' ) ) {
-		update_post_meta( $id, 'dk_shape', sanitize_key( (string) $request->get_param( 'shape' ) ) );
+		update_post_meta( $id, 'dinekit_shape', sanitize_key( (string) $request->get_param( 'shape' ) ) );
 	}
 	if ( null !== $request->get_param( 'status' ) ) {
 		$status = sanitize_key( (string) $request->get_param( 'status' ) );
-		update_post_meta( $id, 'dk_status', 'maintenance' === $status ? 'maintenance' : 'active' );
+		update_post_meta( $id, 'dinekit_status', 'maintenance' === $status ? 'maintenance' : 'active' );
 	}
 	if ( null !== $request->get_param( 'area' ) ) {
 		$area = (int) $request->get_param( 'area' );
-		wp_set_object_terms( $id, $area > 0 ? array( $area ) : array(), 'dk_area' );
+		wp_set_object_terms( $id, $area > 0 ? array( $area ) : array(), 'dinekit_area' );
 	}
 }
 
@@ -560,7 +560,7 @@ function create_table( $request ) {
 	$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
 	$id   = wp_insert_post(
 		array(
-			'post_type'   => 'dk_table',
+			'post_type'   => 'dinekit_table',
 			'post_status' => 'publish',
 			'post_title'  => '' !== $name ? $name : __( 'Table', 'dinekit' ),
 			'menu_order'  => (int) $request->get_param( 'order' ),
@@ -571,9 +571,9 @@ function create_table( $request ) {
 		return $id;
 	}
 	// Sensible defaults then overrides.
-	update_post_meta( $id, 'dk_seats', 2 );
-	update_post_meta( $id, 'dk_min_party', 1 );
-	update_post_meta( $id, 'dk_max_party', 2 );
+	update_post_meta( $id, 'dinekit_seats', 2 );
+	update_post_meta( $id, 'dinekit_min_party', 1 );
+	update_post_meta( $id, 'dinekit_max_party', 2 );
 	apply_table_fields( $id, $request );
 	return rest_ensure_response( table_response( $id ) );
 }
@@ -590,14 +590,14 @@ function detach_table_from_combos( $table_id ) {
 	$table_id = (int) $table_id;
 	$combos   = get_posts(
 		array(
-			'post_type'   => 'dk_table_combo',
+			'post_type'   => 'dinekit_table_combo',
 			'post_status' => 'publish',
 			// A venue has a handful of joins; we need them all to detach a table.
 			'numberposts' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_numberposts
 		)
 	);
 	foreach ( $combos as $combo ) {
-		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $combo->ID, 'dk_combo_tables', true ) ) ) );
+		$ids = array_filter( array_map( 'intval', explode( ',', (string) get_post_meta( $combo->ID, 'dinekit_combo_tables', true ) ) ) );
 		if ( ! in_array( $table_id, $ids, true ) ) {
 			continue;
 		}
@@ -605,7 +605,7 @@ function detach_table_from_combos( $table_id ) {
 		if ( count( $ids ) < 2 ) {
 			wp_delete_post( $combo->ID, true );
 		} else {
-			update_post_meta( $combo->ID, 'dk_combo_tables', implode( ',', $ids ) );
+			update_post_meta( $combo->ID, 'dinekit_combo_tables', implode( ',', $ids ) );
 		}
 	}
 }
@@ -729,29 +729,29 @@ function get_availability( $request ) {
  * @return array<string,mixed>
  */
 function booking_response( $id ) {
-	$table_id = (int) get_post_meta( $id, 'dk_table_id', true );
-	$combo_id = (int) get_post_meta( $id, 'dk_combo_id', true );
-	$history  = json_decode( (string) get_post_meta( $id, 'dk_history', true ), true );
+	$table_id = (int) get_post_meta( $id, 'dinekit_table_id', true );
+	$combo_id = (int) get_post_meta( $id, 'dinekit_combo_id', true );
+	$history  = json_decode( (string) get_post_meta( $id, 'dinekit_history', true ), true );
 	return array(
 		'id'              => (int) $id,
-		'date'            => (string) get_post_meta( $id, 'dk_date', true ),
-		'time'            => (string) get_post_meta( $id, 'dk_time', true ),
-		'party'           => (int) get_post_meta( $id, 'dk_party', true ),
+		'date'            => (string) get_post_meta( $id, 'dinekit_date', true ),
+		'time'            => (string) get_post_meta( $id, 'dinekit_time', true ),
+		'party'           => (int) get_post_meta( $id, 'dinekit_party', true ),
 		'tableId'         => $table_id,
 		'comboId'         => $combo_id,
 		'table'           => $combo_id ? get_the_title( $combo_id ) : ( $table_id ? get_the_title( $table_id ) : '' ),
-		'name'            => (string) get_post_meta( $id, 'dk_name', true ),
-		'email'           => (string) get_post_meta( $id, 'dk_email', true ),
-		'phone'           => (string) get_post_meta( $id, 'dk_phone', true ),
-		'notes'           => (string) get_post_meta( $id, 'dk_notes', true ),
-		'status'          => (string) get_post_meta( $id, 'dk_status', true ),
-		'source'          => (string) get_post_meta( $id, 'dk_source', true ),
-		'depositRequired' => '1' === (string) get_post_meta( $id, 'dk_deposit_required', true ),
-		'depositPaid'     => '1' === (string) get_post_meta( $id, 'dk_deposit_paid', true ),
-		'depositAmount'   => (int) get_post_meta( $id, 'dk_deposit_amount', true ),
-		'depositPi'       => (string) get_post_meta( $id, 'dk_deposit_pi', true ),
-		'archived'        => '1' === (string) get_post_meta( $id, 'dk_archived', true ),
-		'refundDue'       => '1' === (string) get_post_meta( $id, 'dk_refund_due', true ),
+		'name'            => (string) get_post_meta( $id, 'dinekit_name', true ),
+		'email'           => (string) get_post_meta( $id, 'dinekit_email', true ),
+		'phone'           => (string) get_post_meta( $id, 'dinekit_phone', true ),
+		'notes'           => (string) get_post_meta( $id, 'dinekit_notes', true ),
+		'status'          => (string) get_post_meta( $id, 'dinekit_status', true ),
+		'source'          => (string) get_post_meta( $id, 'dinekit_source', true ),
+		'depositRequired' => '1' === (string) get_post_meta( $id, 'dinekit_deposit_required', true ),
+		'depositPaid'     => '1' === (string) get_post_meta( $id, 'dinekit_deposit_paid', true ),
+		'depositAmount'   => (int) get_post_meta( $id, 'dinekit_deposit_amount', true ),
+		'depositPi'       => (string) get_post_meta( $id, 'dinekit_deposit_pi', true ),
+		'archived'        => '1' === (string) get_post_meta( $id, 'dinekit_archived', true ),
+		'refundDue'       => '1' === (string) get_post_meta( $id, 'dinekit_refund_due', true ),
 		'history'         => is_array( $history ) ? $history : array(),
 	);
 }
@@ -769,14 +769,14 @@ function list_bookings( $request ) {
 	$meta_query = array();
 	if ( $from && $to ) {
 		$meta_query[] = array(
-			'key'     => 'dk_date',
+			'key'     => 'dinekit_date',
 			'value'   => array( $from, $to ),
 			'compare' => 'BETWEEN',
 			'type'    => 'DATE',
 		);
 	} elseif ( $from ) {
 		$meta_query[] = array(
-			'key'   => 'dk_date',
+			'key'   => 'dinekit_date',
 			'value' => $from,
 		);
 	}
@@ -785,11 +785,11 @@ function list_bookings( $request ) {
 	$meta_query[] = array(
 		'relation' => 'OR',
 		array(
-			'key'     => 'dk_archived',
+			'key'     => 'dinekit_archived',
 			'compare' => 'NOT EXISTS',
 		),
 		array(
-			'key'     => 'dk_archived',
+			'key'     => 'dinekit_archived',
 			'value'   => '1',
 			'compare' => '!=',
 		),
@@ -797,7 +797,7 @@ function list_bookings( $request ) {
 
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'no_found_rows'  => true,
@@ -858,7 +858,7 @@ function create_booking( $request ) {
 
 	$post_id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_booking',
+			'post_type'   => 'dinekit_booking',
 			'post_status' => 'publish',
 			'post_title'  => sprintf( '%s — %s %s (%dp)', $name ? $name : __( 'Booking', 'dinekit' ), $date, $time, $party ),
 		),
@@ -868,17 +868,17 @@ function create_booking( $request ) {
 		return $post_id;
 	}
 
-	update_post_meta( $post_id, 'dk_date', $date );
-	update_post_meta( $post_id, 'dk_time', $time );
-	update_post_meta( $post_id, 'dk_party', $party );
-	update_post_meta( $post_id, 'dk_table_id', $table_id );
-	update_post_meta( $post_id, 'dk_combo_id', $combo_id );
-	update_post_meta( $post_id, 'dk_name', $name );
-	update_post_meta( $post_id, 'dk_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
-	update_post_meta( $post_id, 'dk_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
-	update_post_meta( $post_id, 'dk_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
-	update_post_meta( $post_id, 'dk_status', $status );
-	update_post_meta( $post_id, 'dk_source', 'admin' );
+	update_post_meta( $post_id, 'dinekit_date', $date );
+	update_post_meta( $post_id, 'dinekit_time', $time );
+	update_post_meta( $post_id, 'dinekit_party', $party );
+	update_post_meta( $post_id, 'dinekit_table_id', $table_id );
+	update_post_meta( $post_id, 'dinekit_combo_id', $combo_id );
+	update_post_meta( $post_id, 'dinekit_name', $name );
+	update_post_meta( $post_id, 'dinekit_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
+	update_post_meta( $post_id, 'dinekit_phone', sanitize_text_field( (string) $request->get_param( 'phone' ) ) );
+	update_post_meta( $post_id, 'dinekit_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
+	update_post_meta( $post_id, 'dinekit_status', $status );
+	update_post_meta( $post_id, 'dinekit_source', 'admin' );
 	Bookings\log_event( $post_id, __( 'Booking created by staff', 'dinekit' ) );
 
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
@@ -897,18 +897,18 @@ function update_booking( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
 	$id         = (int) $request['id'];
 	$map        = array(
-		'date'    => 'dk_date',
-		'time'    => 'dk_time',
-		'party'   => 'dk_party',
-		'tableId' => 'dk_table_id',
-		'comboId' => 'dk_combo_id',
-		'name'    => 'dk_name',
-		'email'   => 'dk_email',
-		'phone'   => 'dk_phone',
-		'notes'   => 'dk_notes',
-		'status'  => 'dk_status',
+		'date'    => 'dinekit_date',
+		'time'    => 'dinekit_time',
+		'party'   => 'dinekit_party',
+		'tableId' => 'dinekit_table_id',
+		'comboId' => 'dinekit_combo_id',
+		'name'    => 'dinekit_name',
+		'email'   => 'dinekit_email',
+		'phone'   => 'dinekit_phone',
+		'notes'   => 'dinekit_notes',
+		'status'  => 'dinekit_status',
 	);
-	$old_status = (string) get_post_meta( $id, 'dk_status', true );
+	$old_status = (string) get_post_meta( $id, 'dinekit_status', true );
 	$new_status = $old_status;
 
 	foreach ( $map as $param => $meta ) {
@@ -946,7 +946,7 @@ function update_booking( $request ) {
 	// Archive / restore (bookings are never hard-deleted).
 	if ( null !== $request->get_param( 'archived' ) ) {
 		$arch = (bool) $request->get_param( 'archived' );
-		update_post_meta( $id, 'dk_archived', $arch ? 1 : 0 );
+		update_post_meta( $id, 'dinekit_archived', $arch ? 1 : 0 );
 		Bookings\log_event( $id, $arch ? __( 'Archived', 'dinekit' ) : __( 'Restored from archive', 'dinekit' ) );
 	}
 
@@ -962,11 +962,11 @@ function update_booking( $request ) {
  */
 function delete_booking( $request ) {
 	$id = (int) $request['id'];
-	if ( 'dk_booking' !== get_post_type( $id ) ) {
+	if ( 'dinekit_booking' !== get_post_type( $id ) ) {
 		return new \WP_Error( 'dinekit_booking_404', __( 'Booking not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 	Bookings\refund_deposit( $id );
-	update_post_meta( $id, 'dk_archived', 1 );
+	update_post_meta( $id, 'dinekit_archived', 1 );
 	Bookings\log_event( $id, __( 'Archived', 'dinekit' ) );
 	return rest_ensure_response( booking_response( $id ) );
 }
@@ -1022,15 +1022,15 @@ function list_guests() {
 	// Bookings.
 	$bookings = get_posts(
 		array(
-			'post_type'      => 'dk_booking',
+			'post_type'      => 'dinekit_booking',
 			'post_status'    => 'publish',
 			'posts_per_page' => 2000,
 			'no_found_rows'  => true,
 		)
 	);
 	foreach ( $bookings as $post ) {
-		$email = (string) get_post_meta( $post->ID, 'dk_email', true );
-		$name  = (string) get_post_meta( $post->ID, 'dk_name', true );
+		$email = (string) get_post_meta( $post->ID, 'dinekit_email', true );
+		$name  = (string) get_post_meta( $post->ID, 'dinekit_name', true );
 		if ( '' === trim( $email ) && '' === trim( $name ) ) {
 			continue;
 		}
@@ -1038,12 +1038,12 @@ function list_guests() {
 		if ( ! isset( $map[ $k ] ) ) {
 			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
 		}
-		$status = (string) get_post_meta( $post->ID, 'dk_status', true );
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
 		if ( in_array( $status, array( 'cancelled', 'no_show' ), true ) ) {
 			++$map[ $k ]['cancelled'];
 		} else {
 			++$map[ $k ]['visits'];
-			$date = (string) get_post_meta( $post->ID, 'dk_date', true );
+			$date = (string) get_post_meta( $post->ID, 'dinekit_date', true );
 			if ( '' !== $date ) {
 				$map[ $k ]['dates'][] = $date;
 			}
@@ -1051,7 +1051,7 @@ function list_guests() {
 		if ( '' !== $name ) {
 			$map[ $k ]['name'] = $name;
 		}
-		$phone = (string) get_post_meta( $post->ID, 'dk_phone', true );
+		$phone = (string) get_post_meta( $post->ID, 'dinekit_phone', true );
 		if ( '' !== $phone ) {
 			$map[ $k ]['phone'] = $phone;
 		}
@@ -1060,23 +1060,23 @@ function list_guests() {
 	// Event guests — merge their allergen/dietary flags.
 	$guests = get_posts(
 		array(
-			'post_type'      => 'dk_guest',
+			'post_type'      => 'dinekit_guest',
 			'post_status'    => 'publish',
 			'posts_per_page' => 2000,
 			'no_found_rows'  => true,
 		)
 	);
 	foreach ( $guests as $g ) {
-		$email = (string) get_post_meta( $g->ID, 'dk_guest_email', true );
+		$email = (string) get_post_meta( $g->ID, 'dinekit_guest_email', true );
 		$name  = $g->post_title;
 		$k     = $key( $email, $name );
 		if ( ! isset( $map[ $k ] ) ) {
 			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
 		}
-		foreach ( term_names( get_post_meta( $g->ID, 'dk_guest_allergens', true ), 'dk_allergen' ) as $a ) {
+		foreach ( term_names( get_post_meta( $g->ID, 'dinekit_guest_allergens', true ), 'dinekit_allergen' ) as $a ) {
 			$map[ $k ]['allergens'][ $a ] = true;
 		}
-		foreach ( term_names( get_post_meta( $g->ID, 'dk_guest_dietary', true ), 'dk_dietary' ) as $d ) {
+		foreach ( term_names( get_post_meta( $g->ID, 'dinekit_guest_dietary', true ), 'dinekit_dietary' ) as $d ) {
 			$map[ $k ]['dietary'][ $d ] = true;
 		}
 	}
@@ -1335,7 +1335,7 @@ function public_book( $request ) {
 	}
 	$post_id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_booking',
+			'post_type'   => 'dinekit_booking',
 			'post_status' => 'publish',
 			'post_title'  => sprintf( '%s — %s %s (%dp)', $name, $date, $time, $party ),
 		),
@@ -1345,19 +1345,19 @@ function public_book( $request ) {
 		return new \WP_Error( 'dinekit_booking_save', __( 'Could not save your booking. Please try again.', 'dinekit' ), array( 'status' => 500 ) );
 	}
 
-	update_post_meta( $post_id, 'dk_date', $date );
-	update_post_meta( $post_id, 'dk_time', $time );
-	update_post_meta( $post_id, 'dk_party', $party );
-	update_post_meta( $post_id, 'dk_table_id', $table_id );
-	update_post_meta( $post_id, 'dk_combo_id', $combo_id );
-	update_post_meta( $post_id, 'dk_name', $name );
-	update_post_meta( $post_id, 'dk_email', $email );
-	update_post_meta( $post_id, 'dk_phone', $phone );
-	update_post_meta( $post_id, 'dk_notes', $notes );
-	update_post_meta( $post_id, 'dk_status', $status );
-	update_post_meta( $post_id, 'dk_source', 'online' );
+	update_post_meta( $post_id, 'dinekit_date', $date );
+	update_post_meta( $post_id, 'dinekit_time', $time );
+	update_post_meta( $post_id, 'dinekit_party', $party );
+	update_post_meta( $post_id, 'dinekit_table_id', $table_id );
+	update_post_meta( $post_id, 'dinekit_combo_id', $combo_id );
+	update_post_meta( $post_id, 'dinekit_name', $name );
+	update_post_meta( $post_id, 'dinekit_email', $email );
+	update_post_meta( $post_id, 'dinekit_phone', $phone );
+	update_post_meta( $post_id, 'dinekit_notes', $notes );
+	update_post_meta( $post_id, 'dinekit_status', $status );
+	update_post_meta( $post_id, 'dinekit_source', 'online' );
 	if ( \DineKit\Bookings\Settings\needs_deposit( $party ) ) {
-		update_post_meta( $post_id, 'dk_deposit_required', 1 );
+		update_post_meta( $post_id, 'dinekit_deposit_required', 1 );
 	}
 	Bookings\log_event( $post_id, __( 'Booking received online', 'dinekit' ) );
 

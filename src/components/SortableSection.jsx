@@ -79,7 +79,7 @@ export default function SortableSection( {
 					/>
 				) }
 
-				<Typography className="dk-microlabel" sx={ { color: tokens.muted, fontSize: 12.5 } }>
+				<Typography className="dinekit-microlabel" sx={ { color: tokens.muted, fontSize: 12.5 } }>
 					{ itemIds.length } { itemIds.length === 1 ? 'item' : 'items' }
 				</Typography>
 

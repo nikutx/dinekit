@@ -216,11 +216,11 @@ export function useDineKit() {
 
 function taxKey( tax ) {
 	switch ( tax ) {
-		case 'dk_menu':
+		case 'dinekit_menu':
 			return 'menus';
-		case 'dk_section':
+		case 'dinekit_section':
 			return 'sections';
-		case 'dk_dietary':
+		case 'dinekit_dietary':
 			return 'dietary';
 		default:
 			return 'sections';

@@ -281,7 +281,7 @@
 					var lab = el( 'label', 'dinekit-order__opt' );
 					var inp = document.createElement( 'input' );
 					inp.type = 'radio';
-					inp.name = 'dk-price';
+					inp.name = 'dinekit-price';
 					if ( pi === 0 ) {
 						inp.checked = true;
 					}
@@ -315,7 +315,7 @@
 					} else {
 						var single = ( g.max === 1 );
 						inp.type = single ? 'radio' : 'checkbox';
-						inp.name = 'dk-g' + gi;
+						inp.name = 'dinekit-g' + gi;
 						if ( single && ( sel.choices[ gi ] || [] )[ 0 ] === oi ) {
 							inp.checked = true;
 						}

@@ -7,7 +7,7 @@
  * - POST   /items                 Create a menu item.
  * - PATCH  /items/:id             Update any subset of an item's fields.
  * - DELETE /items/:id             Trash an item.
- * - POST   /terms/:tax            Create a term (dk_menu, dk_section, dk_dietary).
+ * - POST   /terms/:tax            Create a term (dinekit_menu, dinekit_section, dinekit_dietary).
  * - PATCH  /terms/:tax/:id        Rename a term.
  * - DELETE /terms/:tax/:id        Delete a term.
  * - POST   /order                 Persist menu/section/item ordering.
@@ -40,7 +40,7 @@ function init() {
  * @return string[]
  */
 function managed_taxonomies() {
-	return array( 'dk_menu', 'dk_section', 'dk_dietary' );
+	return array( 'dinekit_menu', 'dinekit_section', 'dinekit_dietary' );
 }
 
 /**
@@ -407,11 +407,11 @@ function can_manage_categories_cb() {
 function save_menu_schedule( $request ) {
 	require_once DINEKIT_DIR . 'includes/menus.php';
 	$id = (int) $request['id'];
-	if ( ! term_exists( $id, 'dk_menu' ) ) {
+	if ( ! term_exists( $id, 'dinekit_menu' ) ) {
 		return new \WP_Error( 'dinekit_no_menu', __( 'Menu not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 	\DineKit\Menus\save_schedule( $id, (array) $request->get_json_params() );
-	return rest_ensure_response( menu_response( get_term( $id, 'dk_menu' ) ) );
+	return rest_ensure_response( menu_response( get_term( $id, 'dinekit_menu' ) ) );
 }
 
 /**
@@ -426,7 +426,7 @@ function duplicate_menu( $request ) {
 	if ( null === $result ) {
 		return new \WP_Error( 'dinekit_dup_failed', __( 'Could not duplicate the menu.', 'dinekit' ), array( 'status' => 500 ) );
 	}
-	return rest_ensure_response( menu_response( get_term( $result['id'], 'dk_menu' ) ) );
+	return rest_ensure_response( menu_response( get_term( $result['id'], 'dinekit_menu' ) ) );
 }
 
 /**
@@ -639,12 +639,12 @@ function run_wizard( $request ) {
 
 	// Starter tables for dine-in venues.
 	if ( $tables > 0 && 'takeaway' !== $type ) {
-		$area    = wp_insert_term( __( 'Main Restaurant', 'dinekit' ), 'dk_area' );
+		$area    = wp_insert_term( __( 'Main Restaurant', 'dinekit' ), 'dinekit_area' );
 		$area_id = is_wp_error( $area ) ? 0 : (int) $area['term_id'];
 		for ( $i = 1; $i <= $tables; $i++ ) {
 			$table_id = wp_insert_post(
 				array(
-					'post_type'   => 'dk_table',
+					'post_type'   => 'dinekit_table',
 					'post_status' => 'publish',
 					'post_title'  => 'T' . $i,
 					'menu_order'  => $i,
@@ -653,14 +653,14 @@ function run_wizard( $request ) {
 			if ( is_wp_error( $table_id ) ) {
 				continue;
 			}
-			update_post_meta( $table_id, 'dk_seats', 2 );
-			update_post_meta( $table_id, 'dk_min_party', 1 );
-			update_post_meta( $table_id, 'dk_max_party', 2 );
-			update_post_meta( $table_id, 'dk_pos_x', 40 + ( ( $i - 1 ) % 6 ) * 80 );
-			update_post_meta( $table_id, 'dk_pos_y', 40 + intdiv( ( $i - 1 ) % 18, 6 ) * 90 );
-			update_post_meta( $table_id, 'dk_shape', 'round' );
+			update_post_meta( $table_id, 'dinekit_seats', 2 );
+			update_post_meta( $table_id, 'dinekit_min_party', 1 );
+			update_post_meta( $table_id, 'dinekit_max_party', 2 );
+			update_post_meta( $table_id, 'dinekit_pos_x', 40 + ( ( $i - 1 ) % 6 ) * 80 );
+			update_post_meta( $table_id, 'dinekit_pos_y', 40 + intdiv( ( $i - 1 ) % 18, 6 ) * 90 );
+			update_post_meta( $table_id, 'dinekit_shape', 'round' );
 			if ( $area_id ) {
-				wp_set_object_terms( $table_id, array( $area_id ), 'dk_area' );
+				wp_set_object_terms( $table_id, array( $area_id ), 'dinekit_area' );
 			}
 		}
 		$result['tables'] = $tables;
@@ -749,7 +749,7 @@ function can_edit() {
 function can_edit_item( $request ) {
 	$post_id = (int) $request['id'];
 	return $post_id > 0
-		&& 'dk_menu_item' === get_post_type( $post_id )
+		&& 'dinekit_menu_item' === get_post_type( $post_id )
 		&& current_user_can( 'edit_post', $post_id );
 }
 
@@ -763,7 +763,7 @@ function can_edit_item( $request ) {
 function can_delete_item( $request ) {
 	$post_id = (int) $request['id'];
 	return $post_id > 0
-		&& 'dk_menu_item' === get_post_type( $post_id )
+		&& 'dinekit_menu_item' === get_post_type( $post_id )
 		&& current_user_can( 'delete_post', $post_id );
 }
 
@@ -785,7 +785,7 @@ function can_manage_terms( $request ) {
  * @return object
  */
 function item_caps() {
-	$pt = get_post_type_object( 'dk_menu_item' );
+	$pt = get_post_type_object( 'dinekit_menu_item' );
 	if ( $pt && isset( $pt->cap ) ) {
 		return $pt->cap;
 	}
@@ -851,7 +851,7 @@ function term_response( $term ) {
 }
 
 /**
- * Serialize a dk_menu term with its schedule + live status.
+ * Serialize a dinekit_menu term with its schedule + live status.
  *
  * @param \WP_Term $term Menu term.
  * @return array<string,mixed>
@@ -872,16 +872,16 @@ function menu_response( $term ) {
  */
 function item_response( $post ) {
 	$post = get_post( $post );
-	if ( ! $post || 'dk_menu_item' !== $post->post_type ) {
+	if ( ! $post || 'dinekit_menu_item' !== $post->post_type ) {
 		return null;
 	}
 
-	$prices = get_post_meta( $post->ID, 'dk_prices', true );
+	$prices = get_post_meta( $post->ID, 'dinekit_prices', true );
 	if ( ! is_array( $prices ) ) {
 		$prices = array();
 	}
 
-	$modifiers = get_post_meta( $post->ID, 'dk_modifiers', true );
+	$modifiers = get_post_meta( $post->ID, 'dinekit_modifiers', true );
 	if ( ! is_array( $modifiers ) ) {
 		$modifiers = array();
 	}
@@ -917,12 +917,12 @@ function item_response( $post ) {
 		'order'       => (int) $post->menu_order,
 		'prices'      => array_values( $prices ),
 		'modifiers'   => array_values( $modifiers ),
-		'badge'       => (string) get_post_meta( $post->ID, 'dk_badge', true ),
-		'station'     => 'bar' === get_post_meta( $post->ID, 'dk_station', true ) ? 'bar' : 'kitchen',
-		'sections'    => $term_ids( 'dk_section' ),
-		'menus'       => $term_ids( 'dk_menu' ),
-		'dietary'     => $term_ids( 'dk_dietary' ),
-		'allergens'   => $term_ids( 'dk_allergen' ),
+		'badge'       => (string) get_post_meta( $post->ID, 'dinekit_badge', true ),
+		'station'     => 'bar' === get_post_meta( $post->ID, 'dinekit_station', true ) ? 'bar' : 'kitchen',
+		'sections'    => $term_ids( 'dinekit_section' ),
+		'menus'       => $term_ids( 'dinekit_menu' ),
+		'dietary'     => $term_ids( 'dinekit_dietary' ),
+		'allergens'   => $term_ids( 'dinekit_allergen' ),
 		'image'       => $image,
 	);
 }
@@ -934,19 +934,19 @@ function item_response( $post ) {
  */
 function get_state() {
 	$menus = array();
-	foreach ( PostTypes\ordered_terms( 'dk_menu' ) as $term ) {
+	foreach ( PostTypes\ordered_terms( 'dinekit_menu' ) as $term ) {
 		$menus[] = menu_response( $term );
 	}
 
 	$sections = array();
-	foreach ( PostTypes\ordered_terms( 'dk_section' ) as $term ) {
+	foreach ( PostTypes\ordered_terms( 'dinekit_section' ) as $term ) {
 		$sections[] = term_response( $term );
 	}
 
 	$dietary       = array();
 	$dietary_terms = get_terms(
 		array(
-			'taxonomy'   => 'dk_dietary',
+			'taxonomy'   => 'dinekit_dietary',
 			'hide_empty' => false,
 		)
 	);
@@ -959,7 +959,7 @@ function get_state() {
 	$allergens      = array();
 	$allergen_terms = get_terms(
 		array(
-			'taxonomy'   => 'dk_allergen',
+			'taxonomy'   => 'dinekit_allergen',
 			'hide_empty' => false,
 		)
 	);
@@ -974,7 +974,7 @@ function get_state() {
 
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_menu_item',
+			'post_type'      => 'dinekit_menu_item',
 			'post_status'    => array( 'publish', 'draft', 'pending', 'future', 'private' ),
 			'posts_per_page' => 500,
 			'orderby'        => array(
@@ -1109,23 +1109,23 @@ function apply_item_fields( $post_id, $request ) {
 	}
 
 	if ( null !== $request->get_param( 'prices' ) ) {
-		update_post_meta( $post_id, 'dk_prices', Meta\sanitize_prices( $request->get_param( 'prices' ) ) );
+		update_post_meta( $post_id, 'dinekit_prices', Meta\sanitize_prices( $request->get_param( 'prices' ) ) );
 	}
 	if ( null !== $request->get_param( 'modifiers' ) ) {
-		update_post_meta( $post_id, 'dk_modifiers', Meta\sanitize_modifiers( $request->get_param( 'modifiers' ) ) );
+		update_post_meta( $post_id, 'dinekit_modifiers', Meta\sanitize_modifiers( $request->get_param( 'modifiers' ) ) );
 	}
 	if ( null !== $request->get_param( 'badge' ) ) {
-		update_post_meta( $post_id, 'dk_badge', sanitize_text_field( (string) $request->get_param( 'badge' ) ) );
+		update_post_meta( $post_id, 'dinekit_badge', sanitize_text_field( (string) $request->get_param( 'badge' ) ) );
 	}
 	if ( null !== $request->get_param( 'station' ) ) {
-		update_post_meta( $post_id, 'dk_station', 'bar' === $request->get_param( 'station' ) ? 'bar' : 'kitchen' );
+		update_post_meta( $post_id, 'dinekit_station', 'bar' === $request->get_param( 'station' ) ? 'bar' : 'kitchen' );
 	}
 
 	$taxonomy_params = array(
-		'sections'  => 'dk_section',
-		'menus'     => 'dk_menu',
-		'dietary'   => 'dk_dietary',
-		'allergens' => 'dk_allergen',
+		'sections'  => 'dinekit_section',
+		'menus'     => 'dinekit_menu',
+		'dietary'   => 'dinekit_dietary',
+		'allergens' => 'dinekit_allergen',
 	);
 	foreach ( $taxonomy_params as $param => $taxonomy ) {
 		$value = $request->get_param( $param );
@@ -1160,7 +1160,7 @@ function create_item( $request ) {
 
 	$post_id = wp_insert_post(
 		array(
-			'post_type'   => 'dk_menu_item',
+			'post_type'   => 'dinekit_menu_item',
 			'post_status' => $status,
 			'post_title'  => '' !== $title ? $title : __( 'New item', 'dinekit' ),
 			'menu_order'  => (int) $request->get_param( 'order' ),
@@ -1199,7 +1199,7 @@ function update_item( $request ) {
  */
 function clone_item( $src_id, $section_override = null ) {
 	$src = get_post( $src_id );
-	if ( ! $src || 'dk_menu_item' !== $src->post_type ) {
+	if ( ! $src || 'dinekit_menu_item' !== $src->post_type ) {
 		return 0;
 	}
 
@@ -1210,7 +1210,7 @@ function clone_item( $src_id, $section_override = null ) {
 
 	$new_id = wp_insert_post(
 		array(
-			'post_type'    => 'dk_menu_item',
+			'post_type'    => 'dinekit_menu_item',
 			'post_status'  => $src->post_status,
 			'post_title'   => $title,
 			'post_content' => $src->post_content,
@@ -1222,15 +1222,15 @@ function clone_item( $src_id, $section_override = null ) {
 		return 0;
 	}
 
-	update_post_meta( $new_id, 'dk_prices', get_post_meta( $src_id, 'dk_prices', true ) );
-	update_post_meta( $new_id, 'dk_modifiers', get_post_meta( $src_id, 'dk_modifiers', true ) );
-	update_post_meta( $new_id, 'dk_badge', get_post_meta( $src_id, 'dk_badge', true ) );
+	update_post_meta( $new_id, 'dinekit_prices', get_post_meta( $src_id, 'dinekit_prices', true ) );
+	update_post_meta( $new_id, 'dinekit_modifiers', get_post_meta( $src_id, 'dinekit_modifiers', true ) );
+	update_post_meta( $new_id, 'dinekit_badge', get_post_meta( $src_id, 'dinekit_badge', true ) );
 	$thumb = get_post_thumbnail_id( $src_id );
 	if ( $thumb ) {
 		set_post_thumbnail( $new_id, $thumb );
 	}
 
-	foreach ( array( 'dk_menu', 'dk_dietary', 'dk_allergen' ) as $tax ) {
+	foreach ( array( 'dinekit_menu', 'dinekit_dietary', 'dinekit_allergen' ) as $tax ) {
 		$ids = wp_get_object_terms( $src_id, $tax, array( 'fields' => 'ids' ) );
 		if ( ! is_wp_error( $ids ) ) {
 			wp_set_object_terms( $new_id, array_map( 'intval', $ids ), $tax );
@@ -1238,11 +1238,11 @@ function clone_item( $src_id, $section_override = null ) {
 	}
 
 	if ( null !== $section_override ) {
-		wp_set_object_terms( $new_id, array( (int) $section_override ), 'dk_section' );
+		wp_set_object_terms( $new_id, array( (int) $section_override ), 'dinekit_section' );
 	} else {
-		$sids = wp_get_object_terms( $src_id, 'dk_section', array( 'fields' => 'ids' ) );
+		$sids = wp_get_object_terms( $src_id, 'dinekit_section', array( 'fields' => 'ids' ) );
 		if ( ! is_wp_error( $sids ) ) {
-			wp_set_object_terms( $new_id, array_map( 'intval', $sids ), 'dk_section' );
+			wp_set_object_terms( $new_id, array_map( 'intval', $sids ), 'dinekit_section' );
 		}
 	}
 
@@ -1271,23 +1271,23 @@ function duplicate_item( $request ) {
  */
 function duplicate_section( $request ) {
 	$src_id = (int) $request['id'];
-	$term   = get_term( $src_id, 'dk_section' );
+	$term   = get_term( $src_id, 'dinekit_section' );
 	if ( ! $term || is_wp_error( $term ) ) {
 		return new \WP_Error( 'dinekit_no_section', __( 'Section not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 
 	/* translators: %s: original section name. */
-	$result = wp_insert_term( sprintf( __( '%s (copy)', 'dinekit' ), $term->name ), 'dk_section' );
+	$result = wp_insert_term( sprintf( __( '%s (copy)', 'dinekit' ), $term->name ), 'dinekit_section' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 	$new_section = (int) $result['term_id'];
 
-	$order = get_term_meta( $src_id, 'dk_order', true );
-	update_term_meta( $new_section, 'dk_order', '' !== $order ? (int) $order + 1 : 0 );
+	$order = get_term_meta( $src_id, 'dinekit_order', true );
+	update_term_meta( $new_section, 'dinekit_order', '' !== $order ? (int) $order + 1 : 0 );
 
 	$new_items = array();
-	$members   = get_objects_in_term( $src_id, 'dk_section' );
+	$members   = get_objects_in_term( $src_id, 'dinekit_section' );
 	if ( is_array( $members ) ) {
 		foreach ( $members as $item_id ) {
 			$clone = clone_item( (int) $item_id, $new_section );
@@ -1299,7 +1299,7 @@ function duplicate_section( $request ) {
 
 	return rest_ensure_response(
 		array(
-			'section' => term_response( get_term( $new_section, 'dk_section' ) ),
+			'section' => term_response( get_term( $new_section, 'dinekit_section' ) ),
 			'items'   => $new_items,
 		)
 	);
@@ -1340,11 +1340,11 @@ function create_term( $request ) {
 
 	// New terms go to the end of the ordered list.
 	$position = count( PostTypes\ordered_terms( $taxonomy ) );
-	update_term_meta( (int) $result['term_id'], 'dk_order', $position );
+	update_term_meta( (int) $result['term_id'], 'dinekit_order', $position );
 
 	$term = get_term( (int) $result['term_id'], $taxonomy );
-	if ( 'dk_menu' === $taxonomy ) {
-		update_term_meta( (int) $result['term_id'], 'dk_menu_created', time() );
+	if ( 'dinekit_menu' === $taxonomy ) {
+		update_term_meta( (int) $result['term_id'], 'dinekit_menu_created', time() );
 		return rest_ensure_response( menu_response( $term ) );
 	}
 	return rest_ensure_response( term_response( $term ) );
@@ -1391,7 +1391,7 @@ function delete_term( $request ) {
  * POST /order — persist ordering.
  *
  * Payload: { menus: [ids], sections: [ids], items: [{id, order}] }.
- * Term arrays set dk_order term meta; items update menu_order.
+ * Term arrays set dinekit_order term meta; items update menu_order.
  *
  * @param \WP_REST_Request $request Request.
  * @return \WP_REST_Response
@@ -1400,8 +1400,8 @@ function save_order( $request ) {
 	$updated = 0;
 
 	$term_orders = array(
-		'dk_menu'    => $request->get_param( 'menus' ),
-		'dk_section' => $request->get_param( 'sections' ),
+		'dinekit_menu'    => $request->get_param( 'menus' ),
+		'dinekit_section' => $request->get_param( 'sections' ),
 	);
 	if ( current_user_can( 'manage_categories' ) ) {
 		foreach ( $term_orders as $taxonomy => $ids ) {
@@ -1411,7 +1411,7 @@ function save_order( $request ) {
 			foreach ( array_values( $ids ) as $position => $term_id ) {
 				$term_id = (int) $term_id;
 				if ( $term_id > 0 && term_exists( $term_id, $taxonomy ) ) {
-					update_term_meta( $term_id, 'dk_order', $position );
+					update_term_meta( $term_id, 'dinekit_order', $position );
 					++$updated;
 				}
 			}
@@ -1423,7 +1423,7 @@ function save_order( $request ) {
 		foreach ( $items as $row ) {
 			$post_id  = isset( $row['id'] ) ? (int) $row['id'] : 0;
 			$position = isset( $row['order'] ) ? (int) $row['order'] : 0;
-			if ( ! $post_id || 'dk_menu_item' !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
+			if ( ! $post_id || 'dinekit_menu_item' !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
 				continue;
 			}
 			if ( (int) get_post_field( 'menu_order', $post_id ) === $position ) {

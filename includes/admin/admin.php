@@ -19,8 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return void
  */
 function init() {
-	add_filter( 'manage_dk_menu_item_posts_columns', __NAMESPACE__ . '\\columns' );
-	add_action( 'manage_dk_menu_item_posts_custom_column', __NAMESPACE__ . '\\column_content', 10, 2 );
+	add_filter( 'manage_dinekit_menu_item_posts_columns', __NAMESPACE__ . '\\columns' );
+	add_action( 'manage_dinekit_menu_item_posts_custom_column', __NAMESPACE__ . '\\column_content', 10, 2 );
 }
 
 /**
@@ -34,7 +34,7 @@ function columns( $columns ) {
 	foreach ( $columns as $key => $label ) {
 		$new[ $key ] = $label;
 		if ( 'title' === $key ) {
-			$new['dk_price'] = __( 'Price', 'dinekit' );
+			$new['dinekit_price'] = __( 'Price', 'dinekit' );
 		}
 	}
 	return $new;
@@ -48,10 +48,10 @@ function columns( $columns ) {
  * @return void
  */
 function column_content( $column, $post_id ) {
-	if ( 'dk_price' !== $column ) {
+	if ( 'dinekit_price' !== $column ) {
 		return;
 	}
-	$prices = get_post_meta( $post_id, 'dk_prices', true );
+	$prices = get_post_meta( $post_id, 'dinekit_prices', true );
 	if ( ! is_array( $prices ) ) {
 		$prices = array();
 	}

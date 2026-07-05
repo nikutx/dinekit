@@ -26,8 +26,8 @@ function defaults() {
 	require_once DINEKIT_DIR . 'includes/settings.php';
 	$settings = \DineKit\Settings\get();
 	return array(
-		'menu'              => 0,      // dk_menu term id, 0 = all items.
-		'sections'          => array(), // dk_section term ids, empty = all sections.
+		'menu'              => 0,      // dinekit_menu term id, 0 = all items.
+		'sections'          => array(), // dinekit_section term ids, empty = all sections.
 		'layout'            => 'list', // list | grid | chalkboard.
 		'columns'           => 0,      // 0 = layout default; 1–4 forces a column count.
 		'show_images'       => true,
@@ -51,14 +51,14 @@ function build_structure( $args ) {
 	$tax_query = array();
 	if ( $args['menu'] ) {
 		$tax_query[] = array(
-			'taxonomy' => 'dk_menu',
+			'taxonomy' => 'dinekit_menu',
 			'terms'    => (int) $args['menu'],
 		);
 	}
 
 	$query = new \WP_Query(
 		array(
-			'post_type'      => 'dk_menu_item',
+			'post_type'      => 'dinekit_menu_item',
 			'post_status'    => 'publish',
 			'posts_per_page' => 500,
 			'orderby'        => array(
@@ -73,7 +73,7 @@ function build_structure( $args ) {
 	$by_section = array();
 	$loose      = array();
 	foreach ( $query->posts as $post ) {
-		$terms = get_the_terms( $post, 'dk_section' );
+		$terms = get_the_terms( $post, 'dinekit_section' );
 		if ( is_array( $terms ) && $terms ) {
 			$placed = false;
 			foreach ( $terms as $term ) {
@@ -91,7 +91,7 @@ function build_structure( $args ) {
 
 	$want     = array_map( 'intval', (array) $args['sections'] );
 	$sections = array();
-	foreach ( PostTypes\ordered_terms( 'dk_section' ) as $term ) {
+	foreach ( PostTypes\ordered_terms( 'dinekit_section' ) as $term ) {
 		if ( $want && ! in_array( (int) $term->term_id, $want, true ) ) {
 			continue;
 		}
@@ -124,7 +124,7 @@ function menu( $args = array() ) {
 		require_once DINEKIT_DIR . 'includes/menus.php';
 		$menu_status = \DineKit\Menus\status( (int) $args['menu'] );
 		if ( 'coming' === $menu_status['state'] ) {
-			$term  = get_term( (int) $args['menu'], 'dk_menu' );
+			$term  = get_term( (int) $args['menu'], 'dinekit_menu' );
 			$style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' );
 			return '<div class="dinekit-menu dinekit-coming"' . ( $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . '>' .
 				'<div class="dinekit-coming__card">' .
@@ -219,14 +219,14 @@ function menu( $args = array() ) {
  * @return string
  */
 function render_item( $post, $args, $allergen_map ) {
-	$prices = get_post_meta( $post->ID, 'dk_prices', true );
+	$prices = get_post_meta( $post->ID, 'dinekit_prices', true );
 	$prices = is_array( $prices ) ? $prices : array();
-	$badge  = (string) get_post_meta( $post->ID, 'dk_badge', true );
+	$badge  = (string) get_post_meta( $post->ID, 'dinekit_badge', true );
 
 	// Slugs used by the diner-facing filter (get_the_terms returns false, not
 	// an empty array, when there are none).
-	$diet_terms     = get_the_terms( $post, 'dk_dietary' );
-	$allergen_terms = get_the_terms( $post, 'dk_allergen' );
+	$diet_terms     = get_the_terms( $post, 'dinekit_dietary' );
+	$allergen_terms = get_the_terms( $post, 'dinekit_allergen' );
 	$diet_slugs     = is_array( $diet_terms ) ? wp_list_pluck( $diet_terms, 'slug' ) : array();
 	$allergen_slugs = is_array( $allergen_terms ) ? wp_list_pluck( $allergen_terms, 'slug' ) : array();
 
@@ -275,7 +275,7 @@ function render_item( $post, $args, $allergen_map ) {
 			<div class="dinekit-item__tags">
 				<?php
 				if ( $args['show_dietary'] ) {
-					$dietary = get_the_terms( $post, 'dk_dietary' );
+					$dietary = get_the_terms( $post, 'dinekit_dietary' );
 					if ( is_array( $dietary ) ) {
 						foreach ( $dietary as $d ) {
 							printf( '<span class="dinekit-diet">%s</span>', esc_html( $d->name ) );
@@ -283,7 +283,7 @@ function render_item( $post, $args, $allergen_map ) {
 					}
 				}
 				if ( $args['show_allergens'] ) {
-					$allergens = get_the_terms( $post, 'dk_allergen' );
+					$allergens = get_the_terms( $post, 'dinekit_allergen' );
 					if ( is_array( $allergens ) ) {
 						echo '<span class="dinekit-allergens">';
 						foreach ( $allergens as $a ) {
@@ -327,13 +327,13 @@ function render_filter_bar( $groups, $allergen_map ) {
 	$allergen_used = array();
 	foreach ( $groups as $group ) {
 		foreach ( $group['items'] as $post ) {
-			$diet_terms = get_the_terms( $post, 'dk_dietary' );
+			$diet_terms = get_the_terms( $post, 'dinekit_dietary' );
 			if ( is_array( $diet_terms ) ) {
 				foreach ( $diet_terms as $term ) {
 					$diet_used[ $term->slug ] = $term->name;
 				}
 			}
-			$allergen_terms = get_the_terms( $post, 'dk_allergen' );
+			$allergen_terms = get_the_terms( $post, 'dinekit_allergen' );
 			if ( is_array( $allergen_terms ) ) {
 				foreach ( wp_list_pluck( $allergen_terms, 'term_id' ) as $id ) {
 					if ( isset( $allergen_map[ $id ] ) ) {
@@ -419,7 +419,7 @@ function allergen_map() {
 	$map   = array();
 	$terms = get_terms(
 		array(
-			'taxonomy'   => 'dk_allergen',
+			'taxonomy'   => 'dinekit_allergen',
 			'hide_empty' => false,
 		)
 	);
@@ -497,7 +497,7 @@ function render_matrix( $groups, $allergen_map ) {
 					<?php
 					foreach ( $groups as $group ) :
 						foreach ( $group['items'] as $post ) :
-							$terms = get_the_terms( $post, 'dk_allergen' );
+							$terms = get_the_terms( $post, 'dinekit_allergen' );
 							$ids   = is_array( $terms ) ? wp_list_pluck( $terms, 'term_id' ) : array();
 							?>
 							<tr>
@@ -537,7 +537,7 @@ function schema_jsonld( $groups, $args ) {
 			if ( $post->post_content ) {
 				$node['description'] = wp_strip_all_tags( $post->post_content );
 			}
-			$prices = get_post_meta( $post->ID, 'dk_prices', true );
+			$prices = get_post_meta( $post->ID, 'dinekit_prices', true );
 			if ( is_array( $prices ) && $prices ) {
 				$first  = reset( $prices );
 				$amount = isset( $first['amount'] ) ? preg_replace( '/[^0-9.]/', '', (string) $first['amount'] ) : '';

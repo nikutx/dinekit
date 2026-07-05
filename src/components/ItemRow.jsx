@@ -32,13 +32,13 @@ export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, o
 				boxShadow: overlay ? tokens.shadowMd || '0 18px 48px rgba(15,23,42,0.18)' : 'none',
 				cursor: overlay ? 'grabbing' : 'default',
 				'&:hover': { borderColor: overlay ? tokens.accent : tokens.border2 },
-				'&:hover .dk-dup': { opacity: 1 },
-				'&:hover .dk-drag': { opacity: 1 },
+				'&:hover .dinekit-dup': { opacity: 1 },
+				'&:hover .dinekit-drag': { opacity: 1 },
 			} }
 		>
 			<Box
 				{ ...( dragHandleProps || {} ) }
-				className="dk-drag"
+				className="dinekit-drag"
 				sx={ {
 					display: 'flex',
 					color: tokens.muted2,
@@ -130,7 +130,7 @@ export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, o
 				<Tooltip title="Duplicate this dish">
 					<IconButton
 						size="small"
-						className="dk-dup"
+						className="dinekit-dup"
 						onClick={ ( e ) => {
 							e.stopPropagation();
 							onDuplicate();
