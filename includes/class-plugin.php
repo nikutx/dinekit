@@ -68,6 +68,11 @@ final class Plugin {
 		if ( $this->load( 'migrate.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\Migrate\\maybe_run', 1 );
 		}
+		// Access control (role → permission matrix). Loaded early so module
+		// permission callbacks can consult it.
+		if ( $this->load( 'access.php' ) ) {
+			Access\init();
+		}
 		if ( $this->load( 'post-types.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\PostTypes\\register' );
 		}

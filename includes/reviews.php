@@ -123,7 +123,8 @@ function register_frontend() {
  * @return bool
  */
 function can_manage() {
-	return current_user_can( 'manage_options' );
+	require_once DINEKIT_DIR . 'includes/access.php';
+	return \DineKit\Access\can( 'settings' );
 }
 
 /**

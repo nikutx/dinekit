@@ -32,7 +32,8 @@ function init() {
  * @return bool
  */
 function can_manage() {
-	return current_user_can( 'manage_options' );
+	require_once DINEKIT_DIR . 'includes/access.php';
+	return \DineKit\Access\can( 'bookings' );
 }
 
 /**
@@ -895,7 +896,16 @@ function create_booking( $request ) {
  */
 function update_booking( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
-	$id         = (int) $request['id'];
+	$id = (int) $request['id'];
+
+	// Cancelling a booking that holds a paid deposit issues a refund — gated by
+	// the refunds permission (admins always pass).
+	if ( 'cancelled' === (string) $request->get_param( 'status' ) && get_post_meta( $id, 'dinekit_deposit_paid', true ) ) {
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_refund', __( 'You do not have permission to refund deposits.', 'dinekit' ), array( 'status' => 403 ) );
+		}
+	}
 	$map        = array(
 		'date'    => 'dinekit_date',
 		'time'    => 'dinekit_time',
@@ -964,6 +974,12 @@ function delete_booking( $request ) {
 	$id = (int) $request['id'];
 	if ( 'dinekit_booking' !== get_post_type( $id ) ) {
 		return new \WP_Error( 'dinekit_booking_404', __( 'Booking not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	if ( get_post_meta( $id, 'dinekit_deposit_paid', true ) ) {
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_refund', __( 'You do not have permission to refund deposits.', 'dinekit' ), array( 'status' => 403 ) );
+		}
 	}
 	Bookings\refund_deposit( $id );
 	update_post_meta( $id, 'dinekit_archived', 1 );

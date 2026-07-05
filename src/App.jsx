@@ -37,6 +37,8 @@ import EmailsView from './components/EmailsView';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import DashboardView from './components/DashboardView';
 import ReportsView from './components/ReportsView';
+import AccessView from './components/AccessView';
+import LockIcon from '@mui/icons-material/Lock';
 import Wizard from './components/Wizard';
 
 // Grouped so the sidebar reads like a product, not a feature dump.
@@ -59,6 +61,7 @@ const NAV = [
 	{ group: 'Setup' },
 	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
 	{ key: 'emails', label: 'Emails', icon: <MailOutlineIcon fontSize="small" /> },
+	{ key: 'access', label: 'Access Control', icon: <LockIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
@@ -159,6 +162,7 @@ export default function App() {
 							{ activeView === 'staff' && <StaffView /> }
 							{ activeView === 'integrations' && <IntegrationsView /> }
 							{ activeView === 'emails' && <EmailsView /> }
+							{ activeView === 'access' && <AccessView /> }
 							{ activeView === 'settings' && <SettingsView /> }
 						</Box>
 					) }

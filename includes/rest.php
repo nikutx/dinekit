@@ -386,7 +386,8 @@ function register_routes() {
  * @return bool
  */
 function can_manage_settings() {
-	return current_user_can( 'manage_options' );
+	require_once DINEKIT_DIR . 'includes/access.php';
+	return \DineKit\Access\can( 'settings' );
 }
 
 /**

@@ -29,7 +29,8 @@ function init() {
  * @return bool
  */
 function can_manage() {
-	return current_user_can( 'manage_options' );
+	require_once DINEKIT_DIR . 'includes/access.php';
+	return \DineKit\Access\can( 'orders' );
 }
 
 /**
@@ -254,6 +255,15 @@ function update_order( $request ) {
 	}
 	$action   = (string) $request->get_param( 'action' );
 	$statuses = Ordering\statuses();
+
+	// Rejecting or cancelling releases/refunds the payment — a sensitive action
+	// gated by its own permission (admins always pass).
+	if ( 'reject' === $action || 'cancelled' === (string) $request->get_param( 'status' ) ) {
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_refund', __( 'You do not have permission to void or refund orders.', 'dinekit' ), array( 'status' => 403 ) );
+		}
+	}
 
 	if ( 'accept' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'preparing' );
