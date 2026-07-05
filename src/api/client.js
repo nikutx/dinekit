@@ -163,6 +163,11 @@ export const api = {
 	getPosMenu: ( menu ) => request( 'GET', 'pos/menu' + ( menu ? '?menu=' + menu : '' ) ),
 	addOrderLines: ( id, items ) => request( 'POST', `orders/${ id }/lines`, { items } ),
 	payStatus: ( token ) => request( 'GET', 'pay/' + encodeURIComponent( token ) ),
+	// POS cash management.
+	getCash: () => request( 'GET', 'cash' ),
+	openCash: ( float ) => request( 'POST', 'cash/open', { float } ),
+	cashMovement: ( data ) => request( 'POST', 'cash/movement', data ),
+	closeCash: ( counted ) => request( 'POST', 'cash/close', { counted } ),
 	deleteOrder: ( id ) => request( 'DELETE', `orders/${ id }` ),
 	getOrderSettings: () => request( 'GET', 'orders/settings' ),
 	saveOrderSettings: ( data ) => request( 'POST', 'orders/settings', data ),

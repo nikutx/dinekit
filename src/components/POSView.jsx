@@ -10,6 +10,7 @@ import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import TakeoutDiningIcon from '@mui/icons-material/TakeoutDining';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { printDoc, esc } from '../lib/print';
@@ -30,6 +31,7 @@ export default function POSView() {
 	const [ course, setCourse ] = useState( '' );
 	const [ mod, setMod ] = useState( null ); // item being configured
 	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
+	const [ cashUp, setCashUp ] = useState( false ); // cash-up sheet open
 	const [ busy, setBusy ] = useState( false );
 	const caps = ( typeof window !== 'undefined' && window.DINEKIT && window.DINEKIT.caps ) || {};
 
@@ -137,8 +139,14 @@ export default function POSView() {
 				<PageHeader
 					title="Take Order"
 					subtitle="Pick a table to start or continue a tab, or take a counter order."
-					actions={ <Button variant="contained" startIcon={ <TakeoutDiningIcon /> } onClick={ openTakeaway }>Quick takeaway</Button> }
+					actions={
+						<>
+							<Button variant="outlined" startIcon={ <PointOfSaleIcon /> } onClick={ () => setCashUp( true ) }>Cash-up</Button>
+							<Button variant="contained" startIcon={ <TakeoutDiningIcon /> } onClick={ openTakeaway }>Quick takeaway</Button>
+						</>
+					}
 				/>
+				{ cashUp && <CashSheet money={ money } onClose={ () => setCashUp( false ) } /> }
 				{ ( floor.tables || [] ).length === 0 ? (
 					<Card sx={ { p: 3 } }>
 						<Typography sx={ { color: tokens.muted } }>No tables yet — add tables in Floor Plan first, or take a counter order with “Quick takeaway”.</Typography>
@@ -629,6 +637,97 @@ function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) 
 						<Stack direction="row" alignItems="center" justifyContent="center" spacing={ 1 } sx={ { mt: 1 } }>
 							<CircularProgress size={ 14 } />
 							<Typography sx={ { fontSize: 12, color: tokens.muted } }>Waiting for payment…</Typography>
+						</Stack>
+					</Box>
+				) }
+			</Box>
+		</Modal>
+	);
+}
+
+// Cash drawer: open a float, record pay in/out + no-sale, and run an X/Z report.
+function CashSheet( { money, onClose } ) {
+	const [ rep, setRep ] = useState( null ); // null=loading, {open:false} or X report
+	const [ floatIn, setFloatIn ] = useState( '' );
+	const [ amt, setAmt ] = useState( '' );
+	const [ reason, setReason ] = useState( '' );
+	const [ counted, setCounted ] = useState( '' );
+	const [ z, setZ ] = useState( null ); // final Z report after close
+	const [ busy, setBusy ] = useState( false );
+
+	const load = () => api.getCash().then( setRep ).catch( () => setRep( { open: false } ) );
+	useEffect( () => { load(); }, [] );
+
+	const open = async () => { setBusy( true ); try { setRep( await api.openCash( Number( floatIn || 0 ) ) ); } finally { setBusy( false ); } };
+	const move = async ( type ) => {
+		setBusy( true );
+		try { setRep( await api.cashMovement( { type, amount: Number( amt || 0 ), reason } ) ); setAmt( '' ); setReason( '' ); } finally { setBusy( false ); }
+	};
+	const close = async () => { setBusy( true ); try { setZ( await api.closeCash( Number( counted || 0 ) ) ); } finally { setBusy( false ); } };
+
+	return (
+		<Modal open onClose={ onClose }>
+			<Box sx={ { p: 3, maxHeight: '85vh', overflowY: 'auto' } }>
+				<Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={ { mb: 2 } }>
+					<Typography variant="h6">Cash drawer</Typography>
+					<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
+				</Stack>
+
+				{ z ? (
+					<Box>
+						<Typography sx={ { fontWeight: 700, mb: 1 } }>Drawer closed (Z)</Typography>
+						<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '10px', p: 1.5 } }>
+							<Row label="Expected in drawer" value={ money( z.expected ) } />
+							<Row label="Counted" value={ money( z.counted ) } />
+							<Row label="Variance" value={ money( z.variance ) } bold accent />
+						</Box>
+						<Button variant="contained" fullWidth sx={ { mt: 2 } } onClick={ onClose }>Done</Button>
+					</Box>
+				) : null === rep ? (
+					<Stack alignItems="center" sx={ { py: 4 } }><CircularProgress /></Stack>
+				) : ! rep.open ? (
+					<Box>
+						<Typography sx={ { fontSize: 13.5, color: tokens.muted, mb: 1.5 } }>No drawer session is open. Enter the opening float to start.</Typography>
+						<Stack direction="row" spacing={ 1 }>
+							<Box component="input" type="number" inputMode="decimal" placeholder="Opening float" value={ floatIn } onChange={ ( e ) => setFloatIn( e.target.value ) }
+								sx={ { flex: 1, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
+							<Button variant="contained" disabled={ busy } onClick={ open }>Open drawer</Button>
+						</Stack>
+					</Box>
+				) : (
+					<Box>
+						{ /* X report */ }
+						<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '10px', p: 1.5, mb: 2 } }>
+							<Row label="Opening float" value={ money( rep.float ) } />
+							<Row label="Cash sales" value={ money( rep.cashSales ) } />
+							<Row label="Paid in" value={ money( rep.payIns ) } />
+							<Row label="Paid out" value={ `−${ money( rep.payOuts ) }` } />
+							<Box sx={ { borderTop: `1px solid ${ tokens.soft }`, mt: 0.75, pt: 0.75 } }>
+								<Row label="Expected in drawer" value={ money( rep.expected ) } bold accent />
+							</Box>
+							<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 0.5 } }>Since { new Date( rep.since ).toLocaleString() } · { rep.noSales } no-sale{ rep.noSales === 1 ? '' : 's' }</Typography>
+						</Box>
+
+						{ /* Movements */ }
+						<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Movement</Typography>
+						<Stack direction="row" spacing={ 1 } sx={ { mb: 1 } } flexWrap="wrap" useFlexGap>
+							<Box component="input" type="number" inputMode="decimal" placeholder="Amount" value={ amt } onChange={ ( e ) => setAmt( e.target.value ) }
+								sx={ { width: 110, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 13.5, boxShadow: 'none', outline: 'none' } } />
+							<Box component="input" type="text" placeholder="Reason" value={ reason } onChange={ ( e ) => setReason( e.target.value ) }
+								sx={ { flex: 1, minWidth: 120, px: 1.25, py: 0.75, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 13.5, boxShadow: 'none', outline: 'none' } } />
+						</Stack>
+						<Stack direction="row" spacing={ 1 } sx={ { mb: 2 } } flexWrap="wrap" useFlexGap>
+							<Button variant="outlined" disabled={ busy || Number( amt ) <= 0 } onClick={ () => move( 'in' ) }>Pay in</Button>
+							<Button variant="outlined" disabled={ busy || Number( amt ) <= 0 } onClick={ () => move( 'out' ) }>Pay out</Button>
+							<Button variant="outlined" disabled={ busy } onClick={ () => move( 'nosale' ) }>No-sale</Button>
+						</Stack>
+
+						{ /* Close (Z) */ }
+						<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>End of day (Z)</Typography>
+						<Stack direction="row" spacing={ 1 }>
+							<Box component="input" type="number" inputMode="decimal" placeholder="Counted cash" value={ counted } onChange={ ( e ) => setCounted( e.target.value ) }
+								sx={ { flex: 1, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
+							<Button variant="contained" disabled={ busy } onClick={ close }>Close drawer</Button>
 						</Stack>
 					</Box>
 				) }

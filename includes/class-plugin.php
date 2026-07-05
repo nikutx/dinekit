@@ -102,6 +102,9 @@ final class Plugin {
 		if ( $this->load( 'pay.php' ) ) {
 			Pay\init();
 		}
+		if ( $this->load( 'cash.php' ) ) {
+			Cash\init();
+		}
 		if ( $this->load( 'staff.php' ) ) {
 			Staff\init();
 		}
