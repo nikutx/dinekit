@@ -83,6 +83,20 @@ function register_routes() {
 		)
 	);
 
+	// Give / link / remove a WP login for a staff member. Creating WP users is a
+	// high-privilege action, so this is restricted to full admins (owners).
+	register_rest_route(
+		$ns,
+		'/staff/(?P<id>\d+)/login',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\staff_login',
+			'permission_callback' => function () {
+				return current_user_can( 'create_users' );
+			},
+		)
+	);
+
 	// Rota / shifts.
 	register_rest_route(
 		$ns,
@@ -480,10 +494,22 @@ function delete_shift( $request ) {
  * @return array<string,mixed>
  */
 function staff_response( $id ) {
-	$post  = get_post( $id );
-	$role  = (string) get_post_meta( $id, 'dinekit_role', true );
-	$area  = (string) get_post_meta( $id, 'dinekit_area', true );
-	$color = (string) get_post_meta( $id, 'dinekit_color', true );
+	$post    = get_post( $id );
+	$role    = (string) get_post_meta( $id, 'dinekit_role', true );
+	$area    = (string) get_post_meta( $id, 'dinekit_area', true );
+	$color   = (string) get_post_meta( $id, 'dinekit_color', true );
+	$user_id = (int) get_post_meta( $id, 'dinekit_staff_user', true );
+	$login   = null;
+	if ( $user_id ) {
+		$user = get_userdata( $user_id );
+		if ( $user ) {
+			$login = array(
+				'userId'   => $user_id,
+				'email'    => $user->user_email,
+				'username' => $user->user_login,
+			);
+		}
+	}
 	return array(
 		'id'      => (int) $id,
 		'name'    => $post->post_title,
@@ -495,7 +521,89 @@ function staff_response( $id ) {
 		'holiday' => (int) get_post_meta( $id, 'dinekit_holiday', true ),
 		'color'   => '' !== $color ? $color : '#4f46e5',
 		'active'  => '0' !== (string) get_post_meta( $id, 'dinekit_active', true ),
+		'login'   => $login,
 	);
+}
+
+/**
+ * POST /staff/:id/login — give, link or remove a WP login for a staff member.
+ * Body: { action: 'create'|'link'|'unlink', email?, userId? }.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function staff_login( $request ) {
+	require_once DINEKIT_DIR . 'includes/access.php';
+	$id = (int) $request['id'];
+	if ( 'dinekit_staff' !== get_post_type( $id ) ) {
+		return new \WP_Error( 'dinekit_staff_404', __( 'Team member not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	$action = (string) $request->get_param( 'action' );
+
+	if ( 'unlink' === $action ) {
+		delete_post_meta( $id, 'dinekit_staff_user' );
+		return rest_ensure_response( staff_response( $id ) );
+	}
+
+	if ( 'link' === $action ) {
+		$user_id = (int) $request->get_param( 'userId' );
+		if ( ! get_userdata( $user_id ) ) {
+			return new \WP_Error( 'dinekit_no_user', __( 'That user does not exist.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		update_post_meta( $id, 'dinekit_staff_user', $user_id );
+		return rest_ensure_response( staff_response( $id ) );
+	}
+
+	// Create a new WP user with the minimal DineKit Staff role + email an invite.
+	$email = sanitize_email( (string) $request->get_param( 'email' ) );
+	if ( ! is_email( $email ) ) {
+		return new \WP_Error( 'dinekit_bad_email', __( 'Enter a valid email address for the login.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	if ( email_exists( $email ) ) {
+		return new \WP_Error( 'dinekit_email_used', __( 'A user with that email already exists — link it instead.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+	$name     = get_the_title( $id );
+	$username = unique_username( $email, $name );
+	$user_id  = wp_insert_user(
+		array(
+			'user_login'   => $username,
+			'user_email'   => $email,
+			'user_pass'    => wp_generate_password( 24, true ),
+			'display_name' => $name ? $name : $username,
+			'role'         => \DineKit\Access\STAFF_ROLE,
+		)
+	);
+	if ( is_wp_error( $user_id ) ) {
+		return $user_id;
+	}
+	update_post_meta( $id, 'dinekit_staff_user', (int) $user_id );
+	// Send the "set your password" email so they can log in.
+	wp_send_new_user_notifications( (int) $user_id, 'user' );
+	return rest_ensure_response( staff_response( $id ) );
+}
+
+/**
+ * A unique WP username derived from the email local-part (or name).
+ *
+ * @param string $email Email.
+ * @param string $name  Display name.
+ * @return string
+ */
+function unique_username( $email, $name ) {
+	$base = sanitize_user( current( explode( '@', $email ) ), true );
+	if ( '' === $base ) {
+		$base = sanitize_user( $name, true );
+	}
+	if ( '' === $base ) {
+		$base = 'dinekit_user';
+	}
+	$candidate = $base;
+	$i         = 1;
+	while ( username_exists( $candidate ) ) {
+		++$i;
+		$candidate = $base . $i;
+	}
+	return $candidate;
 }
 
 /**

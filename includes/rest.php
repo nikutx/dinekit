@@ -105,7 +105,7 @@ function register_routes() {
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\create_item',
-			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+			'permission_callback' => __NAMESPACE__ . '\\can_menu',
 		)
 	);
 
@@ -179,7 +179,7 @@ function register_routes() {
 		array(
 			'methods'             => \WP_REST_Server::CREATABLE,
 			'callback'            => __NAMESPACE__ . '\\save_order',
-			'permission_callback' => __NAMESPACE__ . '\\can_edit',
+			'permission_callback' => __NAMESPACE__ . '\\can_menu',
 		)
 	);
 
@@ -738,6 +738,17 @@ function save_hours( $request ) {
  * @return bool
  */
 function can_edit() {
+	require_once DINEKIT_DIR . 'includes/access.php';
+	return \DineKit\Access\can_access();
+}
+
+/**
+ * Editing the menu structure itself (create items, reorder) is an editor-level
+ * task — kept to full admins/editors, not general staff logins.
+ *
+ * @return bool
+ */
+function can_menu() {
 	return current_user_can( 'edit_others_posts' );
 }
 

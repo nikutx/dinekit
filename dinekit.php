@@ -92,6 +92,8 @@ register_activation_hook(
 			\DineKit\PostTypes\register();
 			\DineKit\PostTypes\seed_allergens();
 			\DineKit\PostTypes\seed_dietary();
+			require_once DINEKIT_DIR . 'includes/access.php';
+			\DineKit\Access\ensure_roles();
 			flush_rewrite_rules();
 			update_option( 'dinekit_version', DINEKIT_VERSION );
 			if ( false === get_option( 'dinekit_activated_at' ) ) {

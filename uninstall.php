@@ -41,6 +41,19 @@ delete_option( 'dinekit_reviews' );
 delete_option( 'dinekit_staff' );
 delete_option( 'dinekit_email' );
 delete_option( 'dinekit_prefix_migrated' );
+delete_option( 'dinekit_access' );
+delete_option( 'dinekit_roles_ready' );
+
+// Remove the custom staff role + the DineKit page capability we granted.
+if ( function_exists( 'remove_role' ) ) {
+	remove_role( 'dinekit_staff' );
+}
+foreach ( array( 'administrator', 'editor' ) as $dinekit_role_name ) {
+	$dinekit_wp_role = get_role( $dinekit_role_name );
+	if ( $dinekit_wp_role ) {
+		$dinekit_wp_role->remove_cap( 'dinekit_access' );
+	}
+}
 
 // Delete all DineKit posts (menu items + bookings/floor + events/guests + orders).
 foreach ( array( 'dinekit_menu_item', 'dinekit_table', 'dinekit_booking', 'dinekit_table_combo', 'dinekit_event', 'dinekit_guest', 'dinekit_order' ) as $dinekit_pt ) {

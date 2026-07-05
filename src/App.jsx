@@ -69,15 +69,38 @@ const NAV = [
 const DINEIN_ONLY = [ 'bookings', 'floor' ]; // hidden for takeaway-only.
 const ORDERING_ONLY = [ 'orders' ];          // hidden for dine-in-only.
 
-function visibleNav( businessType ) {
-	return NAV.filter( ( n ) => {
+// Which access-control permission each nav item needs (maps to window.DINEKIT.caps).
+const NAV_PERM = {
+	home: 'access', reports: 'access',
+	bookings: 'bookings', floor: 'bookings', guests: 'bookings',
+	orders: 'orders', events: 'events', reviews: 'settings', staff: 'staff',
+	builder: 'menu', design: 'menu', qr: 'menu', hours: 'menu',
+	integrations: 'settings', emails: 'settings', access: 'owner', settings: 'settings',
+};
+
+// Full admins/owners see everything; if caps are somehow absent, fail open.
+const ALL_CAPS = { access: true, owner: true, menu: true, orders: true, refunds: true, bookings: true, events: true, staff: true, settings: true };
+
+function visibleNav( businessType, caps ) {
+	const items = NAV.filter( ( n ) => {
+		if ( n.group ) {
+			return true; // Resolved in the empty-group pass below.
+		}
 		if ( 'takeaway' === businessType && DINEIN_ONLY.includes( n.key ) ) {
 			return false;
 		}
 		if ( 'dinein' === businessType && ORDERING_ONLY.includes( n.key ) ) {
 			return false;
 		}
-		return true;
+		const perm = NAV_PERM[ n.key ];
+		return ! perm || !! caps[ perm ];
+	} );
+	// Drop group headers that end up with no items beneath them.
+	return items.filter( ( n, i ) => {
+		if ( ! n.group ) {
+			return true;
+		}
+		return !! items[ i + 1 ] && ! items[ i + 1 ].group;
 	} );
 }
 
@@ -95,7 +118,8 @@ export default function App() {
 		);
 	}
 
-	const nav = visibleNav( store.data && store.data.businessType );
+	const caps = ( window.DINEKIT && window.DINEKIT.caps ) || ALL_CAPS;
+	const nav = visibleNav( store.data && store.data.businessType, caps );
 	const activeView = nav.some( ( n ) => n.key === view ) ? view : 'home';
 
 	return (

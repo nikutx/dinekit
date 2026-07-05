@@ -15,15 +15,76 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const OPTION = 'dinekit_access';
+const OPTION     = 'dinekit_access';
+const STAFF_ROLE = 'dinekit_staff';
+const PAGE_CAP   = 'dinekit_access';
 
 /**
- * Boot the REST routes.
+ * Boot the REST routes + the capability filter.
  *
  * @return void
  */
 function init() {
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_routes' );
+	// Grant the DineKit page capability to existing admin/editor users
+	// dynamically, so switching the menu to a custom cap regresses nobody and
+	// we never have to write caps onto the built-in roles.
+	add_filter( 'user_has_cap', __NAMESPACE__ . '\\grant_page_cap' );
+}
+
+/**
+ * Dynamically grant the DineKit page capability to full admins and editors
+ * (who could already reach the menu via edit_others_posts). Staff accounts get
+ * it from their dedicated role instead.
+ *
+ * @param array<string,bool> $allcaps The user's capabilities.
+ * @return array<string,bool>
+ */
+function grant_page_cap( $allcaps ) {
+	if ( ! empty( $allcaps['manage_options'] ) || ! empty( $allcaps['edit_others_posts'] ) ) {
+		$allcaps[ PAGE_CAP ] = true;
+	}
+	return $allcaps;
+}
+
+/**
+ * Ensure the minimal "DineKit Staff" WP role exists (wp-admin access limited to
+ * the DineKit screen). Idempotent — safe to call on activation + upgrade.
+ *
+ * @return void
+ */
+function ensure_roles() {
+	$role = get_role( STAFF_ROLE );
+	if ( ! $role ) {
+		add_role(
+			STAFF_ROLE,
+			__( 'DineKit Staff', 'dinekit' ),
+			array(
+				'read'      => true,
+				PAGE_CAP    => true,
+			)
+		);
+	} else {
+		$role->add_cap( PAGE_CAP );
+	}
+}
+
+/**
+ * The current user's effective DineKit permissions, for the admin SPA to filter
+ * its navigation. Server-side checks still enforce everything.
+ *
+ * @return array<string,bool>
+ */
+function caps_for_spa() {
+	$caps = array(
+		'owner'  => current_user_can( 'manage_options' ),
+		'menu'   => current_user_can( 'edit_others_posts' ), // menu builder + design.
+		'access' => can_access(),
+	);
+	foreach ( array_keys( permissions() ) as $perm ) {
+		$caps[ $perm ] = can( $perm );
+	}
+	return $caps;
 }
 
 /**

@@ -66,6 +66,21 @@ export default function StaffView() {
 		setStaff( ( s ) => s.filter( ( m ) => m.id !== id ) );
 		setEditing( null );
 	};
+	// Give / link / remove a WP login for a staff member (owner only).
+	const owner = !! ( window.DINEKIT && window.DINEKIT.caps && window.DINEKIT.caps.owner );
+	const [ loginBusy, setLoginBusy ] = useState( false );
+	const setLogin = async ( data ) => {
+		setLoginBusy( true );
+		try {
+			const m = await api.staffLogin( editing.id, data );
+			setStaff( ( s ) => s.map( ( x ) => ( x.id === m.id ? m : x ) ) );
+			setEditing( m );
+		} catch ( e ) {
+			window.alert( e.message || 'Could not update login access.' );
+		} finally {
+			setLoginBusy( false );
+		}
+	};
 
 	if ( loading ) {
 		return <Page><ListSkeleton rows={ 5 } /></Page>;
@@ -179,6 +194,38 @@ export default function StaffView() {
 									<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Active</Typography>
 								</Stack>
 							</Stack>
+							{ owner && (
+								<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, p: 1.75 } }>
+									<Typography sx={ { fontSize: 14, fontWeight: 700, mb: 0.5 } }>Login access</Typography>
+									{ editing.login ? (
+										<>
+											<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1 } }>
+												Can log in as <strong>{ editing.login.email }</strong> with { ( roles.find( ( r ) => r.key === editing.role ) || {} ).label || editing.role } permissions (see Access Control).
+											</Typography>
+											<Button size="small" color="error" variant="outlined" disabled={ loginBusy } onClick={ () => setLogin( { action: 'unlink' } ) }>
+												Remove login access
+											</Button>
+										</>
+									) : (
+										<>
+											<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1 } }>
+												Give this person a login so they can sign in to DineKit with their role’s permissions. They’ll get an email to set a password.
+											</Typography>
+											<Button
+												size="small"
+												variant="contained"
+												disabled={ loginBusy || ! ( editing.email && /@/.test( editing.email ) ) }
+												onClick={ () => setLogin( { action: 'create', email: editing.email } ) }
+											>
+												{ loginBusy ? 'Sending…' : 'Give login access' }
+											</Button>
+											{ ! ( editing.email && /@/.test( editing.email ) ) && (
+												<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 0.75 } }>Add an email above first.</Typography>
+											) }
+										</>
+									) }
+								</Box>
+							) }
 							<Tooltip title="Removes the member, their shifts and leave">
 								<Button color="error" size="small" startIcon={ <DeleteOutlineIcon /> } onClick={ () => remove( editing.id ) } sx={ { justifyContent: 'flex-start' } }>
 									Remove team member

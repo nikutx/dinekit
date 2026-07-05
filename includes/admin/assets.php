@@ -97,6 +97,10 @@ function enqueue( $hook ) {
 		$stripe_mode = 'live' === \DineKit\Integrations\raw()['stripe']['mode'] ? 'live' : 'test';
 	}
 
+	// The current user's effective DineKit permissions, so the SPA can hide nav
+	// it can't use (server-side checks still enforce everything).
+	require_once DINEKIT_DIR . 'includes/access.php';
+
 	// Config for the app (REST base + nonce + i18n locale).
 	wp_register_script( 'dinekit-config', false, array(), DINEKIT_VERSION, false );
 	wp_enqueue_script( 'dinekit-config' );
@@ -112,6 +116,7 @@ function enqueue( $hook ) {
 				'version'    => DINEKIT_VERSION,
 				'canManage'  => current_user_can( 'manage_categories' ),
 				'stripeMode' => $stripe_mode,
+				'caps'       => \DineKit\Access\caps_for_spa(),
 			)
 		) . ';',
 		'before'

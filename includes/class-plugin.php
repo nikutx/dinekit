@@ -160,6 +160,19 @@ final class Plugin {
 			}
 		}
 
+		// One-time: ensure the staff WP role exists on already-active installs.
+		if ( ! get_option( 'dinekit_roles_ready' ) ) {
+			try {
+				require_once DINEKIT_DIR . 'includes/access.php';
+				Access\ensure_roles();
+				update_option( 'dinekit_roles_ready', 1 );
+			} catch ( \Throwable $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( 'DineKit roles: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+			}
+		}
+
 		$stored = get_option( 'dinekit_version' );
 		if ( DINEKIT_VERSION === $stored ) {
 			return;

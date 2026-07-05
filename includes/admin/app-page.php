@@ -55,7 +55,7 @@ function register_page() {
 	add_menu_page(
 		__( 'DineKit', 'dinekit' ),
 		__( 'DineKit', 'dinekit' ),
-		'edit_others_posts',
+		'dinekit_access', // Admins/editors get this dynamically; staff via their role.
 		'dinekit',
 		__NAMESPACE__ . '\\render',
 		'dashicons-food',

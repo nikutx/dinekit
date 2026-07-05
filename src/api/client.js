@@ -134,6 +134,7 @@ export const api = {
 	createStaff: ( data ) => request( 'POST', 'staff', data ),
 	updateStaff: ( id, data ) => request( 'PATCH', `staff/${ id }`, data ),
 	deleteStaff: ( id ) => request( 'DELETE', `staff/${ id }` ),
+	staffLogin: ( id, data ) => request( 'POST', `staff/${ id }/login`, data ),
 	getStaffSettings: () => request( 'GET', 'staff/settings' ),
 	saveStaffSettings: ( data ) => request( 'POST', 'staff/settings', data ),
 	getShifts: ( { from, to } ) => request( 'GET', 'shifts?' + new URLSearchParams( { from, to } ).toString() ),
