@@ -141,6 +141,17 @@ function order_response( $id ) {
 	$emaillog = json_decode( (string) get_post_meta( $id, 'dinekit_order_email_log', true ), true );
 	$channel  = (string) get_post_meta( $id, 'dinekit_order_channel', true );
 	$table_id = (int) get_post_meta( $id, 'dinekit_order_table_id', true );
+	$tenders  = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
+	$tenders  = is_array( $tenders ) ? $tenders : array();
+	$food     = (float) get_post_meta( $id, 'dinekit_order_total', true );
+	$service  = (float) get_post_meta( $id, 'dinekit_order_service', true );
+	$tip      = (float) get_post_meta( $id, 'dinekit_order_tip', true );
+	$discount = (float) get_post_meta( $id, 'dinekit_order_discount', true );
+	$grand    = round( $food + $service + $tip - $discount, 2 );
+	$paid     = 0.0;
+	foreach ( $tenders as $t ) {
+		$paid += (float) $t['amount'];
+	}
 	return array(
 		'id'         => (int) $id,
 		'number'     => (int) get_post_meta( $id, 'dinekit_order_number', true ),
@@ -161,6 +172,13 @@ function order_response( $id ) {
 		'tableId'    => $table_id,
 		'table'      => $table_id ? (string) get_the_title( $table_id ) : '',
 		'covers'     => (int) get_post_meta( $id, 'dinekit_order_covers', true ),
+		'tenders'    => $tenders,
+		'service'    => number_format( $service, 2, '.', '' ),
+		'tip'        => number_format( $tip, 2, '.', '' ),
+		'discount'   => number_format( $discount, 2, '.', '' ),
+		'grandTotal' => number_format( $grand, 2, '.', '' ),
+		'paid'       => number_format( $paid, 2, '.', '' ),
+		'balance'    => number_format( round( $grand - $paid, 2 ), 2, '.', '' ),
 		'pi'         => (string) get_post_meta( $id, 'dinekit_order_pi', true ),
 		'archived'   => '1' === (string) get_post_meta( $id, 'dinekit_order_archived', true ),
 		'refundDue'  => '1' === (string) get_post_meta( $id, 'dinekit_order_refund_due', true ),
@@ -368,6 +386,46 @@ function update_order( $request ) {
 			/* translators: %s: item name. */
 			Ordering\log_event( $id, sprintf( __( 'Removed %s from the tab', 'dinekit' ), $voided ) );
 		}
+	} elseif ( 'set_charges' === $action ) {
+		foreach ( array( 'service', 'tip', 'discount' ) as $k ) {
+			if ( null !== $request->get_param( $k ) ) {
+				update_post_meta( $id, 'dinekit_order_' . $k, number_format( max( 0, (float) $request->get_param( $k ) ), 2, '.', '' ) );
+			}
+		}
+		Ordering\log_event( $id, __( 'Service/tip/discount updated', 'dinekit' ) );
+	} elseif ( 'tender' === $action ) {
+		$ttype = sanitize_key( (string) $request->get_param( 'tenderType' ) );
+		$ttype = in_array( $ttype, array( 'cash', 'card', 'voucher', 'comp', 'account' ), true ) ? $ttype : 'cash';
+		$amt   = round( (float) $request->get_param( 'amount' ), 2 );
+		if ( $amt > 0 ) {
+			$tenders   = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
+			$tenders   = is_array( $tenders ) ? $tenders : array();
+			$tenders[] = array(
+				'type'   => $ttype,
+				'amount' => $amt,
+				't'      => current_time( 'c' ),
+			);
+			update_post_meta( $id, 'dinekit_order_tenders', wp_json_encode( $tenders ) );
+			/* translators: 1: tender type, 2: amount. */
+			Ordering\log_event( $id, sprintf( __( 'Payment taken: %1$s %2$s', 'dinekit' ), $ttype, number_format( $amt, 2 ) ) );
+			// Settle & close the tab automatically once the balance is covered.
+			$grand = (float) get_post_meta( $id, 'dinekit_order_total', true )
+				+ (float) get_post_meta( $id, 'dinekit_order_service', true )
+				+ (float) get_post_meta( $id, 'dinekit_order_tip', true )
+				- (float) get_post_meta( $id, 'dinekit_order_discount', true );
+			$paid = 0.0;
+			foreach ( $tenders as $t ) {
+				$paid += (float) $t['amount'];
+			}
+			if ( round( $paid - $grand, 2 ) >= 0 ) {
+				update_post_meta( $id, 'dinekit_order_payment', 'paid' );
+				update_post_meta( $id, 'dinekit_order_status', 'completed' );
+				Ordering\log_event( $id, __( 'Tab settled & closed', 'dinekit' ) );
+			}
+		}
+	} elseif ( 'close' === $action ) {
+		update_post_meta( $id, 'dinekit_order_status', 'completed' );
+		Ordering\log_event( $id, __( 'Tab closed', 'dinekit' ) );
 	}
 
 	$status = (string) $request->get_param( 'status' );

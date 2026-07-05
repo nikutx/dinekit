@@ -8,8 +8,10 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import TableRestaurantIcon from '@mui/icons-material/TableRestaurant';
 import TakeoutDiningIcon from '@mui/icons-material/TakeoutDining';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { tokens } from '../theme';
 import { api } from '../api/client';
+import { printDoc, esc } from '../lib/print';
 import Page from './ui/Page';
 import PageHeader from './ui/PageHeader';
 import Card from './ui/Card';
@@ -26,6 +28,7 @@ export default function POSView() {
 	const [ active, setActive ] = useState( null ); // { tableId, tableName, order|null, takeaway? }
 	const [ course, setCourse ] = useState( '' );
 	const [ mod, setMod ] = useState( null ); // item being configured
+	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
 	const [ busy, setBusy ] = useState( false );
 
 	useEffect( () => {
@@ -265,6 +268,16 @@ export default function POSView() {
 							>
 								{ unfired > 0 ? `Fire ${ unfired } to kitchen` : 'Nothing to fire' }
 							</Button>
+							<Button
+								variant="outlined"
+								fullWidth
+								startIcon={ <ReceiptLongIcon /> }
+								disabled={ ! active.order || lines.length === 0 }
+								onClick={ () => setBill( true ) }
+								sx={ { mt: 1 } }
+							>
+								Bill &amp; pay
+							</Button>
 						</Box>
 					</Card>
 				</Box>
@@ -276,6 +289,17 @@ export default function POSView() {
 					money={ money }
 					onClose={ () => setMod( null ) }
 					onAdd={ ( line ) => { setMod( null ); addLine( line ); } }
+				/>
+			) }
+
+			{ bill && active.order && (
+				<BillSheet
+					order={ active.order }
+					money={ money }
+					tableName={ active.tableName }
+					onUpdate={ syncOrder }
+					onClose={ () => setBill( false ) }
+					onSettled={ () => { setBill( false ); back(); } }
 				/>
 			) }
 		</Page>
@@ -375,5 +399,130 @@ function ModifierSheet( { item, money, onAdd, onClose } ) {
 				</Stack>
 			</Box>
 		</Modal>
+	);
+}
+
+const round2 = ( n ) => Math.round( n * 100 ) / 100;
+
+// Settle a tab: service charge + tip, then take payment (cash w/ change, or
+// card/voucher/comp settling the balance). Auto-closes when fully paid.
+function BillSheet( { order, money, tableName, onUpdate, onClose, onSettled } ) {
+	const [ cash, setCash ] = useState( '' );
+	const [ tipInput, setTipInput ] = useState( order.tip && Number( order.tip ) ? String( order.tip ) : '' );
+	const [ busy, setBusy ] = useState( false );
+
+	useEffect( () => { if ( 'completed' === order.status ) { onSettled(); } }, [ order.status ] );
+
+	const food = Number( order.total );
+	const svcApplied = Number( order.service ) > 0;
+	const grand = Number( order.grandTotal );
+	const balance = Number( order.balance );
+	const cashN = Number( cash || 0 );
+	const change = cashN > balance ? round2( cashN - balance ) : 0;
+
+	const setCharges = async ( patch ) => {
+		setBusy( true );
+		try { onUpdate( await api.updateOrder( order.id, { action: 'set_charges', ...patch } ) ); } finally { setBusy( false ); }
+	};
+	const toggleService = () => setCharges( { service: svcApplied ? 0 : round2( food * 0.125 ) } );
+	const applyTip = () => setCharges( { tip: Math.max( 0, Number( tipInput || 0 ) ) } );
+
+	const tender = async ( type, amount ) => {
+		if ( amount <= 0 ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			const updated = await api.updateOrder( order.id, { action: 'tender', tenderType: type, amount } );
+			onUpdate( updated );
+			if ( 'completed' === updated.status ) {
+				printReceipt( updated, type === 'cash' ? change : 0 );
+				onSettled();
+			} else {
+				setCash( '' );
+			}
+		} finally { setBusy( false ); }
+	};
+	const takeCash = () => tender( 'cash', cashN >= balance ? balance : cashN );
+
+	const printReceipt = ( o, changeGiven ) => {
+		const rows = ( o.items || [] ).map( ( l ) =>
+			`<tr><td>${ l.qty }× ${ esc( l.title ) }${ l.priceLabel ? ' (' + esc( l.priceLabel ) + ')' : '' }</td><td class="r">${ money( l.lineTotal ) }</td></tr>`
+		).join( '' );
+		const extra = [];
+		if ( Number( o.service ) ) extra.push( `<tr><td>Service</td><td class="r">${ money( o.service ) }</td></tr>` );
+		if ( Number( o.tip ) ) extra.push( `<tr><td>Tip</td><td class="r">${ money( o.tip ) }</td></tr>` );
+		if ( Number( o.discount ) ) extra.push( `<tr><td>Discount</td><td class="r">−${ money( o.discount ) }</td></tr>` );
+		const tenders = ( o.tenders || [] ).map( ( t ) => `<tr><td>${ esc( t.type ) }</td><td class="r">${ money( t.amount ) }</td></tr>` ).join( '' );
+		printDoc(
+			'<style>body{font-family:monospace;font-size:12px;max-width:300px;margin:0 auto}h2{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0}.r{text-align:right}hr{border:none;border-top:1px dashed #000;margin:6px 0}.tot{font-weight:700;font-size:14px}</style>' +
+			`<h2>Receipt</h2><div style="text-align:center">Order #${ o.number }${ o.table ? ' · ' + esc( o.table ) : '' }</div><hr>` +
+			`<table>${ rows }</table><hr><table>${ extra.join( '' ) }<tr class="tot"><td>Total</td><td class="r">${ money( o.grandTotal ) }</td></tr></table>` +
+			( tenders ? `<hr><table>${ tenders }${ changeGiven ? `<tr><td>Change</td><td class="r">${ money( changeGiven ) }</td></tr>` : '' }</table>` : '' ) +
+			'<hr><div style="text-align:center">Thank you!</div>'
+		);
+	};
+
+	return (
+		<Modal open onClose={ onClose }>
+			<Box sx={ { p: 3, maxHeight: '85vh', overflowY: 'auto' } }>
+				<Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={ { mb: 2 } }>
+					<Box>
+						<Typography variant="h6">Bill — { tableName }</Typography>
+						<Typography sx={ { fontSize: 13, color: tokens.muted } }>Order #{ order.number }</Typography>
+					</Box>
+					<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
+				</Stack>
+
+				{ /* Totals */ }
+				<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '10px', p: 1.5, mb: 2 } }>
+					<Row label="Items" value={ money( food ) } />
+					{ Number( order.service ) > 0 && <Row label="Service (12.5%)" value={ money( order.service ) } /> }
+					{ Number( order.tip ) > 0 && <Row label="Tip" value={ money( order.tip ) } /> }
+					<Box sx={ { borderTop: `1px solid ${ tokens.soft }`, mt: 0.75, pt: 0.75 } }>
+						<Row label="Total" value={ money( grand ) } bold />
+						{ Number( order.paid ) > 0 && <Row label="Paid" value={ money( order.paid ) } /> }
+						<Row label="Balance" value={ money( balance ) } bold accent />
+					</Box>
+				</Box>
+
+				{ /* Charges */ }
+				<Stack direction="row" spacing={ 1 } sx={ { mb: 2 } } flexWrap="wrap" useFlexGap>
+					<Chip
+						label={ svcApplied ? 'Service 12.5% ✓' : 'Add service 12.5%' }
+						onClick={ busy ? undefined : toggleService }
+						sx={ { fontWeight: 600, cursor: 'pointer', bgcolor: svcApplied ? tokens.accentSoft : tokens.soft, color: svcApplied ? tokens.accentDark : tokens.ink2 } }
+					/>
+					{ [ 5, 10, 12.5 ].map( ( pct ) => (
+						<Chip key={ pct } label={ `Tip ${ pct }%` } onClick={ busy ? undefined : () => { const t = round2( food * pct / 100 ); setTipInput( String( t ) ); setCharges( { tip: t } ); } } sx={ { cursor: 'pointer', bgcolor: tokens.soft, color: tokens.ink2 } } />
+					) ) }
+				</Stack>
+
+				{ /* Payment */ }
+				<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted, mb: 1 } }>Take payment</Typography>
+				<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mb: 1.5 } } flexWrap="wrap" useFlexGap>
+					<Box component="input" type="number" inputMode="decimal" placeholder="Cash received" value={ cash } onChange={ ( e ) => setCash( e.target.value ) }
+						sx={ { width: 150, px: 1.25, py: 1, border: `1px solid ${ tokens.border2 }`, borderRadius: '9px', fontFamily: 'inherit', fontSize: 14, boxShadow: 'none', outline: 'none' } } />
+					<Button variant="contained" disabled={ busy || cashN <= 0 } onClick={ takeCash }>Take cash</Button>
+					{ change > 0 && <Typography sx={ { fontWeight: 700, color: tokens.green } }>Change { money( change ) }</Typography> }
+				</Stack>
+				<Stack direction="row" spacing={ 1 } flexWrap="wrap" useFlexGap>
+					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'card', balance ) }>Card · { money( balance ) }</Button>
+					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'voucher', balance ) }>Voucher</Button>
+					<Button variant="outlined" disabled={ busy || balance <= 0 } onClick={ () => tender( 'comp', balance ) }>Comp</Button>
+					<Box sx={ { flex: 1 } } />
+					<Button variant="text" onClick={ () => printReceipt( order, 0 ) }>Print receipt</Button>
+				</Stack>
+			</Box>
+		</Modal>
+	);
+}
+
+function Row( { label, value, bold, accent } ) {
+	return (
+		<Stack direction="row" justifyContent="space-between" sx={ { py: 0.25 } }>
+			<Typography sx={ { fontSize: bold ? 14 : 13, fontWeight: bold ? 700 : 500, color: tokens.ink2 } }>{ label }</Typography>
+			<Typography sx={ { fontSize: bold ? 14 : 13, fontWeight: bold ? 700 : 600, fontVariantNumeric: 'tabular-nums', color: accent ? tokens.accentDark : tokens.ink } }>{ value }</Typography>
+		</Stack>
 	);
 }

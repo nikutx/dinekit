@@ -225,6 +225,10 @@ function register() {
 		'dinekit_order_channel'    => 'string',  // online | takeaway | dine_in | delivery (POS).
 		'dinekit_order_table_id'   => 'integer', // Dine-in table (POS); reuses dinekit_table.
 		'dinekit_order_covers'     => 'integer', // Dine-in party size (POS).
+		'dinekit_order_tenders'    => 'string',  // JSON: [{type,amount,t}] payments taken (POS).
+		'dinekit_order_service'    => 'string',  // Service charge (decimal string).
+		'dinekit_order_tip'        => 'string',  // Tip (decimal string).
+		'dinekit_order_discount'   => 'string',  // Discount (decimal string).
 	);
 	foreach ( $meta as $key => $type ) {
 		register_post_meta(
