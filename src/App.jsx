@@ -127,7 +127,17 @@ export default function App() {
 					) }
 
 					{ ! store.loading && store.data && (
-						<>
+						<Box
+							key={ activeView }
+							sx={ {
+								'@keyframes dinekitViewIn': {
+									from: { opacity: 0, transform: 'translateY(6px)' },
+									to: { opacity: 1, transform: 'none' },
+								},
+								animation: 'dinekitViewIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both',
+								'@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+							} }
+						>
 							{ activeView === 'home' && <DashboardView navigate={ navigate } /> }
 							{ activeView === 'reports' && <ReportsView businessType={ store.data.businessType } /> }
 							{ activeView === 'builder' && (
@@ -150,7 +160,7 @@ export default function App() {
 							{ activeView === 'integrations' && <IntegrationsView /> }
 							{ activeView === 'emails' && <EmailsView /> }
 							{ activeView === 'settings' && <SettingsView /> }
-						</>
+						</Box>
 					) }
 				</Box>
 			</Box>
