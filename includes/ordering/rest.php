@@ -265,18 +265,25 @@ function update_order( $request ) {
 		}
 	}
 
+	require_once DINEKIT_DIR . 'includes/activity.php';
+	$num = (int) get_post_meta( $id, 'dinekit_order_number', true );
+
 	if ( 'accept' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'preparing' );
 		Ordering\log_event( $id, __( 'Accepted', 'dinekit' ) );
 		Ordering\capture_payment( $id ); // Captures an authorized hold when present (no-op otherwise).
 		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 		Ordering\Emails\printer_ticket( $id ); // Auto-print the kitchen ticket on accept.
+		/* translators: %d: order number. */
+		\DineKit\Activity\log( 'order', sprintf( __( 'Accepted order #%d', 'dinekit' ), $num ) );
 	} elseif ( 'reject' === $action ) {
 		update_post_meta( $id, 'dinekit_order_status', 'cancelled' );
 		Ordering\log_event( $id, __( 'Rejected & cancelled', 'dinekit' ) );
 		Ordering\release_or_refund( $id ); // Releases the hold, or refunds if already captured.
 		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 		Ordering\Emails\cancelled( $id );
+		/* translators: %d: order number. */
+		\DineKit\Activity\log( 'refund', sprintf( __( 'Rejected & refunded order #%d', 'dinekit' ), $num ) );
 	} elseif ( 'resend' === $action ) {
 		require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 		$sent = Ordering\Emails\resend_confirmation( $id );
@@ -299,6 +306,8 @@ function update_order( $request ) {
 			Ordering\release_or_refund( $id );
 			require_once DINEKIT_DIR . 'includes/ordering/emails.php';
 			Ordering\Emails\cancelled( $id );
+			/* translators: %d: order number. */
+			\DineKit\Activity\log( 'refund', sprintf( __( 'Cancelled & refunded order #%d', 'dinekit' ), $num ) );
 		}
 	}
 

@@ -534,14 +534,18 @@ function staff_response( $id ) {
  */
 function staff_login( $request ) {
 	require_once DINEKIT_DIR . 'includes/access.php';
+	require_once DINEKIT_DIR . 'includes/activity.php';
 	$id = (int) $request['id'];
 	if ( 'dinekit_staff' !== get_post_type( $id ) ) {
 		return new \WP_Error( 'dinekit_staff_404', __( 'Team member not found.', 'dinekit' ), array( 'status' => 404 ) );
 	}
 	$action = (string) $request->get_param( 'action' );
+	$who    = get_the_title( $id );
 
 	if ( 'unlink' === $action ) {
 		delete_post_meta( $id, 'dinekit_staff_user' );
+		/* translators: %s: staff member name. */
+		\DineKit\Activity\log( 'access', sprintf( __( 'Removed login access from %s', 'dinekit' ), $who ) );
 		return rest_ensure_response( staff_response( $id ) );
 	}
 
@@ -551,6 +555,8 @@ function staff_login( $request ) {
 			return new \WP_Error( 'dinekit_no_user', __( 'That user does not exist.', 'dinekit' ), array( 'status' => 400 ) );
 		}
 		update_post_meta( $id, 'dinekit_staff_user', $user_id );
+		/* translators: %s: staff member name. */
+		\DineKit\Activity\log( 'access', sprintf( __( 'Linked a login for %s', 'dinekit' ), $who ) );
 		return rest_ensure_response( staff_response( $id ) );
 	}
 
@@ -579,6 +585,8 @@ function staff_login( $request ) {
 	update_post_meta( $id, 'dinekit_staff_user', (int) $user_id );
 	// Send the "set your password" email so they can log in.
 	wp_send_new_user_notifications( (int) $user_id, 'user' );
+	/* translators: %s: staff member name. */
+	\DineKit\Activity\log( 'access', sprintf( __( 'Gave login access to %s', 'dinekit' ), $name ) );
 	return rest_ensure_response( staff_response( $id ) );
 }
 

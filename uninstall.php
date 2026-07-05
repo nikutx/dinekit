@@ -55,7 +55,7 @@ foreach ( array( 'administrator', 'editor' ) as $dinekit_role_name ) {
 }
 
 // Delete all DineKit posts (menu items + bookings/floor + events/guests + orders).
-foreach ( array( 'dinekit_menu_item', 'dinekit_table', 'dinekit_booking', 'dinekit_table_combo', 'dinekit_event', 'dinekit_guest', 'dinekit_order' ) as $dinekit_pt ) {
+foreach ( array( 'dinekit_menu_item', 'dinekit_table', 'dinekit_booking', 'dinekit_table_combo', 'dinekit_event', 'dinekit_guest', 'dinekit_order', 'dinekit_staff', 'dinekit_shift', 'dinekit_leave', 'dinekit_activity' ) as $dinekit_pt ) {
 	$dinekit_posts = get_posts(
 		array(
 			'post_type'     => $dinekit_pt,

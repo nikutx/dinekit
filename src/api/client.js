@@ -85,6 +85,7 @@ export const api = {
 	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),
 	getAccess: () => request( 'GET', 'access' ),
 	saveAccess: ( matrix ) => request( 'POST', 'access', { matrix } ),
+	getActivity: ( action ) => request( 'GET', 'activity' + ( action ? '?action=' + encodeURIComponent( action ) : '' ) ),
 	getIntegrations: () => request( 'GET', 'integrations' ),
 	saveIntegrations: ( data ) => request( 'POST', 'integrations', data ),
 	testStripe: () => request( 'POST', 'integrations/test' ),

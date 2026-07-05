@@ -297,11 +297,14 @@ function rest_get() {
 function rest_save( $request ) {
 	$body   = (array) $request->get_json_params();
 	$matrix = isset( $body['matrix'] ) && is_array( $body['matrix'] ) ? $body['matrix'] : array();
+	$saved  = save_matrix( $matrix );
+	require_once DINEKIT_DIR . 'includes/activity.php';
+	\DineKit\Activity\log( 'access', __( 'Updated access-control permissions', 'dinekit' ) );
 	return rest_ensure_response(
 		array(
 			'permissions' => permissions(),
 			'roles'       => \DineKit\Staff\roles(),
-			'matrix'      => save_matrix( $matrix ),
+			'matrix'      => $saved,
 		)
 	);
 }

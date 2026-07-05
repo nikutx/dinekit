@@ -68,6 +68,10 @@ final class Plugin {
 		if ( $this->load( 'access.php' ) ) {
 			Access\init();
 		}
+		// Activity log (audit trail). Loaded early so any module can log().
+		if ( $this->load( 'activity.php' ) ) {
+			Activity\init();
+		}
 		if ( $this->load( 'post-types.php' ) ) {
 			add_action( 'init', __NAMESPACE__ . '\\PostTypes\\register' );
 		}

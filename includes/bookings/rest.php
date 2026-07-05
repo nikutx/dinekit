@@ -949,7 +949,17 @@ function update_booking( $request ) {
 		}
 		// Cancelling a booking with a paid deposit triggers a refund + guest notice.
 		if ( 'cancelled' === $new_status ) {
+			$paid = (bool) get_post_meta( $id, 'dinekit_deposit_paid', true );
 			Bookings\refund_deposit( $id );
+			require_once DINEKIT_DIR . 'includes/activity.php';
+			$who = (string) get_post_meta( $id, 'dinekit_name', true );
+			if ( $paid ) {
+				/* translators: %s: guest name. */
+				\DineKit\Activity\log( 'refund', sprintf( __( 'Cancelled booking + refunded deposit — %s', 'dinekit' ), $who ) );
+			} else {
+				/* translators: %s: guest name. */
+				\DineKit\Activity\log( 'booking', sprintf( __( 'Cancelled booking — %s', 'dinekit' ), $who ) );
+			}
 		}
 	}
 

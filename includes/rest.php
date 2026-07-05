@@ -491,8 +491,12 @@ function test_integration() {
  */
 function register_stripe_webhook() {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
+	require_once DINEKIT_DIR . 'includes/activity.php';
 	$result             = \DineKit\Integrations\register_webhook();
 	$result['settings'] = \DineKit\Integrations\get_public();
+	if ( ! empty( $result['ok'] ) ) {
+		\DineKit\Activity\log( 'payments', __( 'Registered Stripe webhook & wallet domain', 'dinekit' ) );
+	}
 	return rest_ensure_response( $result );
 }
 
@@ -537,7 +541,10 @@ function preview_email( $request ) {
  */
 function save_integrations( $request ) {
 	require_once DINEKIT_DIR . 'includes/integrations.php';
-	return rest_ensure_response( \DineKit\Integrations\save( (array) $request->get_json_params() ) );
+	require_once DINEKIT_DIR . 'includes/activity.php';
+	$result = \DineKit\Integrations\save( (array) $request->get_json_params() );
+	\DineKit\Activity\log( 'payments', __( 'Updated Stripe settings', 'dinekit' ) );
+	return rest_ensure_response( $result );
 }
 
 /**

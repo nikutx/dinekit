@@ -38,7 +38,9 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import DashboardView from './components/DashboardView';
 import ReportsView from './components/ReportsView';
 import AccessView from './components/AccessView';
+import AuditView from './components/AuditView';
 import LockIcon from '@mui/icons-material/Lock';
+import HistoryIcon from '@mui/icons-material/History';
 import Wizard from './components/Wizard';
 
 // Grouped so the sidebar reads like a product, not a feature dump.
@@ -62,6 +64,7 @@ const NAV = [
 	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
 	{ key: 'emails', label: 'Emails', icon: <MailOutlineIcon fontSize="small" /> },
 	{ key: 'access', label: 'Access Control', icon: <LockIcon fontSize="small" /> },
+	{ key: 'activity', label: 'Activity', icon: <HistoryIcon fontSize="small" /> },
 	{ key: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 
@@ -75,7 +78,7 @@ const NAV_PERM = {
 	bookings: 'bookings', floor: 'bookings', guests: 'bookings',
 	orders: 'orders', events: 'events', reviews: 'settings', staff: 'staff',
 	builder: 'menu', design: 'menu', qr: 'menu', hours: 'menu',
-	integrations: 'settings', emails: 'settings', access: 'owner', settings: 'settings',
+	integrations: 'settings', emails: 'settings', access: 'owner', activity: 'staff', settings: 'settings',
 };
 
 // Full admins/owners see everything; if caps are somehow absent, fail open.
@@ -187,6 +190,7 @@ export default function App() {
 							{ activeView === 'integrations' && <IntegrationsView /> }
 							{ activeView === 'emails' && <EmailsView /> }
 							{ activeView === 'access' && <AccessView /> }
+							{ activeView === 'activity' && <AuditView /> }
 							{ activeView === 'settings' && <SettingsView /> }
 						</Box>
 					) }
