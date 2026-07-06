@@ -77,12 +77,14 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Screenshots ==
 
-1. Your menu on any website — sections, prices, dietary labels and UK allergen icons, with a printable allergen matrix.
-2. The drag-and-drop Menu Builder — add sections and dishes, reorder, and edit inline. Everything saves automatically.
-3. Design & Preview — choose a layout and column count and see your menu live before you publish it.
-4. The full dish editor — multiple prices, a photo, the UK-14 allergens, dietary labels and a badge.
-5. Print-ready QR table cards and A4 posters that open your menu on a diner's phone.
-6. Opening hours with holiday overrides and a live "open now" status.
+1. Your menu on any website — sections, prices, dietary filters and UK-14 allergen icons.
+2. The Menu Builder — sections and dishes with photos, allergens and multiple prices. Everything autosaves.
+3. Design & Preview — six templates plus layout and colour controls, with a live preview and a copy-paste shortcode.
+4. Commission-free online ordering for diners — takeaway, collection and delivery, straight from your own site.
+5. The live orders board — takeaway, collection and delivery in one place, with kitchen tickets. You keep 100%.
+6. The public table-booking form — live availability, party size and deposits, as a block or shortcode.
+7. Reports — covers, revenue, no-show rate and your best-selling dishes.
+8. Set-menu events with per-guest pre-orders via a share link, and a consolidated kitchen prep sheet.
 
 == Changelog ==
 
