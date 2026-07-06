@@ -1,7 +1,7 @@
 {
 	"name": "dinekit",
 	"private": true,
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"type": "module",
 	"description": "DineKit – restaurant menus, UK allergen support and QR table cards for WordPress.",
 	"author": "Web Level Up",

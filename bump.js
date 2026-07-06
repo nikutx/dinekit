@@ -1,14 +1,15 @@
 /**
  * Bump the DineKit version everywhere it lives, commit, and tag.
  *
- *   node bump.js 1.1.0        # sets version to 1.1.0, commits, tags 1.1.0
+ *   node bump.js 1.1.0            # sets version to 1.1.0, commits, tags 1.1.0
  *   node bump.js 1.1.0 --no-git   # just rewrite files (no commit/tag)
  *
  * Pushing the tag (git push origin HEAD --tags) triggers .github/workflows/deploy.yml,
  * which builds and releases to wordpress.org via SVN. Run from plugin/dinekit/.
+ * (ESM — package.json has "type": "module".)
  */
-const fs = require( 'fs' );
-const cp = require( 'child_process' );
+import fs from 'node:fs';
+import cp from 'node:child_process';
 
 const version = process.argv[ 2 ];
 const noGit = process.argv.includes( '--no-git' );

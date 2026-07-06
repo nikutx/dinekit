@@ -8,20 +8,35 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Beautiful restaurant menus with UK allergen support (Natasha's Law), printable QR table cards and opening hours. No dependencies, any theme.
+Run your restaurant on WordPress — menus & allergens, online ordering, table bookings and card payments. Commission-free, no monthly fees.
 
 == Description ==
 
-DineKit gives restaurants, cafés and pubs everything they need to publish a proper menu on WordPress — free:
+DineKit turns WordPress into a complete, commission-free restaurant platform — menus, online ordering, table bookings and card payments — with nothing to pay per cover, per order or per month. You bring your own Stripe account and keep 100% of every sale.
 
-* **Menu builder** — menus (Lunch, Dinner, Drinks…), sections (Starters, Mains…), items with images, badges and multiple prices (pint/half, small/large).
-* **UK allergen support built in** — the 14 regulated allergens pre-loaded with icons, tooltips and a printable allergen matrix. Natasha's Law friendly.
-* **Dietary labels** — vegan, vegetarian, gluten free, halal and your own.
-* **QR table cards** — print-ready QR codes that send guests straight to your live menu: download the vector SVG or print A6 table cards and A4 posters. Generated on your own site — no external service, no subscription.
-* **Opening hours** — with holiday overrides and a live "open now" indicator.
-* **SEO structured data** — Menu, MenuItem and LocalBusiness schema output automatically. Search engines read your menu.
+**Menus & allergens**
 
-No WooCommerce required. No page builder needed. Works with any theme, on any host. The menu, allergens and QR codes need no external accounts; optional card payments use your own Stripe account (see External Services below).
+* **Menu builder** — menus (Lunch, Dinner, Drinks…), sections and dishes with photos, badges and multiple prices; six templates; drag-and-drop ordering with autosave.
+* **UK-14 allergens built in** — the 14 regulated allergens pre-loaded with icons, tooltips and a printable matrix (Natasha's Law friendly), plus your own dietary labels.
+* **QR table cards** and A4 posters that open your live menu on a phone, and **Menu / MenuItem / LocalBusiness schema.org** output for SEO.
+
+**Online ordering**
+
+* **Takeaway, collection and delivery** ordering with a diner-facing menu, dish customizations (removable ingredients, choose-your-options with prices) and printable **kitchen/bar tickets**.
+* **Contactless QR "order at the table"** so diners order from their phone.
+
+**Bookings & events**
+
+* **Commission-free table bookings** — a drag-and-drop floor plan with joinable tables, a public booking form (block + `[dinekit_booking]` shortcode) with live availability, waitlist and covers-per-hour pacing, deposits, and a booking diary with email notifications and printable slips.
+* **Set-menu events with per-guest pre-orders** via a share link — guests choose their courses and flag allergens; the kitchen gets a consolidated prep sheet.
+
+**Payments, guests & staff**
+
+* **Card payments with your own Stripe keys** (encrypted at rest) — booking deposits and order payments, Apple Pay and Google Pay. You keep 100%.
+* **Guest CRM** — repeat-visit history with the allergies diners have told you about, carried across every visit.
+* **Staff logins** with a role-to-permission matrix and an activity/audit log, plus review-request emails to win diners back.
+
+No WooCommerce required and no page builder needed. The menu, allergens and QR codes work with no external accounts; card payments use your own Stripe account (see External Services below). Works with any theme, on any host.
 
 Built by [Web Level Up](https://weblevelup.co.uk/), a UK web agency that builds commercial WordPress software.
 
@@ -72,12 +87,15 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 == Changelog ==
 
 = 1.1.0 =
-* Commission-free table bookings: drag-and-drop floor plan with joinable tables, a public booking form (block + [dinekit_booking] shortcode) with live availability, waitlist, and covers-per-hour pacing.
+* Commission-free online ordering — takeaway, collection and delivery, with a diner-facing menu, dish customizations, and printable kitchen/bar tickets.
+* Contactless QR "order at the table".
+* Commission-free table bookings: drag-and-drop floor plan with joinable tables, a public booking form (block + [dinekit_booking] shortcode) with live availability, waitlist, covers-per-hour pacing and deposits.
 * Booking diary with statuses, email notifications, and printable reservation slips.
 * Set-menu events with per-guest pre-orders via a share link — guests choose their courses and flag allergens; the kitchen gets a consolidated prep sheet you can print.
+* Card payments with your own Stripe keys (encrypted at rest) — booking deposits and order payments, Apple Pay and Google Pay. You keep 100%.
 * Guest CRM: repeat diners with the allergies they've told you about, carried across every visit.
-* Dynamic dish customizations (removable ingredients + choose-your-options with prices).
-* Integrations area for your own Stripe keys (you keep 100%).
+* Staff logins with a role-to-permission matrix and an activity/audit log; review-request emails to win diners back.
+* Dynamic dish customizations (removable ingredients + choose-your-options with prices), six menu templates and colour theming.
 
 = 1.0.0 =
 * First public release.

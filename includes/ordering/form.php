@@ -46,7 +46,7 @@ function render( $menu_id = 0, $heading = '' ) {
 	// Table QR ordering: ?dinekit_table=<token> puts the page in dine-in table mode.
 	require_once DINEKIT_DIR . 'includes/table-order.php';
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read; the token is the credential.
-	$table_token = isset( $_GET['dinekit_table'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', wp_unslash( $_GET['dinekit_table'] ) ) : '';
+	$table_token = isset( $_GET['dinekit_table'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', sanitize_text_field( wp_unslash( $_GET['dinekit_table'] ) ) ) : '';
 	$table_id    = $table_token ? \DineKit\TableOrder\table_by_token( $table_token ) : 0;
 
 	$config = wp_json_encode(

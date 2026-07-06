@@ -285,7 +285,7 @@ function get_settings() {
  * @return array<string,mixed>
  */
 function save_settings( $data ) {
-	$current = get_settings();
+	$current = namespace\get_settings();
 	if ( isset( $data['enabled'] ) ) {
 		$current['enabled'] = (bool) $data['enabled'];
 	}

@@ -194,7 +194,7 @@ function rest_intent( $request ) {
  */
 function maybe_render_page() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only page keyed by an unguessable token.
-	$token = isset( $_GET['dinekit_pay'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', wp_unslash( $_GET['dinekit_pay'] ) ) : '';
+	$token = isset( $_GET['dinekit_pay'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', sanitize_text_field( wp_unslash( $_GET['dinekit_pay'] ) ) ) : '';
 	if ( '' === $token ) {
 		return;
 	}

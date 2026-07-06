@@ -50,6 +50,7 @@ try {
 				'public/**',
 				'.git/**',
 				'.github/**',
+				'.wordpress-org/**',
 				'.idea/**',
 				'.gitignore',
 				'.gitattributes',
