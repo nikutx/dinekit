@@ -19,6 +19,7 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 * **Menu builder** — menus (Lunch, Dinner, Drinks…), sections and dishes with photos, badges and multiple prices; six templates; drag-and-drop ordering with autosave.
 * **UK-14 allergens built in** — the 14 regulated allergens pre-loaded with icons, tooltips and a printable matrix (Natasha's Law friendly), plus your own dietary labels.
 * **QR table cards** and A4 posters that open your live menu on a phone, and **Menu / MenuItem / LocalBusiness schema.org** output for SEO.
+* **Opening hours** with holiday overrides and a live "open now" status.
 
 **Online ordering**
 
