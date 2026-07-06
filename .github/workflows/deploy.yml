@@ -1,0 +1,42 @@
+name: Deploy to WordPress.org
+
+# Push a version tag (e.g. `1.1.0`, created by `node bump.js 1.1.0`) to release.
+# The tag name must equal the readme.txt "Stable tag" — bump.js keeps them in sync.
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build the plugin bundle
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to wordpress.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: true
+        env:
+          SLUG: dinekit
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # ASSETS_DIR defaults to .wordpress-org (icon/banner/screenshots live there).
+          # Trunk contents = repo minus .distignore, matching `npm run zip`.
+
+      - name: Upload built zip to the GitHub Release
+        if: ${{ github.event.repository.private == false }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/dinekit.zip
