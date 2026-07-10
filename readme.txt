@@ -2,9 +2,9 @@
 Contributors: weblevelup
 Tags: restaurant menu, qr menu, food menu, allergen, restaurant
 Requires at least: 6.0
-Tested up to: 7.0.1
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,14 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 8. Set-menu events with per-guest pre-orders via a share link, and a consolidated kitchen prep sheet.
 
 == Changelog ==
+
+= 1.2.0 =
+* Smoother onboarding: the setup wizard now walks you through your opening hours, and you can skip ahead and pick up the rest from your dashboard whenever you like.
+* Menu, ordering and booking pages are created as drafts for you to review and publish — with a clear "review & publish" prompt, and a checklist that only ticks a page off once it's actually live.
+* Dishes are never lost: removing a dish now archives it (kept for your past orders and reports) and you can restore it any time — with a heads-up if it's on an order the kitchen is cooking right now.
+* Online ordering follows your opening hours: orders are only taken while you're open, with an optional "last orders" cut-off before closing time.
+* Table bookings read your opening hours directly, so your service times live in one place.
+* Polish: tidier fields inside pop-out panels, your cursor stays put while typing, and assorted small performance improvements.
 
 = 1.1.0 =
 * Commission-free online ordering — takeaway, collection and delivery, with a diner-facing menu, dish customizations, and printable kitchen/bar tickets.
