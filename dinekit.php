@@ -3,7 +3,7 @@
  * Plugin Name:       DineKit
  * Plugin URI:        https://weblevelup.co.uk/dinekit
  * Description:       Beautiful restaurant menus with UK allergen support (Natasha's Law), QR table cards and opening hours. No dependencies, works with any theme.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Web Level Up
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DINEKIT_VERSION', '1.2.0' );
+define( 'DINEKIT_VERSION', '1.2.1' );
 define( 'DINEKIT_FILE', __FILE__ );
 define( 'DINEKIT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DINEKIT_URL', plugin_dir_url( __FILE__ ) );
