@@ -45,12 +45,18 @@ for ( const { file, subs } of edits ) {
 	console.log( `✓ ${ file } → ${ version }` );
 }
 
+// Keep package-lock.json's version in sync, or the release workflow's `npm ci`
+// fails (it requires the lockfile to match package.json). Lock-file only — no
+// dependency changes.
+cp.execSync( 'npm install --package-lock-only --no-audit --no-fund', { stdio: 'inherit' } );
+console.log( `✓ package-lock.json → ${ version }` );
+
 if ( noGit ) {
 	console.log( '\n--no-git: files rewritten, no commit/tag.' );
 	process.exit( 0 );
 }
 
-cp.execSync( 'git add dinekit.php readme.txt package.json', { stdio: 'inherit' } );
+cp.execSync( 'git add dinekit.php readme.txt package.json package-lock.json', { stdio: 'inherit' } );
 cp.execSync( `git commit -m "chore(release): v${ version }"`, { stdio: 'inherit' } );
 cp.execSync( `git tag ${ version }`, { stdio: 'inherit' } );
 
