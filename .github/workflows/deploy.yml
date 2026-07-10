@@ -11,6 +11,9 @@ jobs:
   release:
     name: Release ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    # Needed for the optional "attach zip to GitHub Release" step to create a release.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +28,7 @@ jobs:
           npm run build
 
       - name: Deploy to wordpress.org SVN
+        id: deploy
         uses: 10up/action-wordpress-plugin-deploy@stable
         with:
           generate-zip: true
@@ -35,8 +39,11 @@ jobs:
           # ASSETS_DIR defaults to .wordpress-org (icon/banner/screenshots live there).
           # Trunk contents = repo minus .distignore, matching `npm run zip`.
 
+      # Convenience only: attach the built zip to the GitHub Release. The wp.org
+      # deploy above is the actual release, so never let a hiccup here fail the run.
       - name: Upload built zip to the GitHub Release
         if: ${{ github.event.repository.private == false }}
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ github.workspace }}/dinekit.zip
+          files: ${{ steps.deploy.outputs.zip-path }}
