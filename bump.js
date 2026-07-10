@@ -30,6 +30,15 @@ const edits = [
 	{ file: 'package.json', subs: [
 		[ /("version":\s*")\d+\.\d+\.\d+/, `$1${ version }` ],
 	] },
+	// package-lock.json has two root version fields (top-level + the "" package),
+	// both immediately after `"name": "dinekit"`. Bump ONLY those by regex — never
+	// regenerate the lockfile here: `npm install` on a single OS drops the other
+	// platforms' optional native binaries (e.g. @rollup/rollup-linux-x64-gnu),
+	// which then breaks the Linux CI build's `npm ci`. The committed lockfile is
+	// cross-platform complete; keep it that way.
+	{ file: 'package-lock.json', subs: [
+		[ /("name":\s*"dinekit",\s*"version":\s*")\d+\.\d+\.\d+/g, `$1${ version }` ],
+	] },
 ];
 
 for ( const { file, subs } of edits ) {
@@ -44,12 +53,6 @@ for ( const { file, subs } of edits ) {
 	fs.writeFileSync( file, s );
 	console.log( `✓ ${ file } → ${ version }` );
 }
-
-// Keep package-lock.json's version in sync, or the release workflow's `npm ci`
-// fails (it requires the lockfile to match package.json). Lock-file only — no
-// dependency changes.
-cp.execSync( 'npm install --package-lock-only --no-audit --no-fund', { stdio: 'inherit' } );
-console.log( `✓ package-lock.json → ${ version }` );
 
 if ( noGit ) {
 	console.log( '\n--no-git: files rewritten, no commit/tag.' );
