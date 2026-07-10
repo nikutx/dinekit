@@ -9,14 +9,23 @@ const Modal = React.forwardRef( function Modal(
 	{ open, onClose, children, closeOnBackdrop = true, sx, className, ...rest },
 	ref
 ) {
+	// See Drawer: call sites pass inline arrows, so keep onClose in a ref rather
+	// than re-running this effect on every parent render.
+	const onCloseRef = React.useRef( onClose );
+	onCloseRef.current = onClose;
+
 	useEffect( () => {
 		if ( ! open ) {
 			return;
 		}
-		const onKey = ( e ) => { if ( e.key === 'Escape' && onClose ) { onClose( e, 'escapeKeyDown' ); } };
+		const onKey = ( e ) => {
+			if ( e.key === 'Escape' && onCloseRef.current ) {
+				onCloseRef.current( e, 'escapeKeyDown' );
+			}
+		};
 		document.addEventListener( 'keydown', onKey );
 		return () => document.removeEventListener( 'keydown', onKey );
-	}, [ open, onClose ] );
+	}, [ open ] );
 
 	if ( ! open ) {
 		return null;

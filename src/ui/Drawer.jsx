@@ -12,17 +12,32 @@ const Drawer = React.forwardRef( function Drawer(
 ) {
 	const paperRef = React.useRef( null );
 
+	// Hold onClose in a ref: call sites pass inline arrows, so a new identity every
+	// render. Depending on it would re-run the effects below on every parent render
+	// — and the initial-focus effect would then yank the caret out of whatever the
+	// user is typing in (each keystroke saves, which re-renders the parent).
+	const onCloseRef = React.useRef( onClose );
+	onCloseRef.current = onClose;
+
 	useEffect( () => {
 		if ( ! open ) {
 			return;
 		}
-		const onKey = ( e ) => { if ( e.key === 'Escape' && onClose ) { onClose( e, 'escapeKeyDown' ); } };
+		const onKey = ( e ) => {
+			if ( e.key === 'Escape' && onCloseRef.current ) {
+				onCloseRef.current( e, 'escapeKeyDown' );
+			}
+		};
 		document.addEventListener( 'keydown', onKey );
-		if ( paperRef.current ) {
+		return () => document.removeEventListener( 'keydown', onKey );
+	}, [ open ] );
+
+	// Move initial focus onto the panel only when the drawer opens.
+	useEffect( () => {
+		if ( open && paperRef.current ) {
 			paperRef.current.focus();
 		}
-		return () => document.removeEventListener( 'keydown', onKey );
-	}, [ open, onClose ] );
+	}, [ open ] );
 
 	if ( ! open ) {
 		return null;

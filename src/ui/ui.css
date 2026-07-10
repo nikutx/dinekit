@@ -85,7 +85,25 @@
 	-webkit-appearance: none;
 	appearance: none;
 	background: transparent;
-	color: #4f46e5;
+	--dk-btn-fg: #4f46e5;
+	color: var(--dk-btn-fg);
+}
+/* A `href` Button renders as <a>, and wp-admin's element-level `a:hover`/`:focus`
+   /`:active` rules (0,1,1) outrank our variant classes (0,1,0) — repainting the
+   label blue and adding a focus glow. Re-assert the variant colour with an
+   anchor-qualified selector and kill the glow. */
+a.dk-btn:link,
+a.dk-btn:visited,
+a.dk-btn:hover,
+a.dk-btn:focus,
+a.dk-btn:active {
+	color: var(--dk-btn-fg);
+	box-shadow: none;
+}
+a.dk-btn--contained:hover,
+a.dk-btn--contained:focus,
+a.dk-btn--contained:active {
+	box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 1px 2px rgba(79,70,229,.30);
 }
 .dk-btn--sm {
 	min-height: 32px;
@@ -110,7 +128,7 @@
 }
 /* Contained — glassy indigo, matches theme.MuiButton.contained. */
 .dk-btn--contained {
-	color: #fff;
+	--dk-btn-fg: #fff;
 	background: linear-gradient(180deg, #5a52ea 0%, #4f46e5 100%);
 	box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2.5px rgba(79,70,229,.36);
 }
@@ -129,7 +147,7 @@
 .dk-btn--outlined {
 	border-color: #d9d9e0;
 	background: #fff;
-	color: #3f3f46;
+	--dk-btn-fg: #3f3f46;
 }
 .dk-btn--outlined:hover {
 	border-color: #a1a1aa;
@@ -137,7 +155,7 @@
 }
 .dk-btn--outlined.dk-btn--error {
 	border-color: #f5b5c1;
-	color: #e11d48;
+	--dk-btn-fg: #e11d48;
 }
 .dk-btn--outlined.dk-btn--error:hover {
 	border-color: #e11d48;
@@ -148,13 +166,13 @@
 	background: #eef2ff;
 }
 .dk-btn--text.dk-btn--error {
-	color: #e11d48;
+	--dk-btn-fg: #e11d48;
 }
 .dk-btn--text.dk-btn--error:hover {
 	background: #fff1f2;
 }
 .dk-btn--inherit {
-	color: inherit;
+	--dk-btn-fg: inherit;
 }
 .dk-btn:disabled,
 .dk-btn--disabled {
@@ -489,11 +507,12 @@
 /* Neutralise wp-admin's global form-control styling INSIDE our SPA. wp-admin's
    `input[type=text]` etc. rules are more specific than our classes and would
    otherwise draw a second border + inset shadow inside our field wrapper (the
-   "input within input" look). The #dinekit-root id gives us the higher
-   specificity to win cleanly. Scoped to our own control classes so native
+   "input within input" look). Anchored to `body`, NOT #dinekit-root: Drawer and
+   Modal portal their children into document.body, so a #dinekit-root scope never
+   matched inside them. Scoped to our own control classes so native
    checkbox/switch/slider inputs keep their appearance. */
-#dinekit-root .dk-field__input,
-#dinekit-root .dk-inputbase {
+body .dk-field__input,
+body .dk-inputbase {
 	border: none;
 	border-radius: 0;
 	background: transparent;
@@ -502,8 +521,8 @@
 	min-height: 0;
 	color: inherit;
 }
-#dinekit-root .dk-field__input:focus,
-#dinekit-root .dk-inputbase:focus {
+body .dk-field__input:focus,
+body .dk-inputbase:focus {
 	border: none;
 	box-shadow: none;
 	outline: none;
