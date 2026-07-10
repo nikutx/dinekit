@@ -92,6 +92,10 @@ register_activation_hook(
 			\DineKit\PostTypes\register();
 			\DineKit\PostTypes\seed_allergens();
 			\DineKit\PostTypes\seed_dietary();
+			// Opening Hours drive booking availability and the ordering cutoff, so
+			// every install starts with a real, visible week rather than a hidden one.
+			require_once DINEKIT_DIR . 'includes/hours.php';
+			\DineKit\Hours\seed();
 			require_once DINEKIT_DIR . 'includes/access.php';
 			\DineKit\Access\ensure_roles();
 			flush_rewrite_rules();

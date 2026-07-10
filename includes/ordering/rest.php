@@ -624,8 +624,12 @@ function save_settings( $request ) {
  */
 function place_order( $request ) {
 	$settings = Ordering\get_settings();
-	if ( empty( $settings['enabled'] ) ) {
-		return new \WP_Error( 'dinekit_order_off', __( 'Online ordering is currently closed.', 'dinekit' ), array( 'status' => 403 ) );
+
+	// Trading window (ordering enabled + Opening Hours + last-orders cutoff).
+	// Enforced server-side: the public JS also hides checkout, but that's cosmetic.
+	$gate = Ordering\accepting_orders();
+	if ( empty( $gate['accepting'] ) ) {
+		return new \WP_Error( 'dinekit_order_off', $gate['message'], array( 'status' => 403 ) );
 	}
 
 	// Honeypot.

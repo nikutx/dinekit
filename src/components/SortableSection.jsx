@@ -26,12 +26,16 @@ export default function SortableSection( {
 	onDelete,
 	onEditItem,
 	onDuplicateItem,
+	onDeleteItem,
 	onDuplicateSection,
 	collapsed,
 	onToggleCollapse,
 } ) {
 	const [ name, setName ] = useState( section.name );
 	const { setNodeRef, isOver } = useDroppable( { id: containerId } );
+
+	// Ids whose item still exists in the store — see the note by SortableContext.
+	const liveItemIds = itemIds.filter( ( id ) => itemsById[ id ] );
 
 	return (
 		<Box
@@ -109,14 +113,19 @@ export default function SortableSection( {
 			</Stack>
 
 			<Box ref={ setNodeRef } sx={ { p: 1.25, minHeight: collapsed ? 0 : 56, display: collapsed ? 'none' : 'block' } }>
-				<SortableContext items={ itemIds } strategy={ verticalListSortingStrategy }>
+				{ /* The board is rebuilt in an effect, so for one render after a dish is
+				     removed its id is still listed here while itemsById has dropped it.
+				     Render only ids we can resolve, or SortableItem reads item.id of
+				     undefined and takes the whole builder down. */ }
+				<SortableContext items={ liveItemIds } strategy={ verticalListSortingStrategy }>
 					<Stack spacing={ 1 }>
-						{ itemIds.map( ( id ) => (
+						{ liveItemIds.map( ( id ) => (
 							<SortableItem
 								key={ id }
 								item={ itemsById[ id ] }
 								onEdit={ () => onEditItem( id ) }
 								onDuplicate={ onDuplicateItem ? () => onDuplicateItem( id ) : undefined }
+								onDelete={ onDeleteItem ? () => onDeleteItem( id ) : undefined }
 							/>
 						) ) }
 					</Stack>

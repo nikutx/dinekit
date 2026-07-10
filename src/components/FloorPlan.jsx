@@ -38,7 +38,10 @@ import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
 
 // Canvas geometry.
-const CANVAS_H = 560;
+const CANVAS_H = 720;
+// Auto-placement grid — must match the wizard's seeding in includes/rest.php.
+const GRID_COLS = 8;
+const GRID_GAP = 90;
 const SNAP = 10;
 const snap = ( v ) => Math.round( v / SNAP ) * SNAP;
 
@@ -135,9 +138,23 @@ export default function FloorPlan() {
 
 	/* ---- tables ---- */
 	const addTable = async () => {
-		const n = tables.length + 1;
-		const x = 40 + ( ( n - 1 ) % 6 ) * 80;
-		const y = 40 + Math.floor( ( ( n - 1 ) % 18 ) / 6 ) * 90;
+		// Number from the highest existing T-number, not the array length: deleting
+		// T3 of 5 and adding would otherwise mint a second T5 on top of the first.
+		const highest = tables.reduce( ( max, t ) => {
+			const m = /^T(\d+)$/.exec( t.name || '' );
+			return m ? Math.max( max, parseInt( m[ 1 ], 10 ) ) : max;
+		}, 0 );
+		const n = highest + 1;
+		// Place into the first free slot in this zone, so zones don't share a grid.
+		const taken = new Set( tables.filter( ( t ) => t.areaId === ( zone || 0 ) ).map( ( t ) => `${ t.x },${ t.y }` ) );
+		let slot = 0;
+		let x = 40;
+		let y = 40;
+		do {
+			x = 40 + ( slot % GRID_COLS ) * GRID_GAP;
+			y = 40 + Math.floor( slot / GRID_COLS ) * GRID_GAP;
+			++slot;
+		} while ( taken.has( `${ x },${ y }` ) && y < CANVAS_H - GRID_GAP );
 		const table = await api.createTable( {
 			name: 'T' + n,
 			seats: 2,

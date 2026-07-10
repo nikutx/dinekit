@@ -93,6 +93,26 @@ function register() {
 		)
 	);
 
+	// Archived (not deleted). Dishes are never hard-deleted: past orders reference
+	// them and reports read their titles. Archiving hides a dish from the builder,
+	// the public menu and ordering, and is fully reversible. Mirrors the
+	// `dinekit_order_archived` flag used for orders.
+	register_post_meta(
+		'dinekit_menu_item',
+		'dinekit_item_archived',
+		array(
+			'type'              => 'integer',
+			'description'       => __( 'Archived dishes are hidden everywhere but never deleted.', 'dinekit' ),
+			'single'            => true,
+			'default'           => 0,
+			'show_in_rest'      => false,
+			'sanitize_callback' => static function ( $v ) {
+				return $v ? 1 : 0;
+			},
+			'auth_callback'     => __NAMESPACE__ . '\\can_edit_item',
+		)
+	);
+
 	// Dish customizations: groups of options a diner can pick or remove.
 	register_post_meta(
 		'dinekit_menu_item',

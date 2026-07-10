@@ -34,10 +34,15 @@ const labelSx = {
 	display: 'block',
 };
 
-export default function ItemEditor( { item, store, onClose } ) {
+export default function ItemEditor( { item, store, onArchive, onClose } ) {
 	const { data } = store;
 	const [ form, setForm ] = useState( item );
 	const debounceRef = useRef( null );
+	// Changes awaiting the debounced save, tagged with the item they belong to so
+	// switching items mid-edit can't post one dish's text onto another.
+	const pendingRef = useRef( { id: null, changes: {} } );
+	const storeRef = useRef( store );
+	storeRef.current = store;
 	const toast = useToast();
 
 	// Keep in sync if the underlying item changes identity.
@@ -45,18 +50,40 @@ export default function ItemEditor( { item, store, onClose } ) {
 
 	const save = ( changes ) => store.updateItem( item.id, changes );
 
-	// Debounced save for free-text fields.
-	const setField = ( field, value ) => {
-		setForm( ( f ) => ( { ...f, [ field ]: value } ) );
+	// Write any queued edits through immediately (item switch, drawer close).
+	const flush = () => {
 		clearTimeout( debounceRef.current );
-		debounceRef.current = setTimeout( () => save( { [ field ]: value } ), 600 );
+		const { id, changes } = pendingRef.current;
+		pendingRef.current = { id: null, changes: {} };
+		if ( id && Object.keys( changes ).length ) {
+			storeRef.current.updateItem( id, changes );
+		}
 	};
 
-	// Immediate save for structured fields (toggles, chips, prices).
+	// Debounced save for free-text fields. One shared timer, but changes accumulate
+	// so moving between fields inside the debounce window can't drop the earlier
+	// field's edit.
+	const setField = ( field, value ) => {
+		setForm( ( f ) => ( { ...f, [ field ]: value } ) );
+		if ( pendingRef.current.id !== item.id ) {
+			flush();
+		}
+		pendingRef.current = {
+			id: item.id,
+			changes: { ...pendingRef.current.changes, [ field ]: value },
+		};
+		clearTimeout( debounceRef.current );
+		debounceRef.current = setTimeout( flush, 600 );
+	};
+
+	// Immediate save for structured fields (toggles, chips).
 	const setNow = ( field, value ) => {
 		setForm( ( f ) => ( { ...f, [ field ]: value } ) );
 		save( { [ field ]: value } );
 	};
+
+	// Don't lose a half-typed field when the drawer closes or the item switches.
+	useEffect( () => flush, [ item.id ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// The image is an object locally (for preview) but the REST API expects the
 	// attachment ID (or 0 to remove).
@@ -178,7 +205,7 @@ export default function ItemEditor( { item, store, onClose } ) {
 					</Stack>
 				</Box>
 
-				<PriceRepeater prices={ form.prices || [] } onChange={ ( prices ) => setNow( 'prices', prices ) } />
+				<PriceRepeater prices={ form.prices || [] } onChange={ ( prices ) => setField( 'prices', prices ) } />
 
 				<ModifierEditor modifiers={ form.modifiers || [] } onChange={ ( m ) => setNow( 'modifiers', m ) } />
 
@@ -279,17 +306,14 @@ export default function ItemEditor( { item, store, onClose } ) {
 						}
 						label={ form.status === 'publish' ? 'Published' : 'Draft' }
 					/>
-					<Tooltip title="Delete item">
+					<Tooltip title="Archive this dish — hidden from the menu, kept for past orders">
 						<Button
 							color="error"
 							size="small"
 							startIcon={ <DeleteOutlineIcon /> }
-							onClick={ () => {
-								store.deleteItem( item.id );
-								onClose();
-							} }
+							onClick={ onArchive }
 						>
-							Delete
+							Archive
 						</Button>
 					</Tooltip>
 				</Stack>

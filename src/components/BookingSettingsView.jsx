@@ -130,7 +130,7 @@ export default function BookingSettingsView( { onBack } ) {
 
 				{ /* ---- Rules ---- */ }
 				<Card sx={ { p: 2.5 } }>
-					{ section( 'Booking rules', 'Party sizes, lead times and how long a table is held.' ) }
+					{ section( 'Booking rules', 'Party sizes, lead times and how long a table is held. Service times come from Opening Hours.' ) }
 					<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
 						{ num( 'Min party', 'min_party', 1, 50 ) }
 						{ num( 'Max party', 'max_party', 1, 100 ) }
@@ -138,8 +138,6 @@ export default function BookingSettingsView( { onBack } ) {
 						{ num( 'Book up to (days)', 'max_days_ahead', 1, 730 ) }
 					</Stack>
 					<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mt: 1.5 } }>
-						<TextField label="First booking" type="time" size="small" value={ cfg.open_time } onChange={ ( e ) => patch( { open_time: e.target.value } ) } sx={ { width: 130 } } />
-						<TextField label="Last booking" type="time" size="small" value={ cfg.close_time } onChange={ ( e ) => patch( { close_time: e.target.value } ) } sx={ { width: 130 } } />
 						{ num( 'Slot gap (min)', 'slot_interval', 5, 240 ) }
 						{ num( 'Turn time (min)', 'turn_time', 15, 480, 'How long a table is held' ) }
 						{ num( 'Buffer (min)', 'buffer', 0, 120, 'Gap between sittings' ) }

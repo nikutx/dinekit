@@ -3,11 +3,12 @@ import { Box, Stack, Typography, Chip, Avatar, IconButton, Tooltip } from '../ui
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { tokens, hashTint } from '../theme';
 
 // Presentational item row (also used as the drag overlay). Interaction wiring
 // lives in SortableItem.
-export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, overlay } ) {
+export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, onDelete, overlay } ) {
 	const priceText = item.prices && item.prices.length
 		? item.prices
 				.map( ( p ) => ( p.label ? `${ p.label } ${ p.amount }` : p.amount ) )
@@ -138,6 +139,27 @@ export default function ItemRow( { item, dragHandleProps, onEdit, onDuplicate, o
 						sx={ { color: tokens.muted2, opacity: { xs: 1, sm: 0 }, transition: 'opacity 0.15s' } }
 					>
 						<ContentCopyIcon sx={ { fontSize: 16 } } />
+					</IconButton>
+				</Tooltip>
+			) }
+
+			{ ! overlay && onDelete && (
+				<Tooltip title="Archive this dish">
+					<IconButton
+						size="small"
+						className="dinekit-dup"
+						onClick={ ( e ) => {
+							e.stopPropagation();
+							onDelete();
+						} }
+						sx={ {
+							color: tokens.muted2,
+							opacity: { xs: 1, sm: 0 },
+							transition: 'opacity 0.15s, color 0.15s',
+							'&:hover': { color: tokens.red },
+						} }
+					>
+						<DeleteOutlineIcon sx={ { fontSize: 16 } } />
 					</IconButton>
 				</Tooltip>
 			) }

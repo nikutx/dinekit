@@ -52,6 +52,31 @@ export default function LiveMenuBanner( { menuPage } ) {
 		);
 	}
 
+	// A page created from the dashboard's setup guide starts as a draft — say so,
+	// and send them to the editor to publish rather than to a 404 for guests.
+	const isDraft = 'draft' === page.status;
+	if ( isDraft ) {
+		return (
+			<Card feature sx={ { ...wrapSx, borderStyle: 'dashed', borderColor: tokens.amber } }>
+				<Stack direction="row" spacing={ 1.5 } alignItems="center" justifyContent="space-between" flexWrap="wrap">
+					<Typography sx={ { fontSize: 14, color: tokens.ink2 } }>
+						Your menu page is a <strong>draft</strong> — guests can’t see it yet.
+					</Typography>
+					<Stack direction="row" spacing={ 1 }>
+						<Button size="small" startIcon={ <ContentCopyIcon sx={ { fontSize: 16 } } /> } onClick={ copyShortcode } sx={ { color: tokens.muted } }>
+							Copy shortcode
+						</Button>
+						{ page.edit && (
+							<Button variant="contained" size="small" endIcon={ <LaunchIcon /> } href={ page.edit } target="_blank" rel="noreferrer">
+								Review &amp; publish
+							</Button>
+						) }
+					</Stack>
+				</Stack>
+			</Card>
+		);
+	}
+
 	return (
 		<>
 			<Card feature sx={ wrapSx }>

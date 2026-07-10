@@ -50,6 +50,42 @@ function defaults() {
 }
 
 /**
+ * A sensible starting week — open 12:00–22:00 every day. Seeded on first install
+ * and pre-filled in the setup wizard so the owner adjusts real, visible hours
+ * rather than inheriting an invisible default.
+ *
+ * @return array<string,array<int,array{open:string,close:string}>>
+ */
+function default_week() {
+	$week = array();
+	foreach ( array_keys( days() ) as $key ) {
+		$week[ $key ] = array(
+			array(
+				'open'  => '12:00',
+				'close' => '22:00',
+			),
+		);
+	}
+	return $week;
+}
+
+/**
+ * Seed the default week on first install. No-op if hours already exist, so an
+ * upgrade never overwrites a venue's real hours.
+ *
+ * @return bool True if hours were seeded.
+ */
+function seed() {
+	if ( false !== get_option( OPTION ) ) {
+		return false;
+	}
+	$hours         = defaults();
+	$hours['week'] = default_week();
+	update_option( OPTION, $hours );
+	return true;
+}
+
+/**
  * Get the stored hours (merged over defaults).
  *
  * @return array<string,mixed>
@@ -178,8 +214,9 @@ function status() {
 		$periods = isset( $data['week'][ $day_key ] ) ? $data['week'][ $day_key ] : array();
 	}
 
-	$open  = false;
-	$until = '';
+	$open     = false;
+	$until    = '';
+	$until_ts = 0;
 	foreach ( $periods as $p ) {
 		$start = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i', $today_str . ' ' . $p['open'], $tz );
 		$end   = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i', $today_str . ' ' . $p['close'], $tz );
@@ -190,8 +227,11 @@ function status() {
 			$end = $end->modify( '+1 day' ); // Over-midnight period.
 		}
 		if ( $now >= $start && $now < $end ) {
-			$open  = true;
-			$until = $end->format( 'H:i' );
+			$open = true;
+			// `until` is display-only and loses the day for over-midnight periods;
+			// `until_ts` is what callers should do arithmetic on (order cutoffs).
+			$until    = $end->format( 'H:i' );
+			$until_ts = $end->getTimestamp();
 			break;
 		}
 	}
@@ -200,6 +240,7 @@ function status() {
 		'open'          => $open,
 		'label'         => $open ? __( 'Open now', 'dinekit' ) : __( 'Closed now', 'dinekit' ),
 		'until'         => $until,
+		'until_ts'      => $until_ts,
 		'today_periods' => $periods,
 	);
 }

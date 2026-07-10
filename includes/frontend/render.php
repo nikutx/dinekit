@@ -56,6 +56,7 @@ function build_structure( $args ) {
 		);
 	}
 
+	require_once DINEKIT_DIR . 'includes/items.php';
 	$query = new \WP_Query(
 		array(
 			'post_type'      => 'dinekit_menu_item',
@@ -66,6 +67,7 @@ function build_structure( $args ) {
 				'title'      => 'ASC',
 			),
 			'tax_query'      => $tax_query, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			'meta_query'     => \DineKit\Items\exclude_archived_meta_query(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			'no_found_rows'  => true,
 		)
 	);

@@ -72,30 +72,11 @@ function to_minutes( $time ) {
  */
 function service_periods( $date ) {
 	require_once DINEKIT_DIR . 'includes/hours.php';
-	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
 	$hours = \DineKit\Hours\get();
 
-	// Has the owner set any Opening Hours at all?
-	$configured = ! empty( $hours['holidays'] );
-	if ( ! $configured && ! empty( $hours['week'] ) ) {
-		foreach ( $hours['week'] as $periods ) {
-			if ( ! empty( $periods ) ) {
-				$configured = true;
-				break;
-			}
-		}
-	}
-
-	if ( ! $configured ) {
-		$s = \DineKit\Bookings\Settings\get();
-		return array(
-			array(
-				'open'  => (string) $s['open_time'],
-				'close' => (string) $s['close_time'],
-			),
-		);
-	}
-
+	// Opening Hours are authoritative. There is deliberately no fallback to a
+	// hidden default week: a day with no periods means CLOSED, and the widget
+	// says so. (Hours are seeded on install, so this is never accidentally empty.)
 	// Per-date holiday override wins over the weekly pattern.
 	if ( ! empty( $hours['holidays'] ) ) {
 		foreach ( $hours['holidays'] as $holiday ) {

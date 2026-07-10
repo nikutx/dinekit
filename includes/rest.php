@@ -136,6 +136,28 @@ function register_routes() {
 		)
 	);
 
+	// Restoring an archived dish puts it back on the public menu, so it needs the
+	// same capability as deleting/archiving it — not merely editing.
+	register_rest_route(
+		'dinekit/v1',
+		'/items/(?P<id>\d+)/restore',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\restore_item',
+			'permission_callback' => __NAMESPACE__ . '\\can_delete_item',
+		)
+	);
+
+	register_rest_route(
+		'dinekit/v1',
+		'/items/(?P<id>\d+)/usage',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\item_usage',
+			'permission_callback' => __NAMESPACE__ . '\\can_edit_item',
+		)
+	);
+
 	register_rest_route(
 		'dinekit/v1',
 		'/sections/(?P<id>\d+)/duplicate',
@@ -602,7 +624,9 @@ function create_setup_page( $request ) {
 	if ( ! in_array( $type, array( 'menu', 'order', 'booking' ), true ) ) {
 		$type = 'menu';
 	}
-	return rest_ensure_response( \DineKit\Sample\ensure_page( $type ) );
+	// Created as a draft: the owner reviews it and publishes deliberately, rather
+	// than a bare page appearing live on their site the moment they click a step.
+	return rest_ensure_response( \DineKit\Sample\ensure_page( $type, 'draft' ) );
 }
 
 /**
@@ -642,6 +666,16 @@ function run_wizard( $request ) {
 	$settings['businessType'] = $type;
 	\DineKit\Settings\save( $settings );
 
+	// Opening Hours reviewed in the wizard. These drive booking availability and
+	// the ordering cutoff, so they're captured up front rather than left implicit.
+	$hours_in = $request->get_param( 'hours' );
+	if ( is_array( $hours_in ) ) {
+		require_once DINEKIT_DIR . 'includes/hours.php';
+		$hours         = \DineKit\Hours\get();
+		$hours['week'] = $hours_in;
+		\DineKit\Hours\save( $hours );
+	}
+
 	$result         = \DineKit\Sample\run_setup( $name, $seed );
 	$result['type'] = $type;
 
@@ -664,8 +698,10 @@ function run_wizard( $request ) {
 			update_post_meta( $table_id, 'dinekit_seats', 2 );
 			update_post_meta( $table_id, 'dinekit_min_party', 1 );
 			update_post_meta( $table_id, 'dinekit_max_party', 2 );
-			update_post_meta( $table_id, 'dinekit_pos_x', 40 + ( ( $i - 1 ) % 6 ) * 80 );
-			update_post_meta( $table_id, 'dinekit_pos_y', 40 + intdiv( ( $i - 1 ) % 18, 6 ) * 90 );
+			// Lay out on an 8-wide grid, letting rows grow. (The old `% 18` wrapped
+			// the row index back to zero, stacking table 19 exactly on table 1.)
+			update_post_meta( $table_id, 'dinekit_pos_x', 40 + ( ( $i - 1 ) % 8 ) * 90 );
+			update_post_meta( $table_id, 'dinekit_pos_y', 40 + intdiv( $i - 1, 8 ) * 90 );
 			update_post_meta( $table_id, 'dinekit_shape', 'round' );
 			if ( $area_id ) {
 				wp_set_object_terms( $table_id, array( $area_id ), 'dinekit_area' );
@@ -993,6 +1029,7 @@ function get_state() {
 		}
 	}
 
+	require_once DINEKIT_DIR . 'includes/items.php';
 	$query = new \WP_Query(
 		array(
 			'post_type'      => 'dinekit_menu_item',
@@ -1003,8 +1040,36 @@ function get_state() {
 				'title'      => 'ASC',
 			),
 			'no_found_rows'  => true,
+			'meta_query'     => \DineKit\Items\exclude_archived_meta_query(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 		)
 	);
+
+	// Archived dishes travel separately so the builder can offer a restore list
+	// without them polluting sections, search or duplicate-name detection.
+	$archived_query = new \WP_Query(
+		array(
+			'post_type'      => 'dinekit_menu_item',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'future', 'private' ),
+			'posts_per_page' => 200,
+			'orderby'        => array( 'title' => 'ASC' ),
+			'no_found_rows'  => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'meta_query'     => array(
+				array(
+					'key'     => \DineKit\Items\META,
+					'value'   => '1',
+					'compare' => '=',
+				),
+			),
+		)
+	);
+	$archived_items = array();
+	foreach ( $archived_query->posts as $post ) {
+		$row = item_response( $post );
+		if ( null !== $row ) {
+			$archived_items[] = $row;
+		}
+	}
 
 	$items = array();
 	foreach ( $query->posts as $post ) {
@@ -1025,6 +1090,7 @@ function get_state() {
 			'dietary'      => $dietary,
 			'allergens'    => $allergens,
 			'items'        => $items,
+			'archived'     => $archived_items,
 			'menuPage'     => $menu_page,
 			'siteName'     => get_bloginfo( 'name' ),
 			'businessType' => \DineKit\Settings\get()['businessType'],
@@ -1333,12 +1399,50 @@ function duplicate_section( $request ) {
  * @return \WP_REST_Response|\WP_Error
  */
 function delete_item( $request ) {
+	require_once DINEKIT_DIR . 'includes/items.php';
 	$post_id = (int) $request['id'];
-	$result  = wp_trash_post( $post_id );
-	if ( ! $result ) {
-		return new \WP_Error( 'dinekit_delete_failed', __( 'Could not delete the item.', 'dinekit' ), array( 'status' => 500 ) );
+
+	// Archive, never delete. Past orders reference this dish and the owner may
+	// want it back. wp_trash_post() looked safe but WP's wp_scheduled_delete cron
+	// permanently destroys trashed posts after EMPTY_TRASH_DAYS (30 by default).
+	if ( ! \DineKit\Items\set_archived( $post_id, true ) ) {
+		return new \WP_Error( 'dinekit_delete_failed', __( 'Could not archive the item.', 'dinekit' ), array( 'status' => 500 ) );
 	}
-	return rest_ensure_response( array( 'deleted' => true ) );
+	return rest_ensure_response(
+		array(
+			'deleted'  => true,
+			'archived' => true,
+			'id'       => $post_id,
+		)
+	);
+}
+
+/**
+ * POST /items/:id/restore — bring an archived dish back onto the menu.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function restore_item( $request ) {
+	require_once DINEKIT_DIR . 'includes/items.php';
+	$post_id = (int) $request['id'];
+	if ( ! \DineKit\Items\set_archived( $post_id, false ) ) {
+		return new \WP_Error( 'dinekit_restore_failed', __( 'Could not restore the item.', 'dinekit' ), array( 'status' => 500 ) );
+	}
+	return rest_ensure_response( item_response( $post_id ) );
+}
+
+/**
+ * GET /items/:id/usage — how many orders reference this dish, and how many of
+ * those are still live. Shown in the archive confirmation so the owner isn't
+ * archiving a dish that's on the pass right now.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function item_usage( $request ) {
+	require_once DINEKIT_DIR . 'includes/items.php';
+	return rest_ensure_response( \DineKit\Items\usage( (int) $request['id'] ) );
 }
 
 /**

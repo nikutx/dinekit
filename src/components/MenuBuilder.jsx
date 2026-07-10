@@ -18,6 +18,49 @@ import ItemRow from './ItemRow';
 import ItemEditor from './ItemEditor';
 import LiveMenuBanner from './LiveMenuBanner';
 import MenuTabs from './MenuTabs';
+import ArchivedDishes from './ArchivedDishes';
+import ConfirmDialog from './ui/ConfirmDialog';
+import { api } from '../api/client';
+
+// Consequences the owner can't see from the menu screen: is this dish sitting on
+// an order the kitchen is cooking right now, and how much history references it?
+function ArchiveUsage( { usage } ) {
+	if ( ! usage ) {
+		return (
+			<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>Checking orders…</Typography>
+		);
+	}
+	if ( ! usage.total ) {
+		return (
+			<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>
+				No orders have ever included this dish.
+			</Typography>
+		);
+	}
+	const live = usage.live > 0;
+	return (
+		<Box
+			sx={ {
+				p: 1.5,
+				borderRadius: '10px',
+				border: `1px solid ${ live ? tokens.amber : tokens.border }`,
+				bgcolor: live ? tokens.amberSoft : tokens.soft,
+			} }
+		>
+			{ live && (
+				<Typography sx={ { fontSize: 13, fontWeight: 600, color: tokens.amber, mb: 0.25 } }>
+					On { usage.live } live order{ usage.live === 1 ? '' : 's' }
+					{ usage.liveNumbers?.length ? ` (#${ usage.liveNumbers.join( ', #' ) })` : '' }
+				</Typography>
+			) }
+			<Typography sx={ { fontSize: 12.5, color: live ? tokens.ink2 : tokens.muted } }>
+				{ live
+					? 'Those orders are unaffected — they keep their own copy of the dish. It just won’t be orderable again.'
+					: `Used in ${ usage.capped ? `${ usage.total }+` : usage.total } past order${ usage.total === 1 ? '' : 's' }, which keep their own copy.` }
+			</Typography>
+		</Box>
+	);
+}
 
 const NONE = 'none';
 const cid = ( key ) => `container:${ key }`;
@@ -59,6 +102,32 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const [ query, setQuery ] = useState( '' );
 	const [ collapsed, setCollapsed ] = useState( {} );
 	const toggleCollapse = ( key ) => setCollapsed( ( c ) => ( { ...c, [ key ]: ! c[ key ] } ) );
+
+	// Archive confirmation. `usage` is fetched while the dialog is open so the
+	// owner can see whether the dish is on an order that's being cooked right now.
+	const [ archiving, setArchiving ] = useState( null ); // { id, title }
+	const [ usage, setUsage ] = useState( null );
+	const [ archiveBusy, setArchiveBusy ] = useState( false );
+
+	const askArchive = ( id ) => {
+		const item = ( data.items || [] ).find( ( it ) => it.id === id );
+		setUsage( null );
+		setArchiving( { id, title: item?.title || '' } );
+		api.itemUsage( id ).then( setUsage ).catch( () => setUsage( { live: 0, total: 0, liveNumbers: [] } ) );
+	};
+
+	const doArchive = async () => {
+		setArchiveBusy( true );
+		try {
+			await store.deleteItem( archiving.id );
+			if ( editingId === archiving.id ) {
+				setEditingId( null );
+			}
+			setArchiving( null );
+		} finally {
+			setArchiveBusy( false );
+		}
+	};
 
 	// The open dish is driven by the route (#/builder/item/:id) so it's
 	// deep-linkable and survives a refresh.
@@ -335,6 +404,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 										setEditingId( copy.id );
 									}
 								} }
+								onDeleteItem={ askArchive }
 								onDuplicateSection={ () => store.duplicateSection( Number( key ) ) }
 								collapsed={ !! collapsed[ key ] }
 								onToggleCollapse={ () => toggleCollapse( key ) }
@@ -350,6 +420,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 							muted
 							onAddItem={ () => addItem( NONE ) }
 							onEditItem={ setEditingId }
+							onDeleteItem={ askArchive }
 						/>
 					) }
 				</Stack>
@@ -387,6 +458,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					Add your first section to start building the menu.
 				</Typography>
 			) }
+
+			<ArchivedDishes archived={ data.archived } onRestore={ store.restoreItem } />
 			</>
 			) }
 
@@ -394,9 +467,21 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				<ItemEditor
 					item={ itemsById[ editingId ] }
 					store={ store }
+					onArchive={ () => askArchive( editingId ) }
 					onClose={ () => setEditingId( null ) }
 				/>
 			) }
+
+			<ConfirmDialog
+				open={ !! archiving }
+				title={ `Archive ${ archiving?.title ? `“${ archiving.title }”` : 'this dish' }?` }
+				message="It'll be hidden from your menu, your public page and online ordering. Past orders keep it, and you can restore it any time."
+				confirmLabel="Archive dish"
+				busy={ archiveBusy }
+				onConfirm={ doArchive }
+				onCancel={ () => setArchiving( null ) }
+				details={ <ArchiveUsage usage={ usage } /> }
+			/>
 		</Box>
 	);
 }

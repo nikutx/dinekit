@@ -27,13 +27,13 @@ import { TilesSkeleton, ListSkeleton } from './ui/Skeletons';
 const CHECKLIST = [
 	{ key: 'menu', label: 'Build your menu', hint: 'Add your dishes, prices & allergens', view: 'builder' },
 	{ key: 'hours', label: 'Set your opening hours', hint: 'So guests know when you’re open', view: 'hours' },
-	{ key: 'page', label: 'Publish your menu page', hint: 'A live page guests can view', create: 'menu' },
+	{ key: 'page', label: 'Publish your menu page', hint: 'A live page guests can view', create: 'menu', needs: 'menu', blocked: 'Add a dish first' },
 	{ key: 'ordering', label: 'Turn on online ordering', hint: 'Accept collection & delivery orders', view: 'orders', types: [ 'takeaway', 'both' ] },
 	{ key: 'stripe', label: 'Connect Stripe for payments', hint: 'Take card payments securely', view: 'integrations', types: [ 'takeaway', 'both' ] },
-	{ key: 'orderpage', label: 'Publish your ordering page', hint: 'Where customers place orders', create: 'order', types: [ 'takeaway', 'both' ] },
+	{ key: 'orderpage', label: 'Publish your ordering page', hint: 'Where customers place orders', create: 'order', types: [ 'takeaway', 'both' ], needs: 'menu', blocked: 'Add a dish first' },
 	{ key: 'floor', label: 'Lay out your floor plan', hint: 'Add your tables & areas', view: 'floor', types: [ 'dinein', 'both' ] },
-	{ key: 'bookpage', label: 'Publish your booking page', hint: 'Let guests reserve online', create: 'booking', types: [ 'dinein', 'both' ] },
-	{ key: 'booking', label: 'Take your first booking', hint: 'You’re ready for guests', view: 'bookings', types: [ 'dinein', 'both' ] },
+	{ key: 'bookpage', label: 'Publish your booking page', hint: 'Let guests reserve online', create: 'booking', types: [ 'dinein', 'both' ], needs: 'floor', blocked: 'Add a table first' },
+	{ key: 'booking', label: 'Take your first booking', hint: 'You’re ready for guests', view: 'bookings', types: [ 'dinein', 'both' ], needs: 'bookpage', blocked: 'Publish your booking page first' },
 ];
 
 export default function DashboardView( { navigate } ) {
@@ -54,8 +54,12 @@ export default function DashboardView( { navigate } ) {
 			setBusy( c.key );
 			try {
 				const res = await api.createSetupPage( c.create );
-				if ( res && res.url ) {
-					window.open( res.url, '_blank', 'noopener' );
+				// The page is created as a draft. Open the WP editor so the owner
+				// reviews it and hits Publish — don't silently put a page live, and
+				// don't send them to a live URL that may have nothing on it yet.
+				const target = res && ( 'draft' === res.status ? res.edit : res.url );
+				if ( target ) {
+					window.open( target, '_blank', 'noopener' );
 				}
 				setD( await api.getDashboard() );
 			} finally {
@@ -291,21 +295,26 @@ function GettingStarted( { d, checklist, doneCount, setupComplete, busy, onStep 
 				{ checklist.map( ( c ) => {
 					const done = d.checklist[ c.key ];
 					const loading = busy === c.key;
+					// A step whose prerequisite isn't met is shown, but inert — clicking
+					// "Publish your menu page" with no dishes just makes an empty page.
+					const blocked = ! done && c.needs && ! d.checklist[ c.needs ];
+					const inert = done || blocked;
 					return (
 						<Stack
 							key={ c.key }
 							direction="row"
 							alignItems="center"
 							spacing={ 1 }
-							onClick={ () => ! done && ! loading && onStep( c ) }
+							onClick={ () => ! inert && ! loading && onStep( c ) }
 							sx={ {
 								py: 0.75,
 								px: 0.5,
 								mx: -0.5,
 								borderRadius: 1.5,
-								cursor: done ? 'default' : 'pointer',
+								cursor: inert ? 'default' : 'pointer',
 								color: done ? tokens.muted2 : tokens.ink,
-								'&:hover': done ? {} : { bgcolor: tokens.soft },
+								opacity: blocked ? 0.55 : 1,
+								'&:hover': inert ? {} : { bgcolor: tokens.soft },
 							} }
 						>
 							{ done
@@ -313,11 +322,13 @@ function GettingStarted( { d, checklist, doneCount, setupComplete, busy, onStep 
 								: <RadioButtonUncheckedIcon sx={ { fontSize: 18, color: tokens.border2 } } /> }
 							<Box sx={ { flex: 1, minWidth: 0 } }>
 								<Typography sx={ { fontSize: 14, fontWeight: 550, textDecoration: done ? 'line-through' : 'none' } }>{ c.label }</Typography>
-								{ ! done && c.hint && (
-									<Typography sx={ { fontSize: 12, color: tokens.muted2 } }>{ c.hint }</Typography>
+								{ ! done && ( blocked || c.hint ) && (
+									<Typography sx={ { fontSize: 12, color: blocked ? tokens.amber : tokens.muted2 } }>
+										{ blocked ? c.blocked : c.hint }
+									</Typography>
 								) }
 							</Box>
-							{ ! done && ( loading
+							{ ! done && ! blocked && ( loading
 								? <CircularProgress size={ 14 } />
 								: c.create
 									? <OpenInNewIcon sx={ { fontSize: 15, color: tokens.muted2 } } />

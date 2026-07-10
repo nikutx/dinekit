@@ -73,7 +73,10 @@ function orderable_menu( $menu_id = 0 ) {
 			),
 		);
 	}
-	$query = new \WP_Query( $args );
+	require_once DINEKIT_DIR . 'includes/items.php';
+	// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+	$args['meta_query'] = \DineKit\Items\exclude_archived_meta_query();
+	$query              = new \WP_Query( $args );
 
 	$sections    = array();
 	$unsectioned = array();
@@ -261,6 +264,10 @@ function get_settings() {
 	$defaults = array(
 		'enabled'          => true,
 		'auto_accept'      => false, // false = receive & hold (accept/reject); true = auto-accept on arrival.
+		// Trading window. Opening Hours is the single source of truth: by default we
+		// take orders whenever the venue is open, right up to closing time.
+		'hours_gate'       => true,  // Refuse orders when Opening Hours say closed.
+		'last_orders_mins' => 0,     // Stop taking orders N mins before close (0 = until close).
 		'prep_mins'        => 30,    // Minimum lead time before collection.
 		'min_order'        => 0,     // Minimum order value (0 = none).
 		'emails_enabled'   => true,  // Send customer + kitchen order emails.
@@ -279,6 +286,65 @@ function get_settings() {
 }
 
 /**
+ * Are we currently accepting orders? Opening Hours decide whether the venue is
+ * trading; `last_orders_mins` pulls the shutter down early. Both admin (kitchen
+ * board) and the public checkout ask this, so there's one answer, not two.
+ *
+ * @return array{accepting:bool,reason:string,message:string}
+ */
+function accepting_orders() {
+	$s = namespace\get_settings();
+
+	if ( empty( $s['enabled'] ) ) {
+		return array(
+			'accepting' => false,
+			'reason'    => 'disabled',
+			'message'   => __( 'Online ordering is currently unavailable.', 'dinekit' ),
+		);
+	}
+	if ( empty( $s['hours_gate'] ) ) {
+		return array(
+			'accepting' => true,
+			'reason'    => '',
+			'message'   => '',
+		);
+	}
+
+	require_once DINEKIT_DIR . 'includes/hours.php';
+	$status = \DineKit\Hours\status();
+
+	if ( empty( $status['open'] ) ) {
+		return array(
+			'accepting' => false,
+			'reason'    => 'closed',
+			'message'   => __( 'We’re closed right now, so we can’t take your order.', 'dinekit' ),
+		);
+	}
+
+	$cutoff_mins = (int) $s['last_orders_mins'];
+	if ( $cutoff_mins > 0 && ! empty( $status['until_ts'] ) ) {
+		$cutoff_ts = (int) $status['until_ts'] - ( $cutoff_mins * MINUTE_IN_SECONDS );
+		if ( time() >= $cutoff_ts ) {
+			return array(
+				'accepting' => false,
+				'reason'    => 'last_orders',
+				'message'   => sprintf(
+					/* translators: %s: last-orders time, e.g. "21:30". */
+					__( 'Last orders were at %s. We’re no longer taking orders tonight.', 'dinekit' ),
+					wp_date( 'H:i', $cutoff_ts )
+				),
+			);
+		}
+	}
+
+	return array(
+		'accepting' => true,
+		'reason'    => '',
+		'message'   => '',
+	);
+}
+
+/**
  * Save ordering settings.
  *
  * @param array<string,mixed> $data Incoming.
@@ -294,6 +360,12 @@ function save_settings( $data ) {
 	}
 	if ( isset( $data['table_qr_pay'] ) ) {
 		$current['table_qr_pay'] = (bool) $data['table_qr_pay'];
+	}
+	if ( isset( $data['hours_gate'] ) ) {
+		$current['hours_gate'] = (bool) $data['hours_gate'];
+	}
+	if ( isset( $data['last_orders_mins'] ) ) {
+		$current['last_orders_mins'] = max( 0, min( 480, absint( $data['last_orders_mins'] ) ) );
 	}
 	if ( isset( $data['prep_mins'] ) ) {
 		$current['prep_mins'] = max( 0, min( 480, absint( $data['prep_mins'] ) ) );
@@ -479,6 +551,11 @@ function recompute( $lines ) {
 		}
 		// 86'd items can't be ordered by anyone (public, POS, or table QR).
 		if ( 'out' === (string) get_post_meta( $item_id, 'dinekit_stock', true ) ) {
+			continue;
+		}
+		// Nor can archived ones — the id may still be sitting in a stale cart.
+		require_once DINEKIT_DIR . 'includes/items.php';
+		if ( \DineKit\Items\is_archived( $item_id ) ) {
 			continue;
 		}
 		$qty = max( 1, min( 20, isset( $line['qty'] ) ? (int) $line['qty'] : 1 ) );

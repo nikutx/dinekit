@@ -193,15 +193,17 @@ function data() {
 		'orderPageUrl'   => (string) $order_page['url'],
 		'menuPageUrl'    => (string) $menu_page['url'],
 		'bookPageUrl'    => (string) $book_page['url'],
+		// A page only counts as done once it's actually PUBLISHED — a draft the
+		// owner hasn't reviewed isn't a live page guests can visit.
 		'checklist'      => array(
 			'menu'      => $items > 0,
 			'hours'     => $has_hours,
 			'floor'     => $tables > 0,
 			'booking'   => $bookings > 0,
-			'page'      => ! empty( $menu_page['id'] ),
+			'page'      => isset( $menu_page['status'] ) && 'publish' === $menu_page['status'],
 			'ordering'  => $ordering_on,
-			'orderpage' => ! empty( $order_page['id'] ),
-			'bookpage'  => ! empty( $book_page['id'] ),
+			'orderpage' => isset( $order_page['status'] ) && 'publish' === $order_page['status'],
+			'bookpage'  => isset( $book_page['status'] ) && 'publish' === $book_page['status'],
 			'stripe'    => $stripe_on,
 		),
 	);

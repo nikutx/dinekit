@@ -210,10 +210,12 @@ function find_page( $type = 'menu' ) {
 	if ( ! $cfg ) {
 		return null;
 	}
+	// Drafts count: a customer page is created as a draft so the owner reviews it
+	// and publishes deliberately, rather than a bare page appearing on the site.
 	$pages = get_posts(
 		array(
 			'post_type'      => 'page',
-			'post_status'    => 'publish',
+			'post_status'    => array( 'publish', 'draft' ),
 			'posts_per_page' => 100,
 			'no_found_rows'  => true,
 		)
@@ -221,9 +223,11 @@ function find_page( $type = 'menu' ) {
 	foreach ( $pages as $page ) {
 		if ( has_block( $cfg['block'], $page ) || false !== strpos( $page->post_content, $cfg['shortcode'] ) ) {
 			return array(
-				'url'   => (string) get_permalink( $page ),
-				'title' => get_the_title( $page ),
-				'id'    => (int) $page->ID,
+				'url'    => (string) get_permalink( $page ),
+				'title'  => get_the_title( $page ),
+				'id'     => (int) $page->ID,
+				'status' => (string) $page->post_status,
+				'edit'   => (string) get_edit_post_link( $page->ID, 'raw' ),
 			);
 		}
 	}
@@ -231,19 +235,23 @@ function find_page( $type = 'menu' ) {
 }
 
 /**
- * Ensure a published page for a given DineKit surface exists; return it.
+ * Ensure a page for a given DineKit surface exists; return it.
  *
- * @param string $type One of menu|order|booking.
- * @return array{url:string,title:string,id:int}
+ * @param string $type   One of menu|order|booking.
+ * @param string $status 'draft' (owner reviews, then publishes) or 'publish'.
+ * @return array{url:string,title:string,id:int,status:string,edit:string}
  */
-function ensure_page( $type = 'menu' ) {
-	$cfg = page_type( $type );
+function ensure_page( $type = 'menu', $status = 'publish' ) {
+	$empty = array(
+		'url'    => '',
+		'title'  => '',
+		'id'     => 0,
+		'status' => '',
+		'edit'   => '',
+	);
+	$cfg   = page_type( $type );
 	if ( ! $cfg ) {
-		return array(
-			'url'   => '',
-			'title' => '',
-			'id'    => 0,
-		);
+		return $empty;
 	}
 	$found = find_page( $type );
 	if ( $found ) {
@@ -252,22 +260,20 @@ function ensure_page( $type = 'menu' ) {
 	$page_id = wp_insert_post(
 		array(
 			'post_type'    => 'page',
-			'post_status'  => 'publish',
+			'post_status'  => 'draft' === $status ? 'draft' : 'publish',
 			'post_title'   => $cfg['title'],
 			'post_content' => $cfg['content'],
 		)
 	);
 	if ( is_wp_error( $page_id ) ) {
-		return array(
-			'url'   => '',
-			'title' => '',
-			'id'    => 0,
-		);
+		return $empty;
 	}
 	return array(
-		'url'   => (string) get_permalink( $page_id ),
-		'title' => get_the_title( $page_id ),
-		'id'    => (int) $page_id,
+		'url'    => (string) get_permalink( $page_id ),
+		'title'  => get_the_title( $page_id ),
+		'id'     => (int) $page_id,
+		'status' => get_post_status( $page_id ),
+		'edit'   => (string) get_edit_post_link( $page_id, 'raw' ),
 	);
 }
 
@@ -304,11 +310,17 @@ function run_setup( $name, $seed = true ) {
 		\DineKit\Hours\save( $hours );
 	}
 
-	if ( $seed ) {
-		seed_menu();
-	}
-	$page = ensure_menu_page();
 	update_option( 'dinekit_onboarded', 1 );
+
+	// Only publish a menu page when there are dishes to put on it. Creating one
+	// for a blank start hands the owner a live, empty page and a "View my menu"
+	// button that goes nowhere useful.
+	if ( ! $seed ) {
+		return array( 'page' => '' );
+	}
+
+	seed_menu();
+	$page = ensure_menu_page();
 
 	return array( 'page' => $page['url'] );
 }

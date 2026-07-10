@@ -187,6 +187,19 @@ final class Plugin {
 			}
 		}
 
+		// Opening Hours are the single source of truth for "are we trading?".
+		// Availability no longer falls back to an invisible default week, so make
+		// sure every install has a real, editable one. Runs above the version gate
+		// so installs already on the current version self-heal. No-op when set.
+		try {
+			require_once DINEKIT_DIR . 'includes/hours.php';
+			Hours\seed();
+		} catch ( \Throwable $e ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'DineKit hours seed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+		}
+
 		$stored = get_option( 'dinekit_version' );
 		if ( DINEKIT_VERSION === $stored ) {
 			return;

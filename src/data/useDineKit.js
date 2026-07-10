@@ -86,11 +86,35 @@ export function useDineKit() {
 		[ track, patchLocalItem ]
 	);
 
+	// Archive, never delete. The dish moves out of `items` and into `archived`,
+	// where it can be restored. Past orders keep their own title/price snapshot.
 	const deleteItem = useCallback(
 		async ( id ) => {
-			setData( ( prev ) => ( { ...prev, items: prev.items.filter( ( it ) => it.id !== id ) } ) );
+			let moved = null;
+			setData( ( prev ) => {
+				moved = prev.items.find( ( it ) => it.id === id ) || null;
+				return {
+					...prev,
+					items: prev.items.filter( ( it ) => it.id !== id ),
+					archived: moved ? [ ...( prev.archived || [] ), moved ] : prev.archived || [],
+				};
+			} );
 			await track( api.deleteItem( id ) );
-			toast.success( 'Item deleted' );
+			toast.success( 'Dish archived', 'You can restore it from Archived dishes.' );
+		},
+		[ track, toast ]
+	);
+
+	const restoreItem = useCallback(
+		async ( id ) => {
+			const restored = await track( api.restoreItem( id ) );
+			setData( ( prev ) => ( {
+				...prev,
+				archived: ( prev.archived || [] ).filter( ( it ) => it.id !== id ),
+				items: [ ...prev.items, restored ],
+			} ) );
+			toast.success( 'Dish restored' );
+			return restored;
 		},
 		[ track, toast ]
 	);
@@ -201,6 +225,7 @@ export function useDineKit() {
 		createItem,
 		updateItem,
 		deleteItem,
+		restoreItem,
 		duplicateItem,
 		duplicateSection,
 		createTerm,
