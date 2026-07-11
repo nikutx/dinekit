@@ -20,6 +20,7 @@ export default function ConfirmDialog( {
 	cancelLabel = 'Cancel',
 	destructive = true,
 	busy = false,
+	confirmDisabled = false,
 	onConfirm,
 	onCancel,
 } ) {
@@ -69,7 +70,7 @@ export default function ConfirmDialog( {
 						variant="contained"
 						color={ destructive ? 'error' : 'primary' }
 						onClick={ onConfirm }
-						disabled={ busy }
+						disabled={ busy || confirmDisabled }
 						startIcon={ busy ? <CircularProgress size={ 15 } color="inherit" /> : null }
 					>
 						{ confirmLabel }

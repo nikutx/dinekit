@@ -620,6 +620,17 @@ select.dk-field__input {
 	cursor: pointer;
 	appearance: auto;
 }
+/* Drop the native number spinners — in narrow fields (e.g. combo min/max) the
+   up/down arrows crowd out the digits. Users type the value instead. */
+.dk-field__input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+.dk-field__input[type="number"]::-webkit-outer-spin-button,
+.dk-field__input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
 .dk-field__input::placeholder {
 	color: #a1a1aa;
 }
@@ -743,6 +754,25 @@ select.dk-field__input {
 }
 .dk-switch--disabled {
 	opacity: 0.5;
+}
+/* wp-admin's global `input[type=checkbox]` rule (specificity 0,1,1) out-specifies
+   our single-class `.dk-switch__input` (0,1,0) and shrinks the invisible overlay
+   input to 16×16 in the top-left corner — leaving most of the switch (including
+   the right half you tap to turn it on) unclickable, so the thumb never moves.
+   Re-assert the full-size overlay with enough specificity to beat core whatever
+   the stylesheet load order. */
+body .dk-switch .dk-switch__input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	opacity: 0;
 }
 
 /* ToggleButtonGroup / ToggleButton — from theme ------------------------- */

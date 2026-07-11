@@ -79,6 +79,33 @@ function register_routes() {
 			),
 		)
 	);
+	register_rest_route(
+		$ns,
+		'/bookings/areas/(?P<id>\d+)/impact',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_area_impact',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/bookings/areas/(?P<id>\d+)/restore',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\restore_area_route',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/bookings/history',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_history',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
 
 	register_rest_route(
 		$ns,
@@ -103,6 +130,24 @@ function register_routes() {
 				'callback'            => __NAMESPACE__ . '\\delete_table',
 				'permission_callback' => __NAMESPACE__ . '\\can_manage',
 			),
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/bookings/tables/(?P<id>\d+)/impact',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\get_table_impact',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/bookings/tables/(?P<id>\d+)/restore',
+		array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => __NAMESPACE__ . '\\restore_table_route',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
 		)
 	);
 
@@ -265,6 +310,13 @@ function get_floor() {
 		array(
 			'taxonomy'   => 'dinekit_area',
 			'hide_empty' => false,
+			// Voided (soft-deleted) zones live on in History, hidden from the plan.
+			'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+					'key'     => 'dinekit_area_voided',
+					'compare' => 'NOT EXISTS',
+				),
+			),
 		)
 	);
 	if ( is_array( $area_terms ) ) {
@@ -470,12 +522,367 @@ function update_area( $request ) {
 /**
  * DELETE /bookings/areas/:id.
  *
+ * Accepts `moveTo`: a target area id to re-home this zone's tables into, 0 to
+ * leave them Unzoned (default), or -1 to delete the tables too. Deleting the
+ * tables is refused (409) while any of them still hold upcoming bookings — those
+ * guests would lose their table; move the tables to another zone instead.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function delete_area( $request ) {
+	$id        = (int) $request['id'];
+	$move_to   = ( null === $request->get_param( 'moveTo' ) ) ? 0 : (int) $request->get_param( 'moveTo' );
+	$table_ids = area_table_ids( $id );
+
+	if ( -1 === $move_to ) {
+		// Void the zone's tables. Reassign whichever upcoming bookings the user
+		// chose to move; the rest keep their (now-voided) table and live in History.
+		apply_booking_reassignments( $request->get_param( 'reassign' ), $table_ids );
+		foreach ( $table_ids as $tid ) {
+			void_table( $tid );
+		}
+	} else {
+		// Re-home the tables (0 = Unzoned) so they — and their bookings — survive.
+		foreach ( $table_ids as $tid ) {
+			wp_set_object_terms( $tid, $move_to > 0 ? array( $move_to ) : array(), 'dinekit_area' );
+		}
+	}
+
+	void_area( $id );
+	return rest_ensure_response( array( 'deleted' => true ) );
+}
+
+/**
+ * Post ids of every table assigned to an area.
+ *
+ * @param int $area_id Area term id.
+ * @return int[]
+ */
+function area_table_ids( $area_id ) {
+	$ids = get_objects_in_term( (int) $area_id, 'dinekit_area' );
+	if ( is_wp_error( $ids ) ) {
+		return array();
+	}
+	return array_map( 'intval', $ids );
+}
+
+/**
+ * Upcoming (today onward) occupying bookings that sit on any of the given tables.
+ *
+ * @param int[] $table_ids Table post ids.
+ * @return array<int,array<string,mixed>>
+ */
+function upcoming_table_bookings( $table_ids ) {
+	if ( empty( $table_ids ) ) {
+		return array();
+	}
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	$wanted = array_flip( array_map( 'intval', $table_ids ) );
+	$query  = new \WP_Query(
+		array(
+			'post_type'      => 'dinekit_booking',
+			'post_status'    => 'publish',
+			'posts_per_page' => 500,
+			'no_found_rows'  => true,
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+					'key'     => 'dinekit_date',
+					'value'   => current_time( 'Y-m-d' ),
+					'compare' => '>=',
+					'type'    => 'DATE',
+				),
+			),
+		)
+	);
+
+	$out = array();
+	foreach ( $query->posts as $post ) {
+		$status = (string) get_post_meta( $post->ID, 'dinekit_status', true );
+		if ( ! in_array( $status, Availability\occupying_statuses(), true ) ) {
+			continue;
+		}
+		$tid = (int) get_post_meta( $post->ID, 'dinekit_table_id', true );
+		if ( ! isset( $wanted[ $tid ] ) ) {
+			continue;
+		}
+		$out[] = array(
+			'id'        => (int) $post->ID,
+			'date'      => (string) get_post_meta( $post->ID, 'dinekit_date', true ),
+			'time'      => (string) get_post_meta( $post->ID, 'dinekit_time', true ),
+			'party'     => (int) get_post_meta( $post->ID, 'dinekit_party', true ),
+			'name'      => (string) get_post_meta( $post->ID, 'dinekit_name', true ),
+			'tableId'   => $tid,
+			'tableName' => get_the_title( $tid ),
+		);
+	}
+	return $out;
+}
+
+/**
+ * GET /bookings/areas/:id/impact — what deleting this zone would affect: its
+ * tables, and any upcoming bookings sitting on them.
+ *
  * @param \WP_REST_Request $request Request.
  * @return \WP_REST_Response
  */
-function delete_area( $request ) {
-	wp_delete_term( (int) $request['id'], 'dinekit_area' );
-	return rest_ensure_response( array( 'deleted' => true ) );
+function get_area_impact( $request ) {
+	$id        = (int) $request['id'];
+	$table_ids = area_table_ids( $id );
+	$tables    = array();
+	foreach ( $table_ids as $tid ) {
+		$tables[] = array(
+			'id'    => (int) $tid,
+			'name'  => get_the_title( $tid ),
+			'seats' => (int) get_post_meta( $tid, 'dinekit_seats', true ),
+		);
+	}
+	return rest_ensure_response(
+		array(
+			'tables'   => $tables,
+			'upcoming' => with_reassign_candidates( upcoming_table_bookings( $table_ids ), $table_ids ),
+		)
+	);
+}
+
+/**
+ * GET /bookings/tables/:id/impact — upcoming bookings that would be orphaned by
+ * deleting this single table, each with best-fit reassignment candidates.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_table_impact( $request ) {
+	$id = (int) $request['id'];
+	return rest_ensure_response(
+		array(
+			'upcoming' => with_reassign_candidates( upcoming_table_bookings( array( $id ) ), array( $id ) ),
+		)
+	);
+}
+
+/**
+ * Attach reassignment candidates to each upcoming booking: the tables free at
+ * that slot for that party (best-fit first), minus the tables being removed.
+ *
+ * @param array<int,array<string,mixed>> $bookings   Upcoming bookings.
+ * @param int[]                          $exclude_ids Tables being removed.
+ * @return array<int,array<string,mixed>>
+ */
+function with_reassign_candidates( $bookings, $exclude_ids ) {
+	if ( empty( $bookings ) ) {
+		return $bookings;
+	}
+	require_once DINEKIT_DIR . 'includes/bookings/availability.php';
+	$excl = array_flip( array_map( 'intval', $exclude_ids ) );
+	foreach ( $bookings as &$b ) {
+		$free       = Availability\available_tables( $b['date'], $b['time'], (int) $b['party'], (int) $b['id'] );
+		$candidates = array();
+		foreach ( $free as $t ) {
+			if ( isset( $excl[ $t['id'] ] ) ) {
+				continue; // Don't offer a table that's also being removed.
+			}
+			$candidates[] = array(
+				'id'    => (int) $t['id'],
+				'name'  => (string) $t['name'],
+				'seats' => (int) $t['seats'],
+			);
+		}
+		$b['candidates'] = $candidates;
+		$b['suggested']  = $candidates ? (int) $candidates[0]['id'] : 0;
+	}
+	unset( $b );
+	return $bookings;
+}
+
+/**
+ * Move the chosen upcoming bookings onto new tables. `$reassign` maps a booking
+ * id to a target table id; entries pointing at 0 or a table that's itself being
+ * removed are skipped (those bookings stay put and go to History with the table).
+ *
+ * @param mixed $reassign    Map of booking id => target table id.
+ * @param int[] $exclude_ids Tables being removed (never valid targets).
+ * @return void
+ */
+function apply_booking_reassignments( $reassign, $exclude_ids ) {
+	if ( ! is_array( $reassign ) && ! is_object( $reassign ) ) {
+		return;
+	}
+	$excl = array_flip( array_map( 'intval', $exclude_ids ) );
+	foreach ( (array) $reassign as $booking_id => $table_id ) {
+		$booking_id = (int) $booking_id;
+		$table_id   = (int) $table_id;
+		if ( $table_id <= 0 || isset( $excl[ $table_id ] ) ) {
+			continue;
+		}
+		if ( 'dinekit_booking' !== get_post_type( $booking_id ) || 'dinekit_table' !== get_post_type( $table_id ) ) {
+			continue;
+		}
+		update_post_meta( $booking_id, 'dinekit_table_id', $table_id );
+		update_post_meta( $booking_id, 'dinekit_combo_id', 0 ); // A single-table move ends any join hold.
+		Bookings\log_event( $booking_id, __( 'Table reassigned before its old table was deleted.', 'dinekit' ) );
+	}
+}
+
+/**
+ * Void (soft-delete) a table: drop it from the live plan but keep it, and its
+ * zone name, so it can be restored from History. Detaches it from any join.
+ *
+ * @param int $id Table id.
+ * @return void
+ */
+function void_table( $id ) {
+	$id = (int) $id;
+	detach_table_from_combos( $id );
+	$areas = get_the_terms( $id, 'dinekit_area' );
+	$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
+	update_post_meta( $id, 'dinekit_voided', time() );
+	update_post_meta( $id, 'dinekit_voided_area', $area ? $area->name : '' );
+	wp_update_post(
+		array(
+			'ID'          => $id,
+			'post_status' => 'draft',
+		)
+	);
+}
+
+/**
+ * Restore a voided table to the live plan. If its old zone is gone or still
+ * voided, it comes back Unzoned rather than into a hidden zone.
+ *
+ * @param int $id Table id.
+ * @return array<string,mixed>
+ */
+function restore_table( $id ) {
+	$id = (int) $id;
+	delete_post_meta( $id, 'dinekit_voided' );
+	delete_post_meta( $id, 'dinekit_voided_area' );
+	wp_update_post(
+		array(
+			'ID'          => $id,
+			'post_status' => 'publish',
+		)
+	);
+	$areas = get_the_terms( $id, 'dinekit_area' );
+	$area  = ( is_array( $areas ) && $areas ) ? $areas[0] : null;
+	if ( $area && get_term_meta( $area->term_id, 'dinekit_area_voided', true ) ) {
+		wp_set_object_terms( $id, array(), 'dinekit_area' );
+	}
+	return table_response( $id );
+}
+
+/**
+ * Void (soft-delete) a zone — kept in History, hidden from the plan.
+ *
+ * @param int $id Area term id.
+ * @return void
+ */
+function void_area( $id ) {
+	update_term_meta( (int) $id, 'dinekit_area_voided', time() );
+}
+
+/**
+ * POST /bookings/tables/:id/restore.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function restore_table_route( $request ) {
+	return rest_ensure_response( restore_table( (int) $request['id'] ) );
+}
+
+/**
+ * POST /bookings/areas/:id/restore.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function restore_area_route( $request ) {
+	$id = (int) $request['id'];
+	delete_term_meta( $id, 'dinekit_area_voided' );
+	$term = get_term( $id, 'dinekit_area' );
+	if ( ! $term || is_wp_error( $term ) ) {
+		return new \WP_Error( 'dinekit_area_404', __( 'Zone not found.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+	return rest_ensure_response(
+		array(
+			'id'   => (int) $term->term_id,
+			'name' => $term->name,
+		)
+	);
+}
+
+/**
+ * GET /bookings/history — voided zones and tables, most-recent first, for the
+ * Floor Plan History tab (one-click restore).
+ *
+ * @return \WP_REST_Response
+ */
+function get_history() {
+	$zones = array();
+	$terms = get_terms(
+		array(
+			'taxonomy'   => 'dinekit_area',
+			'hide_empty' => false,
+			'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+					'key'     => 'dinekit_area_voided',
+					'compare' => 'EXISTS',
+				),
+			),
+		)
+	);
+	if ( is_array( $terms ) ) {
+		foreach ( $terms as $term ) {
+			$zones[] = array(
+				'id'       => (int) $term->term_id,
+				'name'     => $term->name,
+				'voidedAt' => (int) get_term_meta( $term->term_id, 'dinekit_area_voided', true ),
+			);
+		}
+	}
+
+	$tables = array();
+	$posts  = get_posts(
+		array(
+			'post_type'   => 'dinekit_table',
+			'post_status' => 'draft',
+			'numberposts' => 300,
+		)
+	);
+	foreach ( $posts as $post ) {
+		$voided = (int) get_post_meta( $post->ID, 'dinekit_voided', true );
+		if ( ! $voided ) {
+			continue; // A draft table that isn't voided — leave it out.
+		}
+		$tables[] = array(
+			'id'       => (int) $post->ID,
+			'name'     => $post->post_title,
+			'seats'    => (int) get_post_meta( $post->ID, 'dinekit_seats', true ),
+			'zone'     => (string) get_post_meta( $post->ID, 'dinekit_voided_area', true ),
+			'voidedAt' => $voided,
+		);
+	}
+
+	usort(
+		$tables,
+		static function ( $a, $b ) {
+			return $b['voidedAt'] <=> $a['voidedAt'];
+		}
+	);
+	usort(
+		$zones,
+		static function ( $a, $b ) {
+			return $b['voidedAt'] <=> $a['voidedAt'];
+		}
+	);
+
+	return rest_ensure_response(
+		array(
+			'zones'  => $zones,
+			'tables' => $tables,
+		)
+	);
 }
 
 /**
@@ -630,13 +1037,17 @@ function update_table( $request ) {
 /**
  * DELETE /bookings/tables/:id.
  *
+ * Voids (soft-deletes) the table so it can be restored from History. Any upcoming
+ * bookings named in `reassign` are moved to their new table first; the rest keep
+ * their (now-voided) table.
+ *
  * @param \WP_REST_Request $request Request.
  * @return \WP_REST_Response
  */
 function delete_table( $request ) {
 	$id = (int) $request['id'];
-	detach_table_from_combos( $id ); // Keep joins consistent — no dangling members.
-	wp_delete_post( $id, true );
+	apply_booking_reassignments( $request->get_param( 'reassign' ), array( $id ) );
+	void_table( $id ); // Detaches from joins and keeps it in History.
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
 

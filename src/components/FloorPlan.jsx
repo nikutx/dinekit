@@ -29,13 +29,16 @@ import JoinFullIcon from '@mui/icons-material/JoinFull';
 import LinkIcon from '@mui/icons-material/Link';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { tokens } from '../theme';
+import HistoryIcon from '@mui/icons-material/History';
+import RestoreIcon from '@mui/icons-material/Restore';
+import { tokens, TINTS } from '../theme';
 import { api } from '../api/client';
 import Page from './ui/Page';
 import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 // Canvas geometry.
 const CANVAS_H = 720;
@@ -77,28 +80,57 @@ export default function FloorPlan() {
 	const [ joinMode, setJoinMode ] = useState( false );
 	const [ joinSel, setJoinSel ] = useState( [] ); // table ids selected to join
 	const [ viewMode, setViewMode ] = useState( 'plan' ); // 'plan' (canvas) | 'list'
+	// Zone-delete dialog: { id, name, tables, upcoming, loading, error } | null.
+	const [ zoneDel, setZoneDel ] = useState( null );
+	const [ zoneDelBusy, setZoneDelBusy ] = useState( false );
+	const [ moveTo, setMoveTo ] = useState( 0 ); // target area id, 0 = Unzoned, -1 = void tables
+	// Table-delete dialog + shared booking-reassignment map (bookingId -> tableId; 0 = keep).
+	const [ tableDel, setTableDel ] = useState( null ); // { id, name, upcoming, joins, loading, error } | null
+	const [ tableDelBusy, setTableDelBusy ] = useState( false );
+	const [ reassign, setReassign ] = useState( {} );
+	// History tab (voided zones + tables).
+	const [ history, setHistory ] = useState( null ); // { zones, tables } | null
+	const [ historyBusy, setHistoryBusy ] = useState( false );
 
 	const canvasRef = useRef( null );
 	const drag = useRef( null );
 	const saveLater = useDebouncedSaver();
 
+	const loadFloor = () =>
+		api.getFloor().then( ( data ) => {
+			setAreas( data.areas || [] );
+			setTables( data.tables || [] );
+			setCombos( data.combos || [] );
+			return data;
+		} );
+
 	useEffect( () => {
-		api.getFloor()
+		loadFloor()
 			.then( ( data ) => {
-				setAreas( data.areas || [] );
-				setTables( data.tables || [] );
-				setCombos( data.combos || [] );
 				if ( ( data.areas || [] ).length ) {
 					setZone( data.areas[ 0 ].id );
 				}
 			} )
 			.finally( () => setLoading( false ) );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
+
+	// Fetch the voided list whenever the History tab is opened (fresh each time).
+	useEffect( () => {
+		if ( 'history' === viewMode ) {
+			loadHistory();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ viewMode ] );
 
 	const totalSeats = useMemo( () => tables.reduce( ( s, t ) => s + ( t.seats || 0 ), 0 ), [ tables ] );
 	const unzonedCount = useMemo( () => tables.filter( ( t ) => ! ( t.areaId || 0 ) ).length, [ tables ] );
 	const byId = useMemo( () => Object.fromEntries( tables.map( ( t ) => [ t.id, t ] ) ), [ tables ] );
 	const joinedIds = useMemo( () => new Set( combos.flatMap( ( c ) => c.tables ) ), [ combos ] );
+	// Each combo gets a stable colour by its order, so joined tables can be tinted
+	// to match their group on the canvas (a table in two joins blends both).
+	const comboTints = useMemo( () => combos.map( ( c, i ) => TINTS[ i % TINTS.length ] ), [ combos ] );
+	const tintsForTable = ( id ) => combos.reduce( ( acc, c, i ) => ( c.tables.includes( id ) ? [ ...acc, comboTints[ i ] ] : acc ), [] );
 
 	const zones = useMemo( () => {
 		const list = areas.map( ( a ) => ( { id: a.id, name: a.name } ) );
@@ -127,13 +159,115 @@ export default function FloorPlan() {
 			setBusy( false );
 		}
 	};
-	const removeArea = async ( id ) => {
-		await api.deleteArea( id );
-		setAreas( ( a ) => a.filter( ( x ) => x.id !== id ) );
-		setTables( ( t ) => t.map( ( x ) => ( x.areaId === id ? { ...x, areaId: 0, area: '' } : x ) ) );
-		if ( zone === id ) {
-			setZone( areas.find( ( a ) => a.id !== id )?.id || 0 );
+	// Deleting a zone is destructive (it can take tables — and their bookings —
+	// with it), so open a dialog that first checks what it would affect.
+	const askDeleteZone = async ( id ) => {
+		const name = areas.find( ( a ) => a.id === id )?.name || 'this zone';
+		setMoveTo( 0 ); // default: keep the tables, just un-zone them.
+		setZoneDel( { id, name, tables: [], upcoming: [], loading: true, error: '' } );
+		try {
+			const impact = await api.getAreaImpact( id );
+			setReassign( defaultReassign( impact.upcoming || [] ) );
+			setZoneDel( ( z ) =>
+				z && z.id === id
+					? { ...z, tables: impact.tables || [], upcoming: impact.upcoming || [], loading: false }
+					: z
+			);
+		} catch ( e ) {
+			setZoneDel( ( z ) => ( z && z.id === id ? { ...z, loading: false, error: e.message || 'Could not read the zone.' } : z ) );
 		}
+	};
+
+	const confirmDeleteZone = async () => {
+		if ( ! zoneDel ) {
+			return;
+		}
+		setZoneDelBusy( true );
+		try {
+			await api.deleteArea( zoneDel.id, moveTo, moveTo === -1 ? reassign : {} );
+			const targetName = areas.find( ( a ) => a.id === moveTo )?.name || '';
+			setAreas( ( a ) => a.filter( ( x ) => x.id !== zoneDel.id ) );
+			setTables( ( t ) => {
+				if ( moveTo === -1 ) {
+					const gone = new Set( zoneDel.tables.map( ( x ) => x.id ) );
+					return t.filter( ( x ) => ! gone.has( x.id ) );
+				}
+				return t.map( ( x ) =>
+					x.areaId === zoneDel.id
+						? { ...x, areaId: moveTo > 0 ? moveTo : 0, area: moveTo > 0 ? targetName : '' }
+						: x
+				);
+			} );
+			if ( zone === zoneDel.id ) {
+				setZone( moveTo > 0 ? moveTo : ( areas.find( ( a ) => a.id !== zoneDel.id )?.id || 0 ) );
+			}
+			setSelectedId( null );
+			setZoneDel( null );
+		} catch ( e ) {
+			setZoneDel( ( z ) => ( z ? { ...z, error: e.message || 'Could not delete the zone.' } : z ) );
+		} finally {
+			setZoneDelBusy( false );
+		}
+	};
+
+	// A voided table keeps any upcoming bookings unless they're reassigned. Default
+	// each to its best-fit suggestion so "just delete" still does the safe thing.
+	const defaultReassign = ( upcoming ) =>
+		Object.fromEntries( upcoming.map( ( b ) => [ b.id, b.suggested || 0 ] ) );
+	const autoAssign = ( upcoming ) =>
+		setReassign( defaultReassign( upcoming ) );
+	const keepAll = ( upcoming ) =>
+		setReassign( Object.fromEntries( upcoming.map( ( b ) => [ b.id, 0 ] ) ) );
+
+	// Deleting a single table voids it (restorable from History); check first for
+	// upcoming bookings that would be stranded, and offer to move them.
+	const askDeleteTable = async ( id ) => {
+		const t = tables.find( ( x ) => x.id === id );
+		const joins = combosForTable( id ).map( ( c ) => c.name );
+		setTableDel( { id, name: t?.name || 'this table', upcoming: [], joins, loading: true, error: '' } );
+		try {
+			const impact = await api.getTableImpact( id );
+			setReassign( defaultReassign( impact.upcoming || [] ) );
+			setTableDel( ( d ) => ( d && d.id === id ? { ...d, upcoming: impact.upcoming || [], loading: false } : d ) );
+		} catch ( e ) {
+			setTableDel( ( d ) => ( d && d.id === id ? { ...d, loading: false, error: e.message || 'Could not read the table.' } : d ) );
+		}
+	};
+
+	const confirmDeleteTable = async () => {
+		if ( ! tableDel ) {
+			return;
+		}
+		setTableDelBusy( true );
+		try {
+			await api.deleteTable( tableDel.id, reassign );
+			setTables( ( t ) => t.filter( ( x ) => x.id !== tableDel.id ) );
+			detachLocally( tableDel.id );
+			setSelectedId( null );
+			setTableDel( null );
+		} catch ( e ) {
+			setTableDel( ( d ) => ( d ? { ...d, error: e.message || 'Could not delete the table.' } : d ) );
+		} finally {
+			setTableDelBusy( false );
+		}
+	};
+
+	/* ---- history (voided zones + tables) ---- */
+	const loadHistory = () => {
+		setHistoryBusy( true );
+		api.getFloorHistory()
+			.then( ( h ) => setHistory( { zones: h.zones || [], tables: h.tables || [] } ) )
+			.finally( () => setHistoryBusy( false ) );
+	};
+	const restoreZone = async ( id ) => {
+		await api.restoreArea( id );
+		await loadFloor();
+		loadHistory();
+	};
+	const restoreVoidTable = async ( id ) => {
+		await api.restoreTable( id );
+		await loadFloor();
+		loadHistory();
 	};
 
 	/* ---- tables ---- */
@@ -189,28 +323,17 @@ export default function FloorPlan() {
 				.filter( ( c ) => c.tables.length >= 2 )
 		);
 
-	const removeTable = async ( id ) => {
-		const joins = combosForTable( id );
-		if ( joins.length ) {
-			// eslint-disable-next-line no-alert
-			const okDelete = window.confirm(
-				( byId[ id ]?.name || 'This table' ) + ' is joined in ' + joins.map( ( c ) => c.name ).join( ', ' ) +
-					'. Deleting it will break that join. Continue?'
-			);
-			if ( ! okDelete ) {
-				return;
-			}
-		}
-		await api.deleteTable( id );
-		setTables( ( t ) => t.filter( ( x ) => x.id !== id ) );
-		detachLocally( id );
-		setSelectedId( null );
-	};
-
 	// Change a table's zone. If it's joined, moving zones breaks the join — ask
 	// first, then detach it (server-side too, via breakJoins).
 	const changeTableZone = ( id, areaId ) => {
 		const joins = combosForTable( id );
+		// The canvas filters on `areaId` (and shows the `area` name), but the server
+		// takes the term id as `area` — so update the local keys explicitly rather
+		// than merging `{ area: id }` (which left `areaId` stale, so the table only
+		// moved on a page refresh). Persist separately with the server's `area` param.
+		const areaName = areas.find( ( a ) => a.id === areaId )?.name || '';
+		const moveLocal = ( extra = {} ) =>
+			setTables( ( t ) => t.map( ( x ) => ( x.id === id ? { ...x, areaId, area: areaName, ...extra } : x ) ) );
 		if ( joins.length ) {
 			// eslint-disable-next-line no-alert
 			const okMove = window.confirm(
@@ -221,10 +344,12 @@ export default function FloorPlan() {
 				return;
 			}
 			detachLocally( id );
-			patchTable( id, { area: areaId, breakJoins: true } );
+			moveLocal();
+			saveLater( 'table-' + id, () => api.updateTable( id, { area: areaId, breakJoins: true } ) );
 			return;
 		}
-		patchTable( id, { area: areaId } );
+		moveLocal();
+		saveLater( 'table-' + id, () => api.updateTable( id, { area: areaId } ) );
 	};
 
 	/* ---- join / combos ---- */
@@ -340,6 +465,7 @@ export default function FloorPlan() {
 						>
 							<ToggleButton value="plan"><GridViewIcon sx={ { fontSize: 16, mr: 0.5 } } /> Plan</ToggleButton>
 							<ToggleButton value="list"><ViewListIcon sx={ { fontSize: 17, mr: 0.5 } } /> List</ToggleButton>
+							<ToggleButton value="history"><HistoryIcon sx={ { fontSize: 17, mr: 0.5 } } /> History</ToggleButton>
 						</ToggleButtonGroup>
 					</>
 				}
@@ -367,7 +493,7 @@ export default function FloorPlan() {
 							key={ z.id }
 							label={ z.name }
 							onClick={ () => { setZone( z.id ); setSelectedId( null ); } }
-							onDelete={ z.id !== 0 ? () => removeArea( z.id ) : undefined }
+							onDelete={ z.id !== 0 ? () => askDeleteZone( z.id ) : undefined }
 							deleteIcon={ z.id !== 0 ? <CloseIcon /> : undefined }
 							variant={ active ? 'filled' : 'outlined' }
 							sx={ {
@@ -472,6 +598,13 @@ export default function FloorPlan() {
 								const isPicked = joinMode && joinSel.includes( t.id );
 								const inCombo = joinedIds.has( t.id );
 								const isMaint = 'maintenance' === t.status;
+								// Colour a joined table to match its combo(s) — a table in two
+								// joins blends both soft tints so you can see the grouping.
+								const tTints = inCombo ? tintsForTable( t.id ) : [];
+								const joinBg = tTints.length > 1
+									? `linear-gradient(135deg, ${ tTints.map( ( x ) => x.bg ).join( ', ' ) })`
+									: tTints.length === 1 ? tTints[ 0 ].bg : null;
+								const joinFg = tTints.length ? tTints[ 0 ].fg : null;
 								return (
 									<Box
 										key={ t.id }
@@ -487,8 +620,8 @@ export default function FloorPlan() {
 											height: s.h,
 											transform: `rotate(${ t.rotation || 0 }deg)`,
 											borderRadius: s.radius,
-											bgcolor: isPicked ? tokens.accent : isSel ? tokens.accentSoft : isMaint ? tokens.soft : tokens.surface,
-											border: `${ isPicked ? '2px dashed' : isSel ? '2px solid' : isMaint ? '1.5px dashed' : '1.5px solid' } ${ isPicked || isSel ? tokens.accent : isMaint ? tokens.amber : tokens.border2 }`,
+											background: isPicked ? tokens.accent : isSel ? tokens.accentSoft : isMaint ? tokens.soft : ( joinBg || tokens.surface ),
+											border: `${ isPicked ? '2px dashed' : isSel ? '2px solid' : isMaint ? '1.5px dashed' : '1.5px solid' } ${ isPicked || isSel ? tokens.accent : isMaint ? tokens.amber : ( joinFg || tokens.border2 ) }`,
 											opacity: isMaint && ! isSel ? 0.72 : 1,
 											boxShadow: isPicked
 												? '0 4px 12px rgba(79,70,229,.35)'
@@ -507,6 +640,23 @@ export default function FloorPlan() {
 											'&:active': { cursor: joinMode ? 'pointer' : 'grabbing' },
 										} }
 									>
+										{ /* Orientation pip — sits on the "top" edge and rotates WITH the
+										     table (it is NOT counter-rotated like the label), so you can
+										     tell which way a table faces even when it's round/square. */ }
+										<Box
+											aria-hidden="true"
+											sx={ {
+												position: 'absolute',
+												top: 4,
+												left: '50%',
+												transform: 'translateX(-50%)',
+												width: 18,
+												height: 4,
+												borderRadius: 2,
+												bgcolor: isPicked ? 'rgba(255,255,255,0.9)' : isSel ? tokens.accent : tokens.muted2,
+												opacity: isPicked || isSel ? 1 : 0.65,
+											} }
+										/>
 										<Box sx={ { transform: `rotate(${ -( t.rotation || 0 ) }deg)`, textAlign: 'center' } }>
 											<Typography sx={ { fontSize: 12, fontWeight: 650, color: isPicked ? '#fff' : tokens.ink } }>{ t.name }</Typography>
 											<Typography sx={ { fontSize: 10, fontWeight: 550, color: isPicked ? 'rgba(255,255,255,0.85)' : isSel ? tokens.accentDark : tokens.muted } }>
@@ -522,7 +672,9 @@ export default function FloorPlan() {
 													width: 16,
 													height: 16,
 													borderRadius: '50%',
-													bgcolor: tokens.accent,
+													background: tTints.length > 1
+														? `linear-gradient(135deg, ${ tTints.map( ( x ) => x.fg ).join( ', ' ) })`
+														: ( joinFg || tokens.accent ),
 													border: '1.5px solid #fff',
 													display: 'flex',
 													alignItems: 'center',
@@ -568,13 +720,14 @@ export default function FloorPlan() {
 								<Stack spacing={ 1 }>
 									{ combos.map( ( c, i ) => {
 										const seats = c.tables.reduce( ( s, id ) => s + ( byId[ id ]?.seats || 0 ), 0 );
+										const tint = comboTints[ i ] || TINTS[ 0 ];
 										return (
 											<Stack
 												key={ c.id }
 												direction="row"
 												spacing={ 1.5 }
 												alignItems="center"
-												sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '12px', p: 1.25 } }
+												sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderLeft: `4px solid ${ tint.fg }`, borderRadius: '12px', p: 1.25 } }
 											>
 												<Stack spacing={ 0 } sx={ { pr: 0.5 } }>
 													<IconButton size="small" onClick={ () => moveCombo( i, -1 ) } disabled={ i === 0 } sx={ { p: 0.1 } }>
@@ -584,12 +737,12 @@ export default function FloorPlan() {
 														<ArrowDownwardIcon sx={ { fontSize: 14 } } />
 													</IconButton>
 												</Stack>
-												<JoinFullIcon sx={ { color: tokens.accent, fontSize: 18 } } />
+												<JoinFullIcon sx={ { color: tint.fg, fontSize: 18 } } />
 												<Stack direction="row" spacing={ 0.5 } flexWrap="wrap" sx={ { flex: 1 } } useFlexGap>
 													{ c.tables.map( ( id ) => (
-														<Chip key={ id } label={ byId[ id ]?.name || `#${ id }` } size="small" sx={ { bgcolor: tokens.soft, fontWeight: 700 } } />
+														<Chip key={ id } label={ byId[ id ]?.name || `#${ id }` } size="small" sx={ { bgcolor: tint.bg, color: tint.fg, fontWeight: 700 } } />
 													) ) }
-													<Chip label={ `${ seats } seats` } size="small" sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } } />
+													<Chip label={ `${ seats } seats` } size="small" sx={ { bgcolor: tint.bg, color: tint.fg, fontWeight: 700 } } />
 												</Stack>
 												<TextField
 													label="Min"
@@ -626,7 +779,7 @@ export default function FloorPlan() {
 							areas={ areas }
 							onChange={ ( patch ) => patchTable( selected.id, patch ) }
 							onChangeZone={ ( areaId ) => changeTableZone( selected.id, areaId ) }
-							onDelete={ () => removeTable( selected.id ) }
+							onDelete={ () => askDeleteTable( selected.id ) }
 							onClose={ () => setSelectedId( null ) }
 						/>
 					) }
@@ -646,19 +799,129 @@ export default function FloorPlan() {
 							areas={ areas }
 							onChange={ ( patch ) => patchTable( selected.id, patch ) }
 							onChangeZone={ ( areaId ) => changeTableZone( selected.id, areaId ) }
-							onDelete={ () => removeTable( selected.id ) }
+							onDelete={ () => askDeleteTable( selected.id ) }
 							onClose={ () => setSelectedId( null ) }
 						/>
 					) }
 				</Stack>
 			) }
 
-			<Divider sx={ { my: 3 } } />
-			<Typography sx={ { fontSize: 13, color: tokens.muted } }>
-				Tip: <strong>Join tables</strong> for parties too big for one table — set the combined
-				min/max covers, and the order decides which join is offered first (put your best fit at the
-				top). A booked join blocks all its tables.
-			</Typography>
+			{ viewMode === 'history' && (
+				<FloorHistoryView
+					history={ history }
+					busy={ historyBusy }
+					onRestoreZone={ restoreZone }
+					onRestoreTable={ restoreVoidTable }
+				/>
+			) }
+
+			{ viewMode !== 'history' && (
+				<>
+					<Divider sx={ { my: 3 } } />
+					<Typography sx={ { fontSize: 13, color: tokens.muted } }>
+						Tip: <strong>Join tables</strong> for parties too big for one table — set the combined
+						min/max covers, and the order decides which join is offered first (put your best fit at the
+						top). A booked join blocks all its tables.
+					</Typography>
+				</>
+			) }
+
+			<ConfirmDialog
+				open={ !! zoneDel }
+				title={ zoneDel ? `Delete “${ zoneDel.name }”?` : '' }
+				message={
+					! zoneDel
+						? ''
+						: zoneDel.loading
+							? 'Checking what this zone contains…'
+							: zoneDel.tables.length
+								? `This zone has ${ zoneDel.tables.length } table${ zoneDel.tables.length === 1 ? '' : 's' } (${ zoneDel.tables.reduce( ( s, t ) => s + ( t.seats || 0 ), 0 ) } covers). Choose what happens to them.`
+								: 'This zone is empty — deleting it can’t be undone.'
+				}
+				confirmLabel="Delete zone"
+				busy={ zoneDelBusy }
+				confirmDisabled={ !! zoneDel && zoneDel.loading }
+				onCancel={ () => setZoneDel( null ) }
+				onConfirm={ confirmDeleteZone }
+				details={
+					zoneDel ? (
+						<Stack spacing={ 1.25 }>
+							{ ! zoneDel.loading && zoneDel.tables.length > 0 && (
+								<>
+									<TextField
+										select
+										label="What happens to the tables?"
+										size="small"
+										value={ moveTo }
+										onChange={ ( e ) => setMoveTo( Number( e.target.value ) ) }
+										fullWidth
+									>
+										<MenuItem value={ 0 }>Move them to Unzoned</MenuItem>
+										{ areas.filter( ( a ) => a.id !== zoneDel.id ).map( ( a ) => (
+											<MenuItem key={ a.id } value={ a.id }>Move them to { a.name }</MenuItem>
+										) ) }
+										<MenuItem value={ -1 }>
+											Delete the { zoneDel.tables.length } table{ zoneDel.tables.length === 1 ? '' : 's' } too
+										</MenuItem>
+									</TextField>
+									{ moveTo === -1 && (
+										<ReassignList
+											upcoming={ zoneDel.upcoming }
+											reassign={ reassign }
+											onSet={ ( bid, tid ) => setReassign( ( r ) => ( { ...r, [ bid ]: tid } ) ) }
+											onAuto={ () => autoAssign( zoneDel.upcoming ) }
+											onKeep={ () => keepAll( zoneDel.upcoming ) }
+										/>
+									) }
+								</>
+							) }
+							{ zoneDel.error && (
+								<Typography sx={ { fontSize: 13, color: tokens.red } }>{ zoneDel.error }</Typography>
+							) }
+						</Stack>
+					) : null
+				}
+			/>
+
+			<ConfirmDialog
+				open={ !! tableDel }
+				title={ tableDel ? `Delete “${ tableDel.name }”?` : '' }
+				message={
+					! tableDel
+						? ''
+						: tableDel.loading
+							? 'Checking for upcoming bookings…'
+							: 'The table is removed from the plan but kept in History, so you can restore it later.'
+				}
+				confirmLabel="Delete table"
+				busy={ tableDelBusy }
+				confirmDisabled={ !! tableDel && tableDel.loading }
+				onCancel={ () => setTableDel( null ) }
+				onConfirm={ confirmDeleteTable }
+				details={
+					tableDel ? (
+						<Stack spacing={ 1.25 }>
+							{ tableDel.joins && tableDel.joins.length > 0 && (
+								<Typography sx={ { fontSize: 12.5, color: tokens.ink2 } }>
+									Joined in { tableDel.joins.join( ', ' ) } — deleting it breaks that join.
+								</Typography>
+							) }
+							{ ! tableDel.loading && tableDel.upcoming.length > 0 && (
+								<ReassignList
+									upcoming={ tableDel.upcoming }
+									reassign={ reassign }
+									onSet={ ( bid, tid ) => setReassign( ( r ) => ( { ...r, [ bid ]: tid } ) ) }
+									onAuto={ () => autoAssign( tableDel.upcoming ) }
+									onKeep={ () => keepAll( tableDel.upcoming ) }
+								/>
+							) }
+							{ tableDel.error && (
+								<Typography sx={ { fontSize: 13, color: tokens.red } }>{ tableDel.error }</Typography>
+							) }
+						</Stack>
+					) : null
+				}
+			/>
 		</Page>
 	);
 }
@@ -781,7 +1044,9 @@ function TableProps( { table, areas, onChange, onChangeZone, onDelete, onClose }
 						<MenuItem key={ key } value={ key }>{ s.label }</MenuItem>
 					) ) }
 				</TextField>
-				<Stack direction="row" spacing={ 1 } alignItems="center">
+				{ /* flex-end so the rotate button lines up with the select BOX, not the
+				     centre of the whole field (whose label adds height above it). */ }
+				<Stack direction="row" spacing={ 1 } alignItems="flex-end">
 					<TextField
 						select
 						label="Zone"
@@ -796,7 +1061,7 @@ function TableProps( { table, areas, onChange, onChangeZone, onDelete, onClose }
 					<Tooltip title="Rotate 90°">
 						<IconButton
 							onClick={ () => onChange( { rotation: ( ( table.rotation || 0 ) + 90 ) % 360 } ) }
-							sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2 } }
+							sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, width: 40, height: 40 } }
 						>
 							<Rotate90DegreesCwIcon fontSize="small" />
 						</IconButton>
@@ -824,5 +1089,132 @@ function TableProps( { table, areas, onChange, onChangeZone, onDelete, onClose }
 				</Button>
 			</Stack>
 		</Box>
+	);
+}
+
+// Per-booking reassignment shown when deleting table(s): each upcoming booking
+// gets a best-fit target (from the availability engine) or can be kept with the
+// voided table (it lives on in History with it).
+function ReassignList( { upcoming, reassign, onSet, onAuto, onKeep } ) {
+	if ( ! upcoming || ! upcoming.length ) {
+		return null;
+	}
+	const anyStranded = upcoming.some( ( b ) => ! ( b.candidates && b.candidates.length ) );
+	return (
+		<Box sx={ { bgcolor: tokens.soft, border: `1px solid ${ tokens.border }`, borderRadius: '10px', p: 1.25 } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 0.75 } }>
+				<Typography sx={ { fontSize: 13, fontWeight: 700, color: tokens.ink2 } }>
+					{ upcoming.length } upcoming booking{ upcoming.length === 1 ? '' : 's' } to move
+				</Typography>
+				<Stack direction="row" spacing={ 0.5 }>
+					<Button size="small" variant="text" onClick={ onAuto } sx={ { color: tokens.accent, minWidth: 0 } }>Auto-assign</Button>
+					<Button size="small" variant="text" onClick={ onKeep } sx={ { color: tokens.muted, minWidth: 0 } }>Keep all</Button>
+				</Stack>
+			</Stack>
+			<Stack spacing={ 1 }>
+				{ upcoming.map( ( b ) => (
+					<Stack key={ b.id } direction="row" spacing={ 1 } alignItems="flex-end">
+						<Box sx={ { flex: 1, minWidth: 0 } }>
+							<Typography sx={ { fontSize: 12.5, fontWeight: 650, color: tokens.ink } }>
+								{ b.tableName } · { b.date } { b.time }
+							</Typography>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted } }>
+								party of { b.party }{ b.name ? ` · ${ b.name }` : '' }
+							</Typography>
+						</Box>
+						<TextField
+							select
+							size="small"
+							label="Move to"
+							value={ reassign[ b.id ] ?? 0 }
+							onChange={ ( e ) => onSet( b.id, Number( e.target.value ) ) }
+							sx={ { width: 156 } }
+						>
+							<MenuItem value={ 0 }>Keep (void with table)</MenuItem>
+							{ ( b.candidates || [] ).map( ( c ) => (
+								<MenuItem key={ c.id } value={ c.id }>{ c.name } · { c.seats } seats</MenuItem>
+							) ) }
+						</TextField>
+					</Stack>
+				) ) }
+			</Stack>
+			{ anyStranded && (
+				<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 0.75 } }>
+					A booking with no free table at its time can only be kept — it stays on the voided table until you rebook it.
+				</Typography>
+			) }
+		</Box>
+	);
+}
+
+// History tab: voided zones and tables, newest first, each restorable in one click.
+function FloorHistoryView( { history, busy, onRestoreZone, onRestoreTable } ) {
+	if ( busy && ! history ) {
+		return <Typography sx={ { fontSize: 13, color: tokens.muted, mt: 2 } }>Loading…</Typography>;
+	}
+	const zones = history?.zones || [];
+	const voidTables = history?.tables || [];
+	if ( ! zones.length && ! voidTables.length ) {
+		return (
+			<Box sx={ { mt: 2 } }>
+				<EmptyState
+					icon={ <HistoryIcon /> }
+					title="Nothing deleted yet"
+					description="Deleted zones and tables show up here — bring any of them back with one click."
+				/>
+			</Box>
+		);
+	}
+	const when = ( ts ) => ( ts ? new Date( ts * 1000 ).toLocaleDateString() : '' );
+	const Row = ( { icon, title, sub, onRestore } ) => (
+		<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: '12px', p: 1.25 } }>
+			{ icon }
+			<Box sx={ { flex: 1, minWidth: 0 } }>
+				<Typography sx={ { fontSize: 13.5, fontWeight: 650, color: tokens.ink } }>{ title }</Typography>
+				<Typography sx={ { fontSize: 12, color: tokens.muted } }>{ sub }</Typography>
+			</Box>
+			<Button size="small" variant="outlined" startIcon={ <RestoreIcon sx={ { fontSize: 16 } } /> } onClick={ onRestore }>
+				Restore
+			</Button>
+		</Stack>
+	);
+	return (
+		<Stack spacing={ 2 } sx={ { mt: 2 } }>
+			{ zones.length > 0 && (
+				<Box>
+					<Typography variant="subtitle2" sx={ { color: tokens.ink2, mb: 1 } }>Deleted zones</Typography>
+					<Stack spacing={ 1 }>
+						{ zones.map( ( z ) => (
+							<Row
+								key={ z.id }
+								icon={ <TableRestaurantIcon sx={ { color: tokens.accent, fontSize: 20 } } /> }
+								title={ z.name }
+								sub={ `Deleted ${ when( z.voidedAt ) }` }
+								onRestore={ () => onRestoreZone( z.id ) }
+							/>
+						) ) }
+					</Stack>
+				</Box>
+			) }
+			{ voidTables.length > 0 && (
+				<Box>
+					<Typography variant="subtitle2" sx={ { color: tokens.ink2, mb: 1 } }>Deleted tables</Typography>
+					<Stack spacing={ 1 }>
+						{ voidTables.map( ( t ) => (
+							<Row
+								key={ t.id }
+								icon={ <EventSeatIcon sx={ { color: tokens.muted, fontSize: 20 } } /> }
+								title={ t.name }
+								sub={ `${ t.seats } seats${ t.zone ? ` · was in ${ t.zone }` : '' } · deleted ${ when( t.voidedAt ) }` }
+								onRestore={ () => onRestoreTable( t.id ) }
+							/>
+						) ) }
+					</Stack>
+				</Box>
+			) }
+			<Typography sx={ { fontSize: 12, color: tokens.muted2 } }>
+				Restoring a table whose old zone is gone brings it back Unzoned. Restoring a zone brings back the empty zone — restore its tables separately.
+			</Typography>
+		</Stack>
 	);
 }

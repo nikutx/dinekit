@@ -89,6 +89,13 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Changelog ==
 
+= 1.2.3 =
+* Floor plan: deleting a zone now asks first and lets you move its tables to another zone (or remove them) — and if any of those tables have upcoming bookings, you can reassign each one to a free table before it goes.
+* Nothing is lost: deleted zones and tables now live in a new "History" tab on the floor plan, restorable with one click.
+* Joined tables are colour-matched on the plan so you can see your table groupings at a glance; a table shared by two joins blends both colours.
+* Tables show a small orientation marker, so you can tell which way one faces after rotating it.
+* Fixes: the "Out of service" toggle now responds wherever you click it; moving a table to another zone updates the plan straight away; the rotate button lines up with the zone selector; and the min/max party boxes are tidier.
+
 = 1.2.2 =
 * Smoother onboarding: the setup wizard now walks you through your opening hours, and you can skip ahead and pick up the rest from your dashboard whenever you like.
 * Menu, ordering and booking pages are created as drafts for you to review and publish — with a clear "review & publish" prompt, and a checklist that only ticks a page off once it's actually live.
