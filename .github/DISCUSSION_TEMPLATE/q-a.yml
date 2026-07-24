@@ -1,0 +1,27 @@
+title: "[Question] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never post passwords, Stripe keys (even test keys), customer names or emails, or wp-admin URLs with tokens.** Screenshots are welcome — blur anything private first.
+
+        Found a bug instead? Open an [issue](https://github.com/nikutx/dinekit/issues). Security problem? **Don't post it here** — see [SECURITY.md](https://github.com/nikutx/dinekit/blob/main/.github/SECURITY.md).
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do, and what happens instead?
+      description: The goal, the steps you took, and where it went wrong.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: DineKit + WordPress versions
+      placeholder: e.g. DineKit 1.2.3, WordPress 7.0.1
+    validations:
+      required: true
+  - type: input
+    id: theme
+    attributes:
+      label: Theme (only if the problem is on a public page)
+      placeholder: e.g. Twenty Twenty-Five, Astra, Divi
