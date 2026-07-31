@@ -127,6 +127,24 @@ export default function StaffDashboard() {
 							helperText="Of sales (casual ~25–30%)"
 							sx={ { width: 170 } }
 						/>
+						<TextField
+							label="Break after (hours)"
+							type="number"
+							size="small"
+							value={ cfg.break_over_hours }
+							onChange={ ( e ) => saveCfg( { break_over_hours: Math.max( 0, Math.min( 24, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
+							helperText="Shifts longer than this get a break"
+							sx={ { width: 170 } }
+						/>
+						<TextField
+							label="Break length (mins)"
+							type="number"
+							size="small"
+							value={ cfg.break_mins }
+							onChange={ ( e ) => saveCfg( { break_mins: Math.max( 0, Math.min( 120, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
+							helperText="Unpaid, deducted from rota hours · 0 = off"
+							sx={ { width: 170 } }
+						/>
 					</Stack>
 				</Card>
 			) }

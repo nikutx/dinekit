@@ -284,6 +284,10 @@ function settings() {
 		'covers_per_server' => 20,  // Covers one server handles per service (operator rule of thumb).
 		'utilisation'       => 75,  // % of seats realistically filled per turn.
 		'target_labour_pct' => 28,  // Target labour cost as a % of sales.
+		// Unpaid-break rule: shifts longer than the threshold auto-deduct the
+		// break from paid hours (UK guidance: 20 min over 6 h; venues vary).
+		'break_over_hours'  => 6,   // Shift length that triggers a break.
+		'break_mins'        => 30,  // Deducted break length; 0 disables the rule.
 	);
 	$stored   = get_option( OPTION );
 	return is_array( $stored ) ? wp_parse_args( $stored, $defaults ) : $defaults;
@@ -305,6 +309,12 @@ function save_settings( $input ) {
 	}
 	if ( isset( $input['target_labour_pct'] ) ) {
 		$s['target_labour_pct'] = max( 1, min( 90, absint( $input['target_labour_pct'] ) ) );
+	}
+	if ( isset( $input['break_over_hours'] ) ) {
+		$s['break_over_hours'] = max( 0, min( 24, absint( $input['break_over_hours'] ) ) );
+	}
+	if ( isset( $input['break_mins'] ) ) {
+		$s['break_mins'] = max( 0, min( 120, absint( $input['break_mins'] ) ) );
 	}
 	update_option( OPTION, $s );
 	return $s;

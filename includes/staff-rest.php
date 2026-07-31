@@ -364,26 +364,48 @@ function shift_response( $id ) {
 	$staff_id = (int) get_post_meta( $id, 'dinekit_shift_staff', true );
 	$start    = (string) get_post_meta( $id, 'dinekit_shift_start', true );
 	$end      = (string) get_post_meta( $id, 'dinekit_shift_end', true );
+	$type     = (string) get_post_meta( $id, 'dinekit_shift_type', true );
+	$type     = in_array( $type, array( 'off', 'sick' ), true ) ? $type : 'work';
 	$mins     = to_min( $end ) - to_min( $start );
 	if ( $mins <= 0 ) {
 		$mins += 1440; // Over-midnight shift.
 	}
 	$hours = round( $mins / 60, 2 );
-	$rate  = (float) get_post_meta( $staff_id, 'dinekit_rate', true );
-	$date  = (string) get_post_meta( $id, 'dinekit_shift_date', true );
+
+	// Unpaid-break rule: long working shifts auto-deduct the configured break
+	// from PAID hours (the scheduled span is unchanged).
+	$cfg        = \DineKit\Staff\settings();
+	$break_mins = 0;
+	if ( 'work' === $type && (int) $cfg['break_mins'] > 0 && $hours > (float) $cfg['break_over_hours'] ) {
+		$break_mins = (int) $cfg['break_mins'];
+	}
+	$paid = max( 0, round( $hours - ( $break_mins / 60 ), 2 ) );
+
+	// A day off or a sick-marked shift is an absence record: it blocks the day
+	// visually but contributes no hours or labour cost.
+	if ( 'work' !== $type ) {
+		$hours      = 0;
+		$paid       = 0;
+		$break_mins = 0;
+	}
+	$rate = (float) get_post_meta( $staff_id, 'dinekit_rate', true );
+	$date = (string) get_post_meta( $id, 'dinekit_shift_date', true );
 	return array(
-		'id'      => (int) $id,
-		'staffId' => $staff_id,
-		'date'    => $date,
-		'start'   => $start,
-		'end'     => $end,
-		'role'    => (string) get_post_meta( $id, 'dinekit_shift_role', true ),
-		'note'    => (string) get_post_meta( $id, 'dinekit_shift_note', true ),
-		'hours'   => $hours,
-		'cost'    => round( $hours * $rate, 2 ),
+		'id'        => (int) $id,
+		'staffId'   => $staff_id,
+		'date'      => $date,
+		'start'     => $start,
+		'end'       => $end,
+		'type'      => $type,
+		'role'      => (string) get_post_meta( $id, 'dinekit_shift_role', true ),
+		'note'      => (string) get_post_meta( $id, 'dinekit_shift_note', true ),
+		'hours'     => $hours,
+		'breakMins' => $break_mins,
+		'paidHours' => $paid,
+		'cost'      => round( $paid * $rate, 2 ),
 		// True when this shift falls on the member's approved holiday — the rota
 		// badges it so the clash is visible where it's created.
-		'onLeave' => \DineKit\Staff\staff_on_leave( $staff_id, $date ),
+		'onLeave'   => \DineKit\Staff\staff_on_leave( $staff_id, $date ),
 	);
 }
 
@@ -439,6 +461,10 @@ function apply_shift_fields( $id, $request ) {
 		if ( null !== $request->get_param( $param ) ) {
 			update_post_meta( $id, $key, sanitize_text_field( (string) $request->get_param( $param ) ) );
 		}
+	}
+	if ( null !== $request->get_param( 'type' ) ) {
+		$type = (string) $request->get_param( 'type' );
+		update_post_meta( $id, 'dinekit_shift_type', in_array( $type, array( 'off', 'sick' ), true ) ? $type : 'work' );
 	}
 }
 

@@ -78,14 +78,14 @@ export default function StaffRota( { staff, roles } ) {
 	const cellShifts = ( staffId, date ) => shifts.filter( ( s ) => s.staffId === staffId && s.date === date );
 	const chipColor = ( sh, m ) => ( colorBy === 'role' ? roleColor( sh.role ) : ( m.color || tokens.muted2 ) );
 
-	// Per-staff scheduled hours this week (drives the contracted-hours guard).
+	// Per-staff PAID hours this week (break-adjusted — drives the contracted-hours guard).
 	const hoursByStaff = useMemo( () => {
 		const map = {};
-		shifts.forEach( ( s ) => { map[ s.staffId ] = ( map[ s.staffId ] || 0 ) + ( s.hours || 0 ); } );
+		shifts.forEach( ( s ) => { map[ s.staffId ] = ( map[ s.staffId ] || 0 ) + ( s.paidHours ?? s.hours ?? 0 ); } );
 		return map;
 	}, [ shifts ] );
 
-	const totalHours = shifts.reduce( ( s, sh ) => s + ( sh.hours || 0 ), 0 );
+	const totalHours = shifts.reduce( ( s, sh ) => s + ( sh.paidHours ?? sh.hours ?? 0 ), 0 );
 	const totalCost = shifts.reduce( ( s, sh ) => s + ( sh.cost || 0 ), 0 );
 
 	// Group the roster by role (catalogue order), else one flat group.
@@ -129,17 +129,19 @@ export default function StaffRota( { staff, roles } ) {
 		.filter( ( s ) => s.date === todayIso )
 		.map( ( s ) => ( { ...s, member: staff.find( ( m ) => m.id === s.staffId ) } ) )
 		.sort( ( a, b ) => ( a.start || '' ).localeCompare( b.start || '' ) );
-	const workingCount = todayShifts.filter( ( s ) => ! s.onLeave ).length;
-	const clashCount = todayShifts.length - workingCount;
+	const workingToday = todayShifts.filter( ( s ) => ( s.type || 'work' ) === 'work' );
+	const workingCount = workingToday.filter( ( s ) => ! s.onLeave ).length;
+	const clashCount = workingToday.length - workingCount;
+	const absentCount = todayShifts.length - workingToday.length;
 
-	const openNew = ( m, date ) => { setCopyTargets( [] ); setEditing( { staffId: m.id, staffName: m.name, date, start: '17:00', end: '23:00', role: m.role, note: '' } ); };
+	const openNew = ( m, date ) => { setCopyTargets( [] ); setEditing( { staffId: m.id, staffName: m.name, date, start: '17:00', end: '23:00', role: m.role, note: '', type: 'work' } ); };
 	const openEdit = ( sh ) => {
 		const m = staff.find( ( x ) => x.id === sh.staffId );
 		setCopyTargets( [] );
 		setEditing( { ...sh, staffName: m ? m.name : '' } );
 	};
 	const saveShift = async () => {
-		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note };
+		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' };
 		if ( editing.id ) {
 			await api.updateShift( editing.id, body );
 		} else {
@@ -156,7 +158,7 @@ export default function StaffRota( { staff, roles } ) {
 				continue;
 			}
 			// eslint-disable-next-line no-await-in-loop
-			await api.createShift( { staffId: editing.staffId, date, start: editing.start, end: editing.end, role: editing.role, note: editing.note } );
+			await api.createShift( { staffId: editing.staffId, date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' } );
 		}
 		setEditing( null );
 		setCopyTargets( [] );
@@ -213,32 +215,54 @@ export default function StaffRota( { staff, roles } ) {
 							'&:hover': cs.length === 0 ? { bgcolor: tokens.soft } : {},
 						} }
 					>
-						{ cs.map( ( sh ) => (
-							<Box
-								key={ sh.id }
-								onClick={ ( e ) => { e.stopPropagation(); openEdit( sh ); } }
-								title={ sh.onLeave ? 'Clash — this shift is on the member’s approved holiday' : roleLabel( sh.role ) }
-								sx={ {
-									bgcolor: chipColor( sh, m ),
-									color: '#fff',
-									borderRadius: '6px',
-									px: 0.75,
-									py: 0.4,
-									mb: 0.4,
-									cursor: 'pointer',
-									fontSize: 11,
-									fontWeight: 700,
-									lineHeight: 1.2,
-									...( sh.onLeave ? { outline: `2px solid ${ tokens.amber }`, outlineOffset: '1px' } : {} ),
-								} }
-							>
-								{ sh.start }–{ sh.end }
-								{ sh.onLeave && <Box component="span" sx={ { display: 'block', fontSize: 10, fontWeight: 700 } }>⚠ on holiday</Box> }
-							</Box>
-						) ) }
-						{ cs.length === 0 && (
+						{ cs.map( ( sh ) => {
+							const off = sh.type === 'off';
+							const sick = sh.type === 'sick';
+							const tip = sick ? 'Marked sick — not counted in hours or cost'
+								: off ? 'Day off — blocks this day, no hours'
+									: ( sh.onLeave ? 'Clash — this shift is on the member’s approved holiday'
+										: roleLabel( sh.role ) + ( sh.breakMins ? ` · ${ sh.breakMins }m unpaid break deducted` : '' ) );
+							return (
+								<Box
+									key={ sh.id }
+									onClick={ ( e ) => { e.stopPropagation(); openEdit( sh ); } }
+									title={ tip }
+									sx={ {
+										bgcolor: off ? tokens.soft : ( sick ? tokens.redSoft : chipColor( sh, m ) ),
+										color: off ? tokens.muted : ( sick ? tokens.red : '#fff' ),
+										border: off ? `1px dashed ${ tokens.border2 }` : 'none',
+										borderRadius: '6px',
+										px: 0.75,
+										py: 0.4,
+										mb: 0.4,
+										cursor: 'pointer',
+										fontSize: 11,
+										fontWeight: 700,
+										lineHeight: 1.2,
+										...( sh.onLeave && ! off && ! sick ? { outline: `2px solid ${ tokens.amber }`, outlineOffset: '1px' } : {} ),
+									} }
+								>
+									{ off ? 'DAY OFF' : (
+										<Box component="span" sx={ sick ? { textDecoration: 'line-through' } : {} }>{ sh.start }–{ sh.end }</Box>
+									) }
+									{ sick && <Box component="span" sx={ { display: 'block', fontSize: 10, fontWeight: 700 } }>SICK</Box> }
+									{ ! off && ! sick && sh.breakMins > 0 && <Box component="span" sx={ { display: 'block', fontSize: 9.5, fontWeight: 600, opacity: 0.85 } }>{ sh.breakMins }m break</Box> }
+									{ sh.onLeave && ! off && ! sick && <Box component="span" sx={ { display: 'block', fontSize: 10, fontWeight: 700 } }>⚠ on holiday</Box> }
+								</Box>
+							);
+						} ) }
+						{ cs.length === 0 ? (
 							<Box sx={ { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: tokens.border2 } }>
 								<AddIcon sx={ { fontSize: 16 } } />
+							</Box>
+						) : (
+							// Split shifts: a second (third…) shift on the same day.
+							<Box
+								onClick={ ( e ) => { e.stopPropagation(); openNew( m, date ); } }
+								title="Add another shift this day (split shift)"
+								sx={ { display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.1, borderRadius: '6px', color: tokens.border2, cursor: 'pointer', '&:hover': { color: tokens.accent, bgcolor: tokens.soft } } }
+							>
+								<AddIcon sx={ { fontSize: 13 } } />
 							</Box>
 						) }
 					</Box>
@@ -314,6 +338,7 @@ export default function StaffRota( { staff, roles } ) {
 						<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>
 							{ todayShifts.length ? `${ workingCount } working` : 'Nobody scheduled' }
 							{ clashCount > 0 ? ` · ${ clashCount } on holiday ⚠` : '' }
+							{ absentCount > 0 ? ` · ${ absentCount } off/sick` : '' }
 						</Typography>
 					</Stack>
 					{ todayShifts.length > 0 && (
@@ -322,8 +347,11 @@ export default function StaffRota( { staff, roles } ) {
 								<Stack key={ s.id } direction="row" alignItems="center" spacing={ 0.75 } sx={ { bgcolor: tokens.surface, border: `1px solid ${ s.onLeave ? tokens.amber : tokens.border }`, borderRadius: '999px', pl: 0.75, pr: 1.25, py: 0.5, opacity: s.onLeave ? 0.85 : 1 } }>
 									<Box sx={ { width: 8, height: 8, borderRadius: '50%', bgcolor: colorBy === 'role' ? roleColor( s.role ) : ( ( s.member && s.member.color ) || tokens.muted2 ), flexShrink: 0 } } />
 									<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.ink } }>{ ( s.member && s.member.name ) || 'Unnamed' }</Typography>
-									<Typography sx={ { fontSize: 11.5, color: tokens.muted } }>{ roleLabel( s.role ) } · { s.start }–{ s.end }</Typography>
-									{ s.onLeave && <Typography sx={ { fontSize: 11, fontWeight: 700, color: tokens.amber } }>on holiday ⚠</Typography> }
+									<Typography sx={ { fontSize: 11.5, color: tokens.muted } }>
+										{ s.type === 'off' ? 'Day off' : s.type === 'sick' ? `${ roleLabel( s.role ) } · sick` : `${ roleLabel( s.role ) } · ${ s.start }–${ s.end }` }
+									</Typography>
+									{ s.type === 'sick' && <Typography sx={ { fontSize: 11, fontWeight: 700, color: tokens.red } }>sick</Typography> }
+									{ s.onLeave && s.type !== 'off' && s.type !== 'sick' && <Typography sx={ { fontSize: 11, fontWeight: 700, color: tokens.amber } }>on holiday ⚠</Typography> }
 								</Stack>
 							) ) }
 						</Stack>
@@ -383,10 +411,22 @@ export default function StaffRota( { staff, roles } ) {
 							{ editing.staffName } · { new Date( editing.date + 'T00:00:00' ).toLocaleDateString( undefined, { weekday: 'long', day: 'numeric', month: 'short' } ) }
 						</Typography>
 						<Stack spacing={ 2 }>
-							<Stack direction="row" spacing={ 1.5 }>
-								<TextField label="Start" type="time" size="small" value={ editing.start } onChange={ ( e ) => setEditing( { ...editing, start: e.target.value } ) } sx={ { flex: 1 } } />
-								<TextField label="End" type="time" size="small" value={ editing.end } onChange={ ( e ) => setEditing( { ...editing, end: e.target.value } ) } sx={ { flex: 1 } } />
-							</Stack>
+							{ /* Working / day off / sick — a day off blocks the day with no
+							     hours; sick keeps the record but zeroes hours + cost. */ }
+							<ToggleButtonGroup size="small" exclusive value={ editing.type || 'work' } onChange={ ( e, v ) => v && setEditing( { ...editing, type: v } ) }>
+								<ToggleButton value="work">Working</ToggleButton>
+								<ToggleButton value="off">Day off</ToggleButton>
+								<ToggleButton value="sick">Sick</ToggleButton>
+							</ToggleButtonGroup>
+							{ ( editing.type || 'work' ) !== 'off' && (
+								<Stack direction="row" spacing={ 1.5 }>
+									<TextField label="Start" type="time" size="small" value={ editing.start } onChange={ ( e ) => setEditing( { ...editing, start: e.target.value } ) } sx={ { flex: 1 } } />
+									<TextField label="End" type="time" size="small" value={ editing.end } onChange={ ( e ) => setEditing( { ...editing, end: e.target.value } ) } sx={ { flex: 1 } } />
+								</Stack>
+							) }
+							{ ( editing.type || 'work' ) === 'sick' && (
+								<Typography sx={ { fontSize: 12, color: tokens.red } }>Marked sick — kept on the rota for the record, but no hours or labour cost are counted.</Typography>
+							) }
 							<TextField select label="Role for this shift" size="small" value={ editing.role } onChange={ ( e ) => setEditing( { ...editing, role: e.target.value } ) } fullWidth>
 								{ roles.map( ( r ) => <MenuItem key={ r.key } value={ r.key }>{ r.label }</MenuItem> ) }
 							</TextField>
