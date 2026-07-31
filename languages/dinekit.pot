@@ -1,0 +1,2628 @@
+# Copyright (C) 2026 Web Level Up
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: DineKit 1.2.14\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dinekit\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-07-31T22:41:03+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: dinekit\n"
+
+#. Plugin Name of the plugin
+#: dinekit.php
+#: includes/admin-page.php:56
+#: includes/admin-page.php:57
+#: includes/post-types.php:35
+#: includes/pwa.php:216
+msgid "DineKit"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: dinekit.php
+msgid "https://weblevelup.co.uk/dinekit"
+msgstr ""
+
+#. Description of the plugin
+#: dinekit.php
+msgid "Beautiful restaurant menus with UK allergen support (Natasha's Law), QR table cards and opening hours. No dependencies, works with any theme."
+msgstr ""
+
+#. Author of the plugin
+#: dinekit.php
+msgid "Web Level Up"
+msgstr ""
+
+#. Author URI of the plugin
+#: dinekit.php
+msgid "https://weblevelup.co.uk/"
+msgstr ""
+
+#. translators: 1: required PHP version, 2: required WordPress version.
+#: dinekit.php:62
+#, php-format
+msgid "DineKit requires PHP %1$s+ and WordPress %2$s+. The plugin is inactive until the environment is updated."
+msgstr ""
+
+#: includes/access.php:61
+msgid "DineKit Staff"
+msgstr ""
+
+#: includes/access.php:97
+#: includes/activity.php:37
+#: includes/ordering/ordering.php:196
+msgid "Orders"
+msgstr ""
+
+#: includes/access.php:98
+msgid "Issue refunds / void paid"
+msgstr ""
+
+#: includes/access.php:99
+msgid "Bookings & floor"
+msgstr ""
+
+#: includes/access.php:100
+msgid "Events & pre-orders"
+msgstr ""
+
+#: includes/access.php:101
+msgid "Staff & rotas"
+msgstr ""
+
+#: includes/access.php:102
+msgid "Settings, integrations & emails"
+msgstr ""
+
+#: includes/access.php:302
+msgid "Updated access-control permissions"
+msgstr ""
+
+#: includes/activity.php:36
+msgid "Refunds & voids"
+msgstr ""
+
+#: includes/activity.php:38
+#: includes/bookings/register.php:236
+msgid "Bookings"
+msgstr ""
+
+#: includes/activity.php:39
+msgid "Payment settings"
+msgstr ""
+
+#: includes/activity.php:40
+msgid "Access & staff"
+msgstr ""
+
+#: includes/activity.php:41
+msgid "Sign-ins"
+msgstr ""
+
+#: includes/activity.php:54
+msgid "DineKit Activity"
+msgstr ""
+
+#: includes/activity.php:78
+msgid "System"
+msgstr ""
+
+#. translators: %s: user name.
+#: includes/activity.php:120
+#, php-format
+msgid "%s signed in"
+msgstr ""
+
+#: includes/admin/admin.php:37
+msgid "Price"
+msgstr ""
+
+#: includes/admin-page.php:41
+msgid "Want it set up for you?"
+msgstr ""
+
+#: includes/admin-page.php:42
+msgid "Short on time? Web Level Up can build and style your whole menu for you."
+msgstr ""
+
+#: includes/admin-page.php:44
+msgid "Get done-for-you setup →"
+msgstr ""
+
+#: includes/bookings/emails.php:79
+#: includes/bookings/form.php:148
+#: includes/emails.php:245
+#: includes/ordering/form.php:110
+#: includes/privacy.php:159
+#: includes/privacy.php:196
+#: includes/privacy.php:231
+#: includes/privacy.php:264
+#: includes/privacy.php:333
+msgid "Name"
+msgstr ""
+
+#: includes/bookings/emails.php:80
+#: includes/bookings/form.php:131
+#: includes/emails.php:246
+#: includes/privacy.php:162
+msgid "Date"
+msgstr ""
+
+#: includes/bookings/emails.php:81
+#: includes/bookings/form.php:135
+#: includes/emails.php:247
+#: includes/privacy.php:163
+msgid "Time"
+msgstr ""
+
+#: includes/bookings/emails.php:82
+#: includes/bookings/form.php:139
+#: includes/emails.php:248
+msgid "Guests"
+msgstr ""
+
+#: includes/bookings/emails.php:85
+#: includes/bookings/register.php:112
+#: includes/bookings/rest.php:983
+msgid "Table"
+msgstr ""
+
+#: includes/bookings/emails.php:88
+#: includes/bookings/form.php:156
+#: includes/ordering/form.php:112
+#: includes/privacy.php:161
+#: includes/privacy.php:198
+#: includes/privacy.php:266
+#: includes/privacy.php:335
+msgid "Phone"
+msgstr ""
+
+#: includes/bookings/emails.php:91
+#: includes/privacy.php:166
+#: includes/privacy.php:200
+#: includes/privacy.php:233
+msgid "Notes"
+msgstr ""
+
+#: includes/bookings/emails.php:103
+msgid "A deposit may be required for this booking."
+msgstr ""
+
+#. translators: %s: guest name.
+#: includes/bookings/emails.php:143
+#, php-format
+msgid "Hi %s, you’re on our waitlist — we’ll be in touch if a table frees up."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/bookings/emails.php:145
+#, php-format
+msgid "You’re on the waitlist at %s"
+msgstr ""
+
+#. translators: %s: guest name.
+#: includes/bookings/emails.php:152
+#, php-format
+msgid "Hi %s, thanks for your booking request — we’ll confirm shortly."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/bookings/emails.php:154
+#, php-format
+msgid "Your booking request at %s"
+msgstr ""
+
+#. translators: 1: guest name, 2: date, 3: time, 4: party size.
+#: includes/bookings/emails.php:165
+#, php-format
+msgid "New booking: %1$s — %2$s %3$s (%4$dp)"
+msgstr ""
+
+#: includes/bookings/emails.php:171
+msgid "A new booking has come in:"
+msgstr ""
+
+#: includes/bookings/form.php:40
+#: includes/bookings/register.php:75
+msgid "Book a table"
+msgstr ""
+
+#: includes/bookings/form.php:47
+msgid "Online booking is currently closed. Please call us to reserve a table."
+msgstr ""
+
+#: includes/bookings/form.php:62
+msgid "Available"
+msgstr ""
+
+#: includes/bookings/form.php:63
+msgid "Available — request it below"
+msgstr ""
+
+#: includes/bookings/form.php:64
+msgid "deposit applies"
+msgstr ""
+
+#: includes/bookings/form.php:65
+msgid "Not available then — try another time"
+msgstr ""
+
+#: includes/bookings/form.php:66
+msgid "Sorry, we’re closed that day."
+msgstr ""
+
+#: includes/bookings/form.php:67
+msgid "Next free:"
+msgstr ""
+
+#: includes/bookings/form.php:68
+#: includes/ordering/form.php:122
+msgid "Choose"
+msgstr ""
+
+#: includes/bookings/form.php:69
+msgid "Fully booked — you can join the waitlist"
+msgstr ""
+
+#: includes/bookings/form.php:70
+msgid "Join the waitlist"
+msgstr ""
+
+#: includes/bookings/form.php:71
+msgid "You’re on the waitlist"
+msgstr ""
+
+#: includes/bookings/form.php:72
+msgid "Please enter your name and a valid email."
+msgstr ""
+
+#: includes/bookings/form.php:73
+msgid "Table booked"
+msgstr ""
+
+#: includes/bookings/form.php:74
+msgid "Request sent"
+msgstr ""
+
+#: includes/bookings/form.php:75
+#: includes/events/form.php:76
+#: includes/ordering/form.php:119
+#: includes/reviews-form.php:46
+msgid "Sorry, something went wrong. Please try again."
+msgstr ""
+
+#: includes/bookings/form.php:76
+#: includes/events/form.php:77
+#: includes/ordering/form.php:120
+#: includes/reviews-form.php:47
+msgid "Network error — please try again."
+msgstr ""
+
+#: includes/bookings/form.php:77
+msgid "Secure your table with a deposit"
+msgstr ""
+
+#: includes/bookings/form.php:78
+msgid "Pay deposit"
+msgstr ""
+
+#: includes/bookings/form.php:79
+#: includes/ordering/form.php:126
+msgid "Processing…"
+msgstr ""
+
+#: includes/bookings/form.php:80
+#: includes/ordering/form.php:127
+msgid "Payment could not be completed. Please try again."
+msgstr ""
+
+#: includes/bookings/form.php:81
+msgid "Deposit paid — your table is confirmed!"
+msgstr ""
+
+#. translators: %d: number of guests.
+#: includes/bookings/form.php:94
+#, php-format
+msgid "%d guest"
+msgid_plural "%d guests"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: party size, 2: currency symbol, 3: amount.
+#: includes/bookings/form.php:102
+#, php-format
+msgid "Parties of %1$d or more may require a %2$s%3$d per person deposit."
+msgstr ""
+
+#: includes/bookings/form.php:152
+#: includes/ordering/form.php:111
+#: includes/privacy.php:160
+#: includes/privacy.php:197
+#: includes/privacy.php:232
+#: includes/privacy.php:265
+#: includes/privacy.php:334
+msgid "Email"
+msgstr ""
+
+#: includes/bookings/form.php:162
+msgid "Anything we should know? (allergies, occasion…)"
+msgstr ""
+
+#: includes/bookings/form.php:168
+msgid "Leave this field empty"
+msgstr ""
+
+#: includes/bookings/form.php:176
+msgid "Request booking"
+msgstr ""
+
+#: includes/bookings/form.php:176
+msgid "Book now"
+msgstr ""
+
+#: includes/bookings/register.php:111
+msgid "Tables"
+msgstr ""
+
+#: includes/bookings/register.php:114
+msgid "Restaurant tables managed by DineKit bookings."
+msgstr ""
+
+#: includes/bookings/register.php:132
+msgid "Areas"
+msgstr ""
+
+#: includes/bookings/register.php:133
+msgid "Area"
+msgstr ""
+
+#: includes/bookings/register.php:135
+msgid "Zones, areas or levels, e.g. Main Restaurant, Terrace, Bar."
+msgstr ""
+
+#: includes/bookings/register.php:149
+msgid "Number of seats at the table."
+msgstr ""
+
+#: includes/bookings/register.php:153
+msgid "Smallest party this table takes."
+msgstr ""
+
+#: includes/bookings/register.php:157
+msgid "Largest party this table takes."
+msgstr ""
+
+#: includes/bookings/register.php:161
+msgid "Floor-plan X position (px)."
+msgstr ""
+
+#: includes/bookings/register.php:165
+msgid "Floor-plan Y position (px)."
+msgstr ""
+
+#: includes/bookings/register.php:169
+msgid "Rotation on the floor plan (degrees)."
+msgstr ""
+
+#: includes/bookings/register.php:194
+msgid "Table shape: round, square, rect or bar."
+msgstr ""
+
+#: includes/bookings/register.php:209
+msgid "Table status: active or maintenance."
+msgstr ""
+
+#: includes/bookings/register.php:222
+msgid "Time the table was vacated and needs bussing; empty when ready."
+msgstr ""
+
+#: includes/bookings/register.php:237
+#: includes/bookings/rest.php:1344
+msgid "Booking"
+msgstr ""
+
+#: includes/bookings/register.php:239
+msgid "Table bookings managed by DineKit."
+msgstr ""
+
+#: includes/bookings/register.php:295
+msgid "Table combinations"
+msgstr ""
+
+#: includes/bookings/register.php:296
+msgid "Table combination"
+msgstr ""
+
+#: includes/bookings/register.php:298
+msgid "Joined table groups for larger parties."
+msgstr ""
+
+#: includes/bookings/register.php:360
+msgid "Pending"
+msgstr ""
+
+#: includes/bookings/register.php:361
+msgid "Penciled in"
+msgstr ""
+
+#: includes/bookings/register.php:362
+msgid "Confirmed"
+msgstr ""
+
+#: includes/bookings/register.php:363
+msgid "Seated"
+msgstr ""
+
+#: includes/bookings/register.php:364
+#: includes/ordering/ordering.php:181
+msgid "Completed"
+msgstr ""
+
+#: includes/bookings/register.php:365
+#: includes/ordering/ordering.php:182
+msgid "Cancelled"
+msgstr ""
+
+#: includes/bookings/register.php:366
+msgid "No-show"
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/bookings/register.php:411
+#, php-format
+msgid "Deposit refund failed (needs manual action): %s"
+msgstr ""
+
+#: includes/bookings/register.php:416
+msgid "Deposit refunded — please let the guest know"
+msgstr ""
+
+#: includes/bookings/rest.php:373
+msgid "Combination"
+msgstr ""
+
+#: includes/bookings/rest.php:433
+msgid "A combination needs at least two tables."
+msgstr ""
+
+#: includes/bookings/rest.php:485
+#: includes/rest.php:1504
+#: includes/rest.php:1535
+msgid "A name is required."
+msgstr ""
+
+#: includes/bookings/rest.php:723
+msgid "Table reassigned before its old table was deleted."
+msgstr ""
+
+#: includes/bookings/rest.php:805
+msgid "Zone not found."
+msgstr ""
+
+#: includes/bookings/rest.php:1318
+msgid "A valid date and time are required."
+msgstr ""
+
+#: includes/bookings/rest.php:1363
+msgid "Booking created by staff"
+msgstr ""
+
+#: includes/bookings/rest.php:1386
+#: includes/bookings/rest.php:1476
+msgid "You do not have permission to refund deposits."
+msgstr ""
+
+#. translators: %s: booking status label.
+#. translators: %s: order status label.
+#: includes/bookings/rest.php:1424
+#: includes/ordering/rest.php:705
+#, php-format
+msgid "Status changed to %s"
+msgstr ""
+
+#. translators: %s: guest name.
+#: includes/bookings/rest.php:1443
+#, php-format
+msgid "Cancelled booking + refunded deposit — %s"
+msgstr ""
+
+#. translators: %s: guest name.
+#: includes/bookings/rest.php:1446
+#, php-format
+msgid "Cancelled booking — %s"
+msgstr ""
+
+#: includes/bookings/rest.php:1455
+#: includes/bookings/rest.php:1481
+#: includes/ordering/rest.php:750
+#: includes/ordering/rest.php:769
+msgid "Archived"
+msgstr ""
+
+#: includes/bookings/rest.php:1455
+#: includes/ordering/rest.php:750
+msgid "Restored from archive"
+msgstr ""
+
+#: includes/bookings/rest.php:1471
+#: includes/payments.php:133
+msgid "Booking not found."
+msgstr ""
+
+#: includes/bookings/rest.php:1787
+msgid "Online booking is currently closed."
+msgstr ""
+
+#: includes/bookings/rest.php:1796
+msgid "Thanks!"
+msgstr ""
+
+#: includes/bookings/rest.php:1806
+msgid "Too many attempts — please try again a little later."
+msgstr ""
+
+#: includes/bookings/rest.php:1819
+msgid "Please choose a valid date, time and party size."
+msgstr ""
+
+#: includes/bookings/rest.php:1822
+msgid "Please enter your name and a valid email address."
+msgstr ""
+
+#: includes/bookings/rest.php:1844
+msgid "Sorry, we’re fully booked at that time. Please try another time."
+msgstr ""
+
+#: includes/bookings/rest.php:1860
+msgid "Could not save your booking. Please try again."
+msgstr ""
+
+#: includes/bookings/rest.php:1877
+msgid "Booking received online"
+msgstr ""
+
+#: includes/bookings/rest.php:1883
+msgid "You’re on the waitlist — we’ll be in touch if a table frees up."
+msgstr ""
+
+#: includes/bookings/rest.php:1885
+msgid "Your table is booked — see you then!"
+msgstr ""
+
+#: includes/bookings/rest.php:1887
+msgid "Thanks! Your booking request has been sent — we’ll confirm shortly."
+msgstr ""
+
+#: includes/cash.php:201
+msgid "A drawer session is already open."
+msgstr ""
+
+#: includes/cash.php:226
+msgid "Open the drawer first."
+msgstr ""
+
+#: includes/cash.php:249
+msgid "No drawer session is open."
+msgstr ""
+
+#: includes/emails.php:30
+msgid "Order — confirmation"
+msgstr ""
+
+#: includes/emails.php:31
+msgid "Order #{number} confirmed — {site}"
+msgstr ""
+
+#: includes/emails.php:32
+msgid "Thanks {name} — we’ve got your order and we’ll have it ready for collection."
+msgstr ""
+
+#: includes/emails.php:35
+msgid "Order — cancelled"
+msgstr ""
+
+#: includes/emails.php:36
+msgid "Your order #{number} was cancelled — {site}"
+msgstr ""
+
+#: includes/emails.php:37
+msgid "Sorry {name} — we couldn’t take your order this time. Any payment has been refunded."
+msgstr ""
+
+#: includes/emails.php:40
+msgid "Booking — confirmation"
+msgstr ""
+
+#: includes/emails.php:41
+msgid "Your booking at {site} is confirmed"
+msgstr ""
+
+#: includes/emails.php:42
+msgid "Thanks {name}, your table is booked for {date} at {time}. We look forward to seeing you!"
+msgstr ""
+
+#: includes/emails.php:45
+msgid "Booking — cancelled"
+msgstr ""
+
+#: includes/emails.php:46
+msgid "Your booking at {site} was cancelled"
+msgstr ""
+
+#: includes/emails.php:47
+msgid "Hi {name}, your booking for {date} at {time} has been cancelled. Any deposit has been refunded."
+msgstr ""
+
+#: includes/emails.php:230
+msgid "Alex Taylor"
+msgstr ""
+
+#: includes/emails.php:238
+msgid "Order #1042"
+msgstr ""
+
+#: includes/emails.php:240
+msgid "Margherita Pizza"
+msgstr ""
+
+#: includes/emails.php:241
+msgid "Garlic Bread"
+msgstr ""
+
+#: includes/emails.php:242
+#: includes/ordering/emails.php:104
+#: includes/ordering/form.php:95
+msgid "Total"
+msgstr ""
+
+#: includes/events/events.php:51
+msgid "Events"
+msgstr ""
+
+#: includes/events/events.php:52
+msgid "Event"
+msgstr ""
+
+#: includes/events/events.php:54
+msgid "DineKit set-menu events with pre-orders."
+msgstr ""
+
+#: includes/events/events.php:70
+msgid "Event guests"
+msgstr ""
+
+#: includes/events/events.php:71
+msgid "Event guest"
+msgstr ""
+
+#: includes/events/events.php:73
+msgid "Per-guest pre-orders for DineKit events."
+msgstr ""
+
+#: includes/events/events.php:184
+msgid "Event pre-order"
+msgstr ""
+
+#: includes/events/form.php:30
+msgid "This event link is not valid."
+msgstr ""
+
+#: includes/events/form.php:73
+#: includes/events/rest.php:637
+msgid "Please enter your name."
+msgstr ""
+
+#: includes/events/form.php:74
+msgid "Please choose a dish for each course."
+msgstr ""
+
+#: includes/events/form.php:75
+msgid "Your choices are in"
+msgstr ""
+
+#. translators: %s: company/group name.
+#: includes/events/form.php:96
+#, php-format
+msgid "Ordering as part of: %s"
+msgstr ""
+
+#: includes/events/form.php:105
+msgid "Orders for this event are now closed."
+msgstr ""
+
+#: includes/events/form.php:110
+msgid "Your name"
+msgstr ""
+
+#: includes/events/form.php:114
+msgid "Email (optional)"
+msgstr ""
+
+#: includes/events/form.php:147
+msgid "Any allergies? Tick what you must avoid:"
+msgstr ""
+
+#: includes/events/form.php:160
+msgid "Dietary preferences:"
+msgstr ""
+
+#: includes/events/form.php:173
+msgid "Anything else we should know?"
+msgstr ""
+
+#: includes/events/form.php:178
+#: includes/reviews-form.php:92
+msgid "Leave empty"
+msgstr ""
+
+#: includes/events/form.php:181
+msgid "Submit my choices"
+msgstr ""
+
+#: includes/events/rest.php:383
+msgid "New event"
+msgstr ""
+
+#: includes/events/rest.php:476
+msgid "Guest not found."
+msgstr ""
+
+#: includes/events/rest.php:484
+msgid "Please enter a real name, not just a number."
+msgstr ""
+
+#: includes/events/rest.php:531
+#: includes/events/rest.php:614
+msgid "Event not found."
+msgstr ""
+
+#: includes/events/rest.php:626
+#: includes/reviews.php:460
+msgid "Too many attempts — please try again later."
+msgstr ""
+
+#: includes/events/rest.php:632
+msgid "Sorry, this event is closed for orders."
+msgstr ""
+
+#: includes/events/rest.php:640
+msgid "Please enter your name (not just a number)."
+msgstr ""
+
+#: includes/events/rest.php:661
+msgid "Could not save your choices. Please try again."
+msgstr ""
+
+#: includes/events/rest.php:679
+msgid "Thanks! Your choices are in."
+msgstr ""
+
+#: includes/frontend/render.php:135
+msgid "Coming soon"
+msgstr ""
+
+#: includes/frontend/render.php:146
+msgid "No menu items to show yet."
+msgstr ""
+
+#: includes/frontend/render.php:202
+msgid "No dishes match your filters."
+msgstr ""
+
+#: includes/frontend/render.php:274
+#: includes/ordering/form.php:76
+msgid "Currently unavailable"
+msgstr ""
+
+#. translators: %d: calorie count.
+#: includes/frontend/render.php:295
+#, php-format
+msgid "%d kcal"
+msgstr ""
+
+#: includes/frontend/render.php:409
+#: includes/frontend/render.php:432
+msgid "Show only"
+msgstr ""
+
+#: includes/frontend/render.php:411
+msgid "All dishes"
+msgstr ""
+
+#: includes/frontend/render.php:420
+#: includes/frontend/render.php:443
+msgid "Avoid"
+msgstr ""
+
+#: includes/frontend/render.php:422
+msgid "Nothing"
+msgstr ""
+
+#: includes/frontend/render.php:452
+msgid "Clear"
+msgstr ""
+
+#: includes/frontend/render.php:528
+msgid "Allergen key"
+msgstr ""
+
+#: includes/frontend/render.php:558
+msgid "Full allergen matrix (printable)"
+msgstr ""
+
+#: includes/frontend/render.php:563
+msgid "Dish"
+msgstr ""
+
+#: includes/frontend/render.php:640
+#: includes/post-types.php:58
+#: includes/sample.php:182
+msgid "Menu"
+msgstr ""
+
+#: includes/hours.php:25
+msgid "Monday"
+msgstr ""
+
+#: includes/hours.php:26
+msgid "Tuesday"
+msgstr ""
+
+#: includes/hours.php:27
+msgid "Wednesday"
+msgstr ""
+
+#: includes/hours.php:28
+msgid "Thursday"
+msgstr ""
+
+#: includes/hours.php:29
+msgid "Friday"
+msgstr ""
+
+#: includes/hours.php:30
+msgid "Saturday"
+msgstr ""
+
+#: includes/hours.php:31
+msgid "Sunday"
+msgstr ""
+
+#: includes/hours.php:241
+msgid "Open now"
+msgstr ""
+
+#: includes/hours.php:241
+msgid "Closed now"
+msgstr ""
+
+#. translators: %s: closing time.
+#: includes/hours.php:297
+#, php-format
+msgid "until %s"
+msgstr ""
+
+#: includes/hours.php:313
+msgid "Closed"
+msgstr ""
+
+#: includes/integrations.php:349
+#: includes/integrations.php:406
+#: includes/integrations.php:445
+msgid "Add and save your secret key for this mode first."
+msgstr ""
+
+#: includes/integrations.php:373
+msgid "Stripe rejected the key."
+msgstr ""
+
+#: includes/integrations.php:451
+msgid "Stripe can only send webhooks to a public HTTPS address. This looks like a local/dev site — deploy to your live domain, then run this there."
+msgstr ""
+
+#: includes/integrations.php:486
+msgid "Stripe could not create the webhook."
+msgstr ""
+
+#: includes/integrations.php:495
+msgid "Stripe created the webhook but returned no signing secret."
+msgstr ""
+
+#: includes/integrations.php:549
+msgid "Stripe could not register the domain."
+msgstr ""
+
+#: includes/localisation.php:85
+msgid "ZIP code"
+msgstr ""
+
+#: includes/localisation.php:88
+msgid "Postcode"
+msgstr ""
+
+#: includes/localisation.php:90
+msgid "Postal code"
+msgstr ""
+
+#: includes/localisation.php:102
+msgid "State"
+msgstr ""
+
+#: includes/localisation.php:105
+msgid "Province"
+msgstr ""
+
+#: includes/localisation.php:108
+msgid "County"
+msgstr ""
+
+#: includes/localisation.php:110
+msgid "Region"
+msgstr ""
+
+#: includes/loyalty.php:40
+msgid "Members"
+msgstr ""
+
+#: includes/loyalty.php:185
+msgid "Enter a name or phone."
+msgstr ""
+
+#: includes/loyalty.php:196
+msgid "Could not create the member."
+msgstr ""
+
+#: includes/menu-csv.php:268
+msgid "Paste or upload a CSV first."
+msgstr ""
+
+#: includes/menu-csv.php:287
+msgid "The CSV needs a header row and at least one dish."
+msgstr ""
+
+#: includes/menu-csv.php:298
+msgid "The CSV needs a \"Dish\" column. Export your menu first to see the format."
+msgstr ""
+
+#. translators: %s: date/time the menu goes live.
+#: includes/menus.php:103
+#, php-format
+msgid "Live from %s"
+msgstr ""
+
+#: includes/menus.php:129
+msgid "Always on"
+msgstr ""
+
+#: includes/menus.php:167
+msgid "Mon"
+msgstr ""
+
+#: includes/menus.php:168
+msgid "Tue"
+msgstr ""
+
+#: includes/menus.php:169
+msgid "Wed"
+msgstr ""
+
+#: includes/menus.php:170
+msgid "Thu"
+msgstr ""
+
+#: includes/menus.php:171
+msgid "Fri"
+msgstr ""
+
+#: includes/menus.php:172
+msgid "Sat"
+msgstr ""
+
+#: includes/menus.php:173
+msgid "Sun"
+msgstr ""
+
+#. translators: %s: source menu name.
+#. translators: %s: original dish name.
+#. translators: %s: original section name.
+#: includes/menus.php:204
+#: includes/rest.php:1341
+#: includes/rest.php:1413
+#, php-format
+msgid "%s (copy)"
+msgstr ""
+
+#: includes/meta.php:30
+msgid "Item prices (label + amount rows)."
+msgstr ""
+
+#: includes/meta.php:56
+msgid "Display order within DineKit menus."
+msgstr ""
+
+#: includes/meta.php:70
+msgid "Optional badge, e.g. New, Popular, Chef's Special."
+msgstr ""
+
+#: includes/meta.php:85
+msgid "Prep station for order tickets: kitchen or bar."
+msgstr ""
+
+#: includes/meta.php:105
+msgid "Archived dishes are hidden everywhere but never deleted."
+msgstr ""
+
+#: includes/meta.php:122
+msgid "Customization groups (removable ingredients + choice options)."
+msgstr ""
+
+#. translators: %d: number of orders.
+#: includes/notifications.php:119
+#, php-format
+msgid "%d order to accept"
+msgid_plural "%d orders to accept"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of bookings.
+#: includes/notifications.php:153
+#, php-format
+msgid "%d booking to confirm"
+msgid_plural "%d bookings to confirm"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of waitlisted parties.
+#: includes/notifications.php:177
+#, php-format
+msgid "%d party on the waitlist"
+msgid_plural "%d parties on the waitlist"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of holiday requests.
+#: includes/notifications.php:203
+#, php-format
+msgid "%d holiday request to review"
+msgid_plural "%d holiday requests to review"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/ordering/emails.php:86
+#: includes/ordering/form.php:108
+msgid "As soon as possible"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/emails.php:88
+#: includes/ordering/emails.php:257
+#: includes/ordering/rest.php:302
+#: includes/ordering/rest.php:962
+#: includes/table-order.php:186
+#, php-format
+msgid "Order #%d"
+msgstr ""
+
+#: includes/ordering/emails.php:107
+msgid "incl. delivery"
+msgstr ""
+
+#: includes/ordering/emails.php:111
+msgid "Delivery to:"
+msgstr ""
+
+#: includes/ordering/emails.php:113
+msgid "Collection:"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/emails.php:156
+#, php-format
+msgid "New order #%d"
+msgstr ""
+
+#: includes/ordering/emails.php:158
+msgid "A new order has come in:"
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/ordering/emails.php:197
+#, php-format
+msgid "Your receipt from %s"
+msgstr ""
+
+#: includes/ordering/emails.php:198
+msgid "Thanks for dining with us — here’s your receipt:"
+msgstr ""
+
+#: includes/ordering/emails.php:221
+msgid "ASAP"
+msgstr ""
+
+#: includes/ordering/emails.php:224
+msgid "DELIVERY"
+msgstr ""
+
+#: includes/ordering/emails.php:224
+msgid "COLLECTION"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/emails.php:226
+#, php-format
+msgid "ORDER #%d"
+msgstr ""
+
+#: includes/ordering/emails.php:227
+msgid "Time:"
+msgstr ""
+
+#: includes/ordering/emails.php:250
+msgid "TOTAL"
+msgstr ""
+
+#: includes/ordering/emails.php:253
+msgid "Notes:"
+msgstr ""
+
+#: includes/ordering/form.php:37
+msgid "Online ordering is currently closed."
+msgstr ""
+
+#: includes/ordering/form.php:75
+msgid "Add"
+msgstr ""
+
+#: includes/ordering/form.php:77
+msgid "Ordering at"
+msgstr ""
+
+#: includes/ordering/form.php:78
+msgid "Send to kitchen"
+msgstr ""
+
+#: includes/ordering/form.php:79
+msgid "Sent to the kitchen!"
+msgstr ""
+
+#: includes/ordering/form.php:80
+msgid "Your order is on its way. Order more whenever you like — pay at the table when you’re done."
+msgstr ""
+
+#: includes/ordering/form.php:81
+msgid "Order more"
+msgstr ""
+
+#: includes/ordering/form.php:82
+msgid "Add to order"
+msgstr ""
+
+#: includes/ordering/form.php:83
+msgid "Your order"
+msgstr ""
+
+#: includes/ordering/form.php:84
+#: includes/ordering/rest.php:914
+msgid "Your basket is empty."
+msgstr ""
+
+#: includes/ordering/form.php:85
+msgid "Checkout"
+msgstr ""
+
+#: includes/ordering/form.php:86
+msgid "View order"
+msgstr ""
+
+#: includes/ordering/form.php:87
+#: includes/ordering/ordering.php:659
+msgid "item"
+msgstr ""
+
+#: includes/ordering/form.php:88
+msgid "items"
+msgstr ""
+
+#: includes/ordering/form.php:89
+msgid "Close"
+msgstr ""
+
+#: includes/ordering/form.php:90
+msgid "Increase quantity"
+msgstr ""
+
+#: includes/ordering/form.php:91
+msgid "Decrease quantity"
+msgstr ""
+
+#: includes/ordering/form.php:92
+msgid "Size"
+msgstr ""
+
+#: includes/ordering/form.php:93
+msgid "Collection or delivery"
+msgstr ""
+
+#: includes/ordering/form.php:94
+msgid "Place order"
+msgstr ""
+
+#: includes/ordering/form.php:96
+msgid "Minimum order"
+msgstr ""
+
+#: includes/ordering/form.php:97
+msgid "Collection"
+msgstr ""
+
+#: includes/ordering/form.php:98
+#: includes/ordering/form.php:104
+msgid "Delivery"
+msgstr ""
+
+#. translators: %s: the local word for a postal code (e.g. ZIP code, Postcode).
+#: includes/ordering/form.php:101
+#, php-format
+msgid "Delivery address (incl. %s)"
+msgstr ""
+
+#: includes/ordering/form.php:105
+msgid "Subtotal"
+msgstr ""
+
+#: includes/ordering/form.php:106
+msgid "Please enter your delivery address."
+msgstr ""
+
+#: includes/ordering/form.php:107
+msgid "We’ll deliver it to you."
+msgstr ""
+
+#: includes/ordering/form.php:109
+msgid "fully booked"
+msgstr ""
+
+#: includes/ordering/form.php:113
+msgid "Notes (allergies, requests…)"
+msgstr ""
+
+#: includes/ordering/form.php:114
+msgid "Back to menu"
+msgstr ""
+
+#: includes/ordering/form.php:115
+msgid "Please enter your name and an email or phone."
+msgstr ""
+
+#: includes/ordering/form.php:116
+msgid "Order placed!"
+msgstr ""
+
+#: includes/ordering/form.php:117
+msgid "Your order number is"
+msgstr ""
+
+#: includes/ordering/form.php:118
+msgid "We’ll have it ready for collection."
+msgstr ""
+
+#: includes/ordering/form.php:121
+msgid "Remove"
+msgstr ""
+
+#: includes/ordering/form.php:123
+msgid "optional"
+msgstr ""
+
+#: includes/ordering/form.php:124
+msgid "Pay for your order"
+msgstr ""
+
+#: includes/ordering/form.php:125
+msgid "Pay now"
+msgstr ""
+
+#: includes/ordering/form.php:128
+#: includes/pay.php:248
+msgid "Payment received — thank you!"
+msgstr ""
+
+#: includes/ordering/form.php:129
+msgid "Card authorised — we’ll confirm your order shortly, then take payment."
+msgstr ""
+
+#: includes/ordering/form.php:136
+#: includes/ordering/ordering.php:149
+msgid "Order online"
+msgstr ""
+
+#: includes/ordering/form.php:141
+msgid "Loading menu…"
+msgstr ""
+
+#: includes/ordering/ordering.php:130
+msgid "More"
+msgstr ""
+
+#: includes/ordering/ordering.php:173
+msgid "Open tab"
+msgstr ""
+
+#: includes/ordering/ordering.php:174
+msgid "Sent to kitchen"
+msgstr ""
+
+#: includes/ordering/ordering.php:175
+msgid "New"
+msgstr ""
+
+#: includes/ordering/ordering.php:176
+msgid "Preparing"
+msgstr ""
+
+#: includes/ordering/ordering.php:177
+msgid "Ready"
+msgstr ""
+
+#: includes/ordering/ordering.php:178
+msgid "Served"
+msgstr ""
+
+#: includes/ordering/ordering.php:179
+msgid "Out for delivery"
+msgstr ""
+
+#: includes/ordering/ordering.php:180
+msgid "Delivered"
+msgstr ""
+
+#: includes/ordering/ordering.php:197
+msgid "Order"
+msgstr ""
+
+#: includes/ordering/ordering.php:199
+msgid "Commission-free customer orders."
+msgstr ""
+
+#: includes/ordering/ordering.php:307
+msgid "Online ordering is currently unavailable."
+msgstr ""
+
+#: includes/ordering/ordering.php:325
+msgid "We’re closed right now, so we can’t take your order."
+msgstr ""
+
+#. translators: %s: last-orders time, e.g. "21:30".
+#: includes/ordering/ordering.php:338
+#, php-format
+msgid "Last orders were at %s. We’re no longer taking orders tonight."
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/ordering/ordering.php:588
+#, php-format
+msgid "Card capture failed: %s"
+msgstr ""
+
+#: includes/ordering/ordering.php:592
+msgid "Card captured — payment taken"
+msgstr ""
+
+#: includes/ordering/ordering.php:615
+msgid "Hold released — customer was not charged"
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/ordering/ordering.php:617
+#, php-format
+msgid "Hold release failed: %s"
+msgstr ""
+
+#: includes/ordering/ordering.php:627
+msgid "Refunded — please let the customer know"
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/ordering/ordering.php:630
+#, php-format
+msgid "Refund failed (needs manual action): %s"
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/ordering/ordering.php:683
+#, php-format
+msgid "Partial refund failed (needs manual action): %s"
+msgstr ""
+
+#. translators: 1: amount, 2: item list.
+#: includes/ordering/ordering.php:704
+#, php-format
+msgid "Refunded %1$s (%2$s)"
+msgstr ""
+
+#. translators: 1: tender type, 2: amount.
+#: includes/ordering/ordering.php:909
+#, php-format
+msgid "Payment taken: %1$s %2$s"
+msgstr ""
+
+#: includes/ordering/ordering.php:918
+msgid "Tab settled & closed"
+msgstr ""
+
+#: includes/ordering/rest.php:283
+#: includes/ordering/rest.php:824
+msgid "Add at least one item."
+msgstr ""
+
+#: includes/ordering/rest.php:287
+msgid "Walk-in"
+msgstr ""
+
+#: includes/ordering/rest.php:307
+msgid "Could not create the order."
+msgstr ""
+
+#: includes/ordering/rest.php:329
+msgid "Order created by staff"
+msgstr ""
+
+#: includes/ordering/rest.php:458
+#: includes/ordering/rest.php:766
+#: includes/ordering/rest.php:820
+#: includes/payments.php:182
+#: includes/terminal.php:214
+msgid "Order not found."
+msgstr ""
+
+#: includes/ordering/rest.php:484
+msgid "You do not have permission to void or refund orders."
+msgstr ""
+
+#: includes/ordering/rest.php:493
+msgid "Accepted"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/rest.php:498
+#, php-format
+msgid "Accepted order #%d"
+msgstr ""
+
+#: includes/ordering/rest.php:501
+msgid "Rejected & cancelled"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/rest.php:506
+#, php-format
+msgid "Rejected & refunded order #%d"
+msgstr ""
+
+#. translators: 1: amount, 2: order number.
+#: includes/ordering/rest.php:516
+#, php-format
+msgid "Partially refunded %1$s on order #%2$d"
+msgstr ""
+
+#: includes/ordering/rest.php:526
+msgid "Refunded"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/rest.php:528
+#, php-format
+msgid "Refunded order #%d"
+msgstr ""
+
+#: includes/ordering/rest.php:533
+msgid "Receipt re-sent to customer"
+msgstr ""
+
+#: includes/ordering/rest.php:533
+msgid "Receipt resend failed"
+msgstr ""
+
+#. translators: %s: station name (kitchen/bar/all).
+#: includes/ordering/rest.php:538
+#, php-format
+msgid "Ticket printed (%s)"
+msgstr ""
+
+#. translators: %d: number of items fired.
+#: includes/ordering/rest.php:566
+#, php-format
+msgid "Fired %d item to the kitchen"
+msgid_plural "Fired %d items to the kitchen"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/ordering/rest.php:615
+msgid "You do not have permission to void a fired item."
+msgstr ""
+
+#. translators: %s: item name.
+#: includes/ordering/rest.php:627
+#, php-format
+msgid "Removed %s from the tab"
+msgstr ""
+
+#: includes/ordering/rest.php:635
+msgid "Service/tip/discount updated"
+msgstr ""
+
+#: includes/ordering/rest.php:643
+msgid "You do not have permission to comp a bill."
+msgstr ""
+
+#. translators: 1: order number, 2: currency symbol, 3: amount, 4: tender type.
+#: includes/ordering/rest.php:651
+#, php-format
+msgid "Order #%1$d — %2$s%3$s taken (%4$s)"
+msgstr ""
+
+#: includes/ordering/rest.php:660
+msgid "Receipt emailed"
+msgstr ""
+
+#. translators: %s: table name.
+#: includes/ordering/rest.php:666
+#, php-format
+msgid "Moved to %s"
+msgstr ""
+
+#. translators: %s: table name.
+#: includes/ordering/rest.php:666
+msgid "no table"
+msgstr ""
+
+#: includes/ordering/rest.php:670
+msgid "You do not have permission to reopen a closed bill."
+msgstr ""
+
+#: includes/ordering/rest.php:673
+msgid "Tab reopened"
+msgstr ""
+
+#. translators: %d: points redeemed.
+#: includes/ordering/rest.php:691
+#, php-format
+msgid "Redeemed %d loyalty points"
+msgstr ""
+
+#: includes/ordering/rest.php:696
+msgid "Tab closed"
+msgstr ""
+
+#. translators: %d: order number.
+#: includes/ordering/rest.php:736
+#, php-format
+msgid "Cancelled & refunded order #%d"
+msgstr ""
+
+#. translators: %s: payment status.
+#: includes/ordering/rest.php:744
+#, php-format
+msgid "Payment marked %s"
+msgstr ""
+
+#: includes/ordering/rest.php:798
+msgid "Item not found."
+msgstr ""
+
+#. translators: %d: number of items added.
+#: includes/ordering/rest.php:849
+#, php-format
+msgid "Added %d item to the tab"
+msgid_plural "Added %d items to the tab"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/ordering/rest.php:907
+msgid "Too many attempts — please try again shortly."
+msgstr ""
+
+#: includes/ordering/rest.php:917
+msgid "Your order is below the minimum."
+msgstr ""
+
+#: includes/ordering/rest.php:928
+msgid "Please enter a delivery address."
+msgstr ""
+
+#: includes/ordering/rest.php:931
+msgid "Your order is below the delivery minimum."
+msgstr ""
+
+#: includes/ordering/rest.php:941
+msgid "Please enter your name and a contact email or phone."
+msgstr ""
+
+#: includes/ordering/rest.php:953
+msgid "That time slot is fully booked — please choose another time."
+msgstr ""
+
+#: includes/ordering/rest.php:967
+msgid "Could not place your order. Please try again."
+msgstr ""
+
+#: includes/ordering/rest.php:1000
+msgid "Order received online"
+msgstr ""
+
+#: includes/ordering/rest.php:1002
+msgid "Auto-accepted"
+msgstr ""
+
+#: includes/ordering/rest.php:1027
+msgid "Almost there — please pay to confirm your order."
+msgstr ""
+
+#: includes/ordering/rest.php:1029
+msgid "Order placed! We’ll deliver it to you."
+msgstr ""
+
+#: includes/ordering/rest.php:1030
+msgid "Order placed! We’ll have it ready for collection."
+msgstr ""
+
+#: includes/pay.php:141
+#: includes/pay.php:158
+msgid "This payment link is not valid."
+msgstr ""
+
+#: includes/pay.php:165
+msgid "This bill is already paid."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/pay.php:231
+#, php-format
+msgid "Pay your bill · %s"
+msgstr ""
+
+#: includes/pay.php:250
+msgid "Secured by Stripe"
+msgstr ""
+
+#: includes/payments.php:38
+#: includes/terminal.php:53
+msgid "Stripe is not connected."
+msgstr ""
+
+#: includes/payments.php:56
+msgid "Payment could not be started."
+msgstr ""
+
+#: includes/payments.php:137
+msgid "No deposit is required for this booking."
+msgstr ""
+
+#: includes/payments.php:140
+msgid "This deposit has already been paid."
+msgstr ""
+
+#: includes/payments.php:187
+msgid "This order has no payable total."
+msgstr ""
+
+#: includes/payments.php:267
+msgid "Invalid signature."
+msgstr ""
+
+#: includes/payments.php:312
+msgid "Deposit paid"
+msgstr ""
+
+#: includes/plugin-review.php:149
+msgid "Unknown action."
+msgstr ""
+
+#: includes/post-types.php:25
+msgid "Menu Items"
+msgstr ""
+
+#: includes/post-types.php:26
+msgid "Menu Item"
+msgstr ""
+
+#: includes/post-types.php:27
+msgid "Add Menu Item"
+msgstr ""
+
+#: includes/post-types.php:28
+msgid "Add New Menu Item"
+msgstr ""
+
+#: includes/post-types.php:29
+msgid "Edit Menu Item"
+msgstr ""
+
+#: includes/post-types.php:30
+msgid "New Menu Item"
+msgstr ""
+
+#: includes/post-types.php:31
+msgid "View Menu Item"
+msgstr ""
+
+#: includes/post-types.php:32
+msgid "Search Menu Items"
+msgstr ""
+
+#: includes/post-types.php:33
+msgid "No menu items found."
+msgstr ""
+
+#: includes/post-types.php:34
+msgid "No menu items found in Trash."
+msgstr ""
+
+#: includes/post-types.php:37
+msgid "Restaurant menu items managed by DineKit."
+msgstr ""
+
+#: includes/post-types.php:57
+msgid "Menus"
+msgstr ""
+
+#: includes/post-types.php:59
+msgid "Add New Menu"
+msgstr ""
+
+#: includes/post-types.php:60
+msgid "Search Menus"
+msgstr ""
+
+#: includes/post-types.php:62
+msgid "Top-level menus, e.g. Lunch, Dinner, Drinks."
+msgstr ""
+
+#: includes/post-types.php:77
+msgid "Sections"
+msgstr ""
+
+#: includes/post-types.php:78
+msgid "Section"
+msgstr ""
+
+#: includes/post-types.php:79
+msgid "Add New Section"
+msgstr ""
+
+#: includes/post-types.php:80
+msgid "Search Sections"
+msgstr ""
+
+#: includes/post-types.php:82
+msgid "Menu sections, e.g. Starters, Mains, Desserts."
+msgstr ""
+
+#: includes/post-types.php:97
+msgid "Dietary Labels"
+msgstr ""
+
+#: includes/post-types.php:98
+msgid "Dietary Label"
+msgstr ""
+
+#: includes/post-types.php:99
+msgid "Add New Dietary Label"
+msgstr ""
+
+#: includes/post-types.php:100
+msgid "Search Dietary Labels"
+msgstr ""
+
+#: includes/post-types.php:102
+msgid "Dietary suitability, e.g. Vegan, Vegetarian, Gluten Free."
+msgstr ""
+
+#: includes/post-types.php:117
+msgid "Allergens"
+msgstr ""
+
+#: includes/post-types.php:118
+msgid "Allergen"
+msgstr ""
+
+#: includes/post-types.php:119
+msgid "Add New Allergen"
+msgstr ""
+
+#: includes/post-types.php:120
+msgid "Search Allergens"
+msgstr ""
+
+#: includes/post-types.php:122
+msgid "The 14 UK regulated allergens (Natasha's Law), pre-seeded by DineKit."
+msgstr ""
+
+#: includes/post-types.php:175
+msgid "Celery"
+msgstr ""
+
+#: includes/post-types.php:176
+msgid "Cereals containing gluten"
+msgstr ""
+
+#: includes/post-types.php:177
+msgid "Crustaceans"
+msgstr ""
+
+#: includes/post-types.php:178
+msgid "Eggs"
+msgstr ""
+
+#: includes/post-types.php:179
+msgid "Fish"
+msgstr ""
+
+#: includes/post-types.php:180
+msgid "Lupin"
+msgstr ""
+
+#: includes/post-types.php:181
+msgid "Milk"
+msgstr ""
+
+#: includes/post-types.php:182
+msgid "Molluscs"
+msgstr ""
+
+#: includes/post-types.php:183
+msgid "Mustard"
+msgstr ""
+
+#: includes/post-types.php:184
+msgid "Tree nuts"
+msgstr ""
+
+#: includes/post-types.php:185
+msgid "Peanuts"
+msgstr ""
+
+#: includes/post-types.php:186
+msgid "Sesame"
+msgstr ""
+
+#: includes/post-types.php:187
+msgid "Soya"
+msgstr ""
+
+#: includes/post-types.php:188
+msgid "Sulphur dioxide / sulphites"
+msgstr ""
+
+#: includes/post-types.php:202
+msgid "Wheat"
+msgstr ""
+
+#: includes/post-types.php:203
+msgid "Barley"
+msgstr ""
+
+#: includes/post-types.php:204
+msgid "Rye"
+msgstr ""
+
+#: includes/post-types.php:205
+msgid "Oats"
+msgstr ""
+
+#: includes/post-types.php:206
+msgid "Spelt"
+msgstr ""
+
+#: includes/post-types.php:207
+msgid "Kamut"
+msgstr ""
+
+#: includes/post-types.php:210
+msgid "Almond"
+msgstr ""
+
+#: includes/post-types.php:211
+msgid "Hazelnut"
+msgstr ""
+
+#: includes/post-types.php:212
+msgid "Walnut"
+msgstr ""
+
+#: includes/post-types.php:213
+msgid "Cashew"
+msgstr ""
+
+#: includes/post-types.php:214
+msgid "Pecan"
+msgstr ""
+
+#: includes/post-types.php:215
+msgid "Brazil nut"
+msgstr ""
+
+#: includes/post-types.php:216
+msgid "Pistachio"
+msgstr ""
+
+#: includes/post-types.php:217
+msgid "Macadamia"
+msgstr ""
+
+#: includes/post-types.php:229
+msgid "Vegan"
+msgstr ""
+
+#: includes/post-types.php:230
+msgid "Vegetarian"
+msgstr ""
+
+#: includes/post-types.php:231
+msgid "Gluten Free"
+msgstr ""
+
+#: includes/post-types.php:232
+msgid "Halal"
+msgstr ""
+
+#: includes/post-types.php:233
+msgid "Spicy"
+msgstr ""
+
+#: includes/privacy.php:43
+#: includes/privacy.php:77
+msgid "DineKit bookings"
+msgstr ""
+
+#: includes/privacy.php:47
+#: includes/privacy.php:81
+msgid "DineKit orders"
+msgstr ""
+
+#: includes/privacy.php:51
+#: includes/privacy.php:85
+msgid "DineKit event guests"
+msgstr ""
+
+#: includes/privacy.php:55
+#: includes/privacy.php:89
+msgid "DineKit loyalty members"
+msgstr ""
+
+#: includes/privacy.php:59
+#: includes/privacy.php:93
+msgid "DineKit guest profile"
+msgstr ""
+
+#: includes/privacy.php:63
+#: includes/privacy.php:97
+msgid "DineKit staff records"
+msgstr ""
+
+#: includes/privacy.php:164
+msgid "Party size"
+msgstr ""
+
+#: includes/privacy.php:165
+#: includes/privacy.php:202
+msgid "Status"
+msgstr ""
+
+#: includes/privacy.php:167
+msgid "Allergies / dietary"
+msgstr ""
+
+#: includes/privacy.php:171
+msgid "Restaurant bookings"
+msgstr ""
+
+#: includes/privacy.php:194
+msgid "Order number"
+msgstr ""
+
+#: includes/privacy.php:195
+msgid "Placed"
+msgstr ""
+
+#: includes/privacy.php:199
+msgid "Delivery address"
+msgstr ""
+
+#: includes/privacy.php:201
+msgid "Fulfilment"
+msgstr ""
+
+#: includes/privacy.php:203
+msgid "Emails sent to you"
+msgstr ""
+
+#: includes/privacy.php:207
+msgid "Restaurant orders"
+msgstr ""
+
+#: includes/privacy.php:234
+#: includes/privacy.php:306
+msgid "Allergies"
+msgstr ""
+
+#: includes/privacy.php:235
+msgid "Dietary"
+msgstr ""
+
+#: includes/privacy.php:236
+msgid "Menu selections"
+msgstr ""
+
+#: includes/privacy.php:240
+msgid "Event guest records"
+msgstr ""
+
+#: includes/privacy.php:267
+msgid "Loyalty points"
+msgstr ""
+
+#: includes/privacy.php:271
+msgid "Loyalty membership"
+msgstr ""
+
+#: includes/privacy.php:298
+msgid "Guest profile"
+msgstr ""
+
+#: includes/privacy.php:303
+msgid "VIP"
+msgstr ""
+
+#: includes/privacy.php:303
+msgid "Yes"
+msgstr ""
+
+#: includes/privacy.php:304
+msgid "Tags"
+msgstr ""
+
+#: includes/privacy.php:305
+msgid "Service notes"
+msgstr ""
+
+#: includes/privacy.php:336
+msgid "Role"
+msgstr ""
+
+#: includes/privacy.php:340
+msgid "Staff record"
+msgstr ""
+
+#: includes/privacy.php:372
+msgid "Booking records were kept for capacity history, with all personal details removed."
+msgstr ""
+
+#: includes/privacy.php:410
+msgid "Order financial records (items, totals, payments) were kept for accounting, with all personal details removed."
+msgstr ""
+
+#: includes/privacy.php:510
+msgid "Staff employment records are retained for statutory purposes. An administrator can archive or remove them from the Staff screen."
+msgstr ""
+
+#: includes/privacy.php:526
+msgid "When you book a table, place an order, join an event or our loyalty scheme, we store the details you give us — your name, contact details, party size, delivery address, dietary requirements and allergies, and any notes — on this website so we can provide the service you asked for."
+msgstr ""
+
+#: includes/privacy.php:527
+msgid "Allergy and dietary information is stored so the kitchen can prepare your food safely."
+msgstr ""
+
+#: includes/privacy.php:528
+msgid "If card payments are enabled, they are processed by Stripe; your card details never touch this website. See the Stripe privacy policy for how Stripe handles payment data."
+msgstr ""
+
+#: includes/privacy.php:529
+msgid "This data stays on this website and is not sent anywhere else. On an erasure request, personal details are removed from bookings and orders while anonymised financial records are kept for accounting."
+msgstr ""
+
+#: includes/pwa.php:176
+msgid "You do not have access to the DineKit app."
+msgstr ""
+
+#: includes/pwa.php:253
+msgid "Run your restaurant — orders, bookings, POS and kitchen display."
+msgstr ""
+
+#: includes/rest.php:437
+msgid "Menu not found."
+msgstr ""
+
+#: includes/rest.php:453
+msgid "Could not duplicate the menu."
+msgstr ""
+
+#: includes/rest.php:523
+msgid "Registered Stripe webhook & wallet domain"
+msgstr ""
+
+#: includes/rest.php:571
+msgid "Updated Stripe settings"
+msgstr ""
+
+#: includes/rest.php:689
+msgid "Main Restaurant"
+msgstr ""
+
+#: includes/rest.php:731
+msgid "A URL is required."
+msgstr ""
+
+#: includes/rest.php:735
+msgid "That URL is too long for a QR code."
+msgstr ""
+
+#: includes/rest.php:1178
+msgid "A guest email or name is required."
+msgstr ""
+
+#: includes/rest.php:1298
+msgid "New item"
+msgstr ""
+
+#: includes/rest.php:1394
+msgid "Could not duplicate the dish."
+msgstr ""
+
+#: includes/rest.php:1409
+msgid "Section not found."
+msgstr ""
+
+#: includes/rest.php:1455
+msgid "Could not archive the item."
+msgstr ""
+
+#: includes/rest.php:1476
+msgid "Could not restore the item."
+msgstr ""
+
+#: includes/rest.php:1538
+msgid "The 14 legal allergens can’t be renamed."
+msgstr ""
+
+#: includes/rest.php:1558
+msgid "The 14 legal allergens can’t be deleted."
+msgstr ""
+
+#: includes/reviews-form.php:28
+msgid "This feedback link is not valid."
+msgstr ""
+
+#: includes/reviews-form.php:44
+msgid "Thank you — your feedback is in."
+msgstr ""
+
+#: includes/reviews-form.php:45
+msgid "Please choose a star rating."
+msgstr ""
+
+#: includes/reviews-form.php:48
+msgid "Happy to share it publicly? It really helps us:"
+msgstr ""
+
+#: includes/reviews-form.php:58
+msgid "Leave a public review:"
+msgstr ""
+
+#: includes/reviews-form.php:60
+msgid "Review on Google"
+msgstr ""
+
+#: includes/reviews-form.php:63
+msgid "Review on TripAdvisor"
+msgstr ""
+
+#: includes/reviews-form.php:73
+msgid "Thanks — we’ve already got your feedback."
+msgstr ""
+
+#: includes/reviews-form.php:78
+msgid "Rating"
+msgstr ""
+
+#: includes/reviews-form.php:88
+msgid "Tell us more (optional)"
+msgstr ""
+
+#: includes/reviews-form.php:94
+msgid "Send feedback"
+msgstr ""
+
+#: includes/reviews.php:141
+msgid "Thanks for dining with us — we’d love to hear how it went."
+msgstr ""
+
+#: includes/reviews.php:146
+msgid "We may email you once about your visit to ask for feedback. Unsubscribe any time."
+msgstr ""
+
+#: includes/reviews.php:346
+msgid "Your feedback"
+msgstr ""
+
+#: includes/reviews.php:370
+msgid "This booking has no valid email address."
+msgstr ""
+
+#. translators: %s: guest name.
+#: includes/reviews.php:380
+#, php-format
+msgid "Hi %s,"
+msgstr ""
+
+#: includes/reviews.php:382
+msgid "Share your feedback"
+msgstr ""
+
+#: includes/reviews.php:384
+msgid "Come back soon:"
+msgstr ""
+
+#: includes/reviews.php:386
+msgid "You’re receiving this because you recently booked with us. Reply STOP to unsubscribe."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/reviews.php:390
+#, php-format
+msgid "How was your visit to %s?"
+msgstr ""
+
+#: includes/reviews.php:426
+#: includes/reviews.php:450
+msgid "Feedback link not found."
+msgstr ""
+
+#: includes/reviews.php:501
+msgid "A guest left low feedback"
+msgstr ""
+
+#. translators: %d: star rating out of 5.
+#: includes/reviews.php:504
+#, php-format
+msgid "Rating: %d/5"
+msgstr ""
+
+#: includes/reviews.php:508
+msgid "Reach out and make it right — a quick recovery often wins the guest back."
+msgstr ""
+
+#: includes/reviews.php:511
+msgid "Low guest feedback — please follow up"
+msgstr ""
+
+#: includes/sample.php:103
+msgid "Starters"
+msgstr ""
+
+#: includes/sample.php:104
+msgid "Mains"
+msgstr ""
+
+#: includes/sample.php:105
+msgid "Desserts"
+msgstr ""
+
+#: includes/sample.php:115
+msgid "Soup of the Day"
+msgstr ""
+
+#: includes/sample.php:116
+msgid "Freshly made, served with warm sourdough."
+msgstr ""
+
+#: includes/sample.php:124
+msgid "Crispy Calamari"
+msgstr ""
+
+#: includes/sample.php:125
+msgid "Lightly fried, lemon & garlic aioli."
+msgstr ""
+
+#: includes/sample.php:132
+msgid "Beer-battered Fish & Chips"
+msgstr ""
+
+#: includes/sample.php:133
+msgid "Hand-cut chips, mushy peas, tartare sauce."
+msgstr ""
+
+#: includes/sample.php:137
+msgid "Regular"
+msgstr ""
+
+#: includes/sample.php:138
+msgid "Large"
+msgstr ""
+
+#: includes/sample.php:140
+msgid "Popular"
+msgstr ""
+
+#: includes/sample.php:144
+msgid "Wild Mushroom Risotto"
+msgstr ""
+
+#: includes/sample.php:145
+msgid "Arborio rice, parmesan, truffle oil."
+msgstr ""
+
+#: includes/sample.php:153
+msgid "Sticky Toffee Pudding"
+msgstr ""
+
+#: includes/sample.php:154
+msgid "Butterscotch sauce, clotted cream."
+msgstr ""
+
+#: includes/sample.php:158
+msgid "Chef’s Special"
+msgstr ""
+
+#: includes/sample.php:188
+msgid "Order Online"
+msgstr ""
+
+#: includes/sample.php:194
+msgid "Book a Table"
+msgstr ""
+
+#: includes/staff-rest.php:541
+msgid "Team member not found."
+msgstr ""
+
+#. translators: %s: staff member name.
+#: includes/staff-rest.php:549
+#, php-format
+msgid "Removed login access from %s"
+msgstr ""
+
+#: includes/staff-rest.php:556
+msgid "That user does not exist."
+msgstr ""
+
+#. translators: %s: staff member name.
+#: includes/staff-rest.php:560
+#, php-format
+msgid "Linked a login for %s"
+msgstr ""
+
+#: includes/staff-rest.php:567
+msgid "Enter a valid email address for the login."
+msgstr ""
+
+#: includes/staff-rest.php:570
+msgid "A user with that email already exists — link it instead."
+msgstr ""
+
+#. translators: %s: staff member name.
+#: includes/staff-rest.php:590
+#, php-format
+msgid "Gave login access to %s"
+msgstr ""
+
+#: includes/staff-rest.php:700
+msgid "New team member"
+msgstr ""
+
+#: includes/staff.php:54
+msgid "Manager"
+msgstr ""
+
+#: includes/staff.php:60
+msgid "Server / waiter"
+msgstr ""
+
+#: includes/staff.php:66
+msgid "Host / front desk"
+msgstr ""
+
+#: includes/staff.php:72
+msgid "Runner"
+msgstr ""
+
+#: includes/staff.php:78
+msgid "Bartender"
+msgstr ""
+
+#: includes/staff.php:84
+msgid "Chef"
+msgstr ""
+
+#: includes/staff.php:90
+msgid "Kitchen / line"
+msgstr ""
+
+#: includes/staff.php:96
+msgid "Kitchen porter"
+msgstr ""
+
+#: includes/staff.php:102
+msgid "Delivery driver"
+msgstr ""
+
+#: includes/staff.php:108
+msgid "Other"
+msgstr ""
+
+#: includes/staff.php:227
+msgid "Staff"
+msgstr ""
+
+#: includes/staff.php:228
+msgid "Shifts"
+msgstr ""
+
+#: includes/staff.php:229
+msgid "Leave"
+msgstr ""
+
+#: includes/staff.php:426
+msgid "A team member"
+msgstr ""
+
+#: includes/support.php:118
+msgid "Could not reach the support service. Please try again in a moment, or ask on the wordpress.org forum."
+msgstr ""
+
+#: includes/support.php:129
+msgid "The support service returned an unexpected response."
+msgstr ""
+
+#: includes/support.php:134
+msgid "The support service rejected the request."
+msgstr ""
+
+#: includes/support.php:293
+msgid "Please fill in your email, a subject and a message."
+msgstr ""
+
+#: includes/support.php:381
+msgid "Message cannot be empty."
+msgstr ""
+
+#: includes/table-order.php:159
+msgid "This table code is not valid."
+msgstr ""
+
+#: includes/table-order.php:167
+msgid "Too many orders — please ask a member of staff."
+msgstr ""
+
+#: includes/table-order.php:173
+msgid "Please choose at least one item."
+msgstr ""
+
+#: includes/table-order.php:191
+msgid "Could not start the order."
+msgstr ""
+
+#. translators: %s: table name.
+#: includes/table-order.php:198
+#, php-format
+msgid "Table %s"
+msgstr ""
+
+#. translators: %d: number of items.
+#: includes/table-order.php:218
+#, php-format
+msgid "Guest ordered %d item at the table (QR)"
+msgid_plural "Guest ordered %d items at the table (QR)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/terminal.php:218
+msgid "No card reader is paired. Pair one first."
+msgstr ""
+
+#: includes/terminal.php:229
+msgid "Nothing left to pay."
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block title"
+msgid "DineKit Booking Form"
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block description"
+msgid "Let diners book a table from your site — commission-free."
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block keyword"
+msgid "booking"
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block keyword"
+msgid "reservation"
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block keyword"
+msgid "table"
+msgstr ""
+
+#: blocks/booking/block.json
+#: blocks/hours/block.json
+#: blocks/menu/block.json
+msgctxt "block keyword"
+msgid "restaurant"
+msgstr ""
+
+#: blocks/booking/block.json
+msgctxt "block keyword"
+msgid "reserve"
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block title"
+msgid "DineKit Opening Hours"
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block description"
+msgid "Show your opening hours with a live open/closed status."
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block keyword"
+msgid "hours"
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block keyword"
+msgid "opening"
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block keyword"
+msgid "times"
+msgstr ""
+
+#: blocks/hours/block.json
+msgctxt "block keyword"
+msgid "schedule"
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block title"
+msgid "DineKit Menu"
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block description"
+msgid "Display a restaurant menu with prices, allergens and dietary labels."
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block keyword"
+msgid "menu"
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block keyword"
+msgid "food"
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block keyword"
+msgid "allergen"
+msgstr ""
+
+#: blocks/menu/block.json
+msgctxt "block keyword"
+msgid "price"
+msgstr ""
