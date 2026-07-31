@@ -17,6 +17,20 @@ import PageHeader from './ui/PageHeader';
 import Card from './ui/Card';
 import { COUNTRIES, postcodeLabel, regionLabel } from '../lib/l10n';
 
+// Venue categories — keys mirror includes/settings.php venue_types(), which
+// maps them to schema.org FoodEstablishment subtypes for local search.
+const VENUE_TYPES = [
+	[ 'restaurant', 'Restaurant' ],
+	[ 'cafe', 'Café / coffee shop' ],
+	[ 'pub', 'Pub / bar' ],
+	[ 'fast_food', 'Fast food / takeaway' ],
+	[ 'bakery', 'Bakery' ],
+	[ 'ice_cream', 'Ice cream shop' ],
+	[ 'brewery', 'Brewery' ],
+	[ 'winery', 'Winery' ],
+	[ 'other', 'Other food business' ],
+];
+
 const PRESETS = [ '#b91c1c', '#0ea5e9', '#16a34a', '#7c3aed', '#d97706', '#0f172a', '#db2777' ];
 
 // Brand + currency settings — applied globally to every menu on the frontend.
@@ -150,6 +164,22 @@ export default function SettingsView() {
 						correctly, and set the right labels across DineKit.
 					</Typography>
 					<Stack spacing={ 2 }>
+						<Box>
+							<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>Venue type</Typography>
+							<TextField
+								select
+								value={ settings.venue_type || 'restaurant' }
+								onChange={ ( e ) => update( { venue_type: e.target.value } ) }
+								sx={ { minWidth: 240 } }
+							>
+								{ VENUE_TYPES.map( ( [ value, label ] ) => (
+									<MenuItem key={ value } value={ value }>{ label }</MenuItem>
+								) ) }
+							</TextField>
+							<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 0.5 } }>
+								Tells search engines exactly what kind of place you are.
+							</Typography>
+						</Box>
 						<Box>
 							<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>Country</Typography>
 							<TextField

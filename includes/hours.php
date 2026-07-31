@@ -381,7 +381,7 @@ function schema_jsonld( $data ) {
 
 	$node = array(
 		'@context' => 'https://schema.org',
-		'@type'    => 'LocalBusiness',
+		'@type'    => \DineKit\Settings\venue_schema_type(),
 		'name'     => $data['name'] ? $data['name'] : get_bloginfo( 'name' ),
 	);
 	if ( ! empty( $address ) ) {

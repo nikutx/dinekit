@@ -26,6 +26,7 @@ function defaults() {
 		'currency'         => '£',
 		'currencyPosition' => 'before', // before | after.
 		'businessType'     => 'both',   // dinein | takeaway | both — gates features.
+		'venue_type'       => 'restaurant', // What kind of venue — drives the schema.org type (see venue_types()).
 		// Localisation + the restaurant's own address (feeds LocalBusiness schema
 		// and drives region-aware address labels). Country is ISO 3166-1 alpha-2.
 		'country'          => '',
@@ -52,6 +53,37 @@ function defaults() {
  */
 function templates() {
 	return array( 'maison', 'counter', 'noir', 'bistro', 'fresh', 'mono' );
+}
+
+/**
+ * Venue types → their schema.org FoodEstablishment subtype. Google treats the
+ * specific subtype better than a generic LocalBusiness in local search.
+ *
+ * @return array<string,string>
+ */
+function venue_types() {
+	return array(
+		'restaurant' => 'Restaurant',
+		'cafe'       => 'CafeOrCoffeeShop',
+		'pub'        => 'BarOrPub',
+		'fast_food'  => 'FastFoodRestaurant',
+		'bakery'     => 'Bakery',
+		'ice_cream'  => 'IceCreamShop',
+		'brewery'    => 'Brewery',
+		'winery'     => 'Winery',
+		'other'      => 'FoodEstablishment',
+	);
+}
+
+/**
+ * The schema.org type for the saved venue type.
+ *
+ * @return string
+ */
+function venue_schema_type() {
+	$types = venue_types();
+	$key   = (string) get()['venue_type'];
+	return isset( $types[ $key ] ) ? $types[ $key ] : 'Restaurant';
 }
 
 /**
@@ -134,6 +166,9 @@ function save( $input ) {
 	}
 	if ( isset( $input['businessType'] ) && in_array( $input['businessType'], array( 'dinein', 'takeaway', 'both' ), true ) ) {
 		$clean['businessType'] = (string) $input['businessType'];
+	}
+	if ( isset( $input['venue_type'] ) && array_key_exists( (string) $input['venue_type'], venue_types() ) ) {
+		$clean['venue_type'] = (string) $input['venue_type'];
 	}
 
 	// Country (validated against the known list) + the restaurant's address.
