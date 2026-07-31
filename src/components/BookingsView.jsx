@@ -880,17 +880,31 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 	const [ error, setError ] = useState( '' );
 	const [ guests, setGuests ] = useState( [] ); // CRM directory for returning-guest search.
 	const [ sugOpen, setSugOpen ] = useState( false );
+	const [ intel, setIntel ] = useState( null ); // Merged CRM record for the guest being edited.
 	const debounce = useRef( null );
 
 	// Load the guest directory once (new bookings only) so we can recognise
 	// returning guests and pre-fill their details.
 	useEffect( () => {
 		if ( editing ) {
+			// Editing an existing booking: pull the guest's merged CRM record
+			// (VIP, allergies, visits, spend, points, no-shows) for the floor.
+			if ( editing.email || editing.phone ) {
+				api.getGuestIntel( { email: editing.email || '', phone: editing.phone || '', name: editing.name || '' } )
+					.then( setIntel )
+					.catch( () => {} );
+			}
 			return;
 		}
 		api.getGuests().then( ( g ) => setGuests( Array.isArray( g ) ? g : ( ( g && g.guests ) || [] ) ) ).catch( () => {} );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
+
+	const intelMoney = ( n ) => {
+		const v = Number( n || 0 ).toFixed( 2 );
+		const sym = ( intel && intel.currency ) || '£';
+		return ( intel && intel.curPos ) === 'after' ? `${ v }${ sym }` : `${ sym }${ v }`;
+	};
 
 	const nq = form.name.trim().toLowerCase();
 	const guestMatches = ( ! editing && nq.length >= 2 && sugOpen )
@@ -982,6 +996,38 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 			<Typography variant="subtitle2" sx={ { mb: 2, color: tokens.ink } }>
 				{ editing ? 'Edit booking' : 'New booking' }
 			</Typography>
+
+			{ /* Guest intel — who's walking in: VIP, allergies, history, spend. */ }
+			{ editing && intel && ( intel.vip || intel.visits > 0 || intel.orders > 0 || intel.points > 0 || intel.noShows > 0 || intel.allergens || ( intel.tags || [] ).length > 0 || intel.notes ) && (
+				<Box sx={ { mb: 2, p: 1.25, borderRadius: '10px', bgcolor: tokens.soft, border: `1px solid ${ tokens.border }` } }>
+					<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap>
+						{ intel.vip && <Chip label="⭐ VIP" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.amberSoft, color: tokens.amber } } /> }
+						{ intel.allergens && (
+							<Chip label={ `⚠ ${ intel.allergens }` } size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.redSoft, color: tokens.red } } />
+						) }
+						{ ( intel.tags || [] ).map( ( t ) => (
+							<Chip key={ t } label={ t } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.surface, color: tokens.ink2, fontWeight: 600 } } />
+						) ) }
+						{ intel.visits > 0 && (
+							<Chip label={ `${ intel.visits } visit${ intel.visits === 1 ? '' : 's' }` } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.surface, color: tokens.ink2, fontWeight: 600 } } />
+						) }
+						{ intel.spend > 0 && (
+							<Chip label={ `${ intelMoney( intel.spend ) } lifetime · avg ${ intelMoney( intel.avgSpend ) }` } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.greenSoft, color: tokens.green, fontWeight: 700 } } />
+						) }
+						{ intel.points > 0 && (
+							<Chip label={ `${ intel.points } pts` } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } } />
+						) }
+						{ intel.noShows > 0 && (
+							<Chip label={ `${ intel.noShows } no-show${ intel.noShows === 1 ? '' : 's' }` } size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.redSoft, color: tokens.red } } />
+						) }
+					</Stack>
+					{ intel.notes && (
+						<Typography sx={ { fontSize: 12, color: tokens.ink2, mt: 0.75, fontStyle: 'italic' } }>
+							“{ intel.notes }”
+						</Typography>
+					) }
+				</Box>
+			) }
 
 			{ editing && onStatus && (
 				<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>

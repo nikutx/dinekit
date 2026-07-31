@@ -260,6 +260,15 @@ function register_routes() {
 			'permission_callback' => __NAMESPACE__ . '\\can_manage',
 		)
 	);
+	register_rest_route(
+		$ns,
+		'/guests/intel',
+		array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => __NAMESPACE__ . '\\guest_intel',
+			'permission_callback' => __NAMESPACE__ . '\\can_manage',
+		)
+	);
 
 	// --- Public (diner-facing) endpoints ---
 	// Intentionally public: a diner requesting a table is unauthenticated.
@@ -1525,6 +1534,9 @@ function list_guests() {
 			'visits'    => 0,
 			'cancelled' => 0,
 			'noShows'   => 0,
+			'orders'    => 0,
+			'spend'     => 0.0,
+			'points'    => 0,
 			'dates'     => array(),
 			'allergens' => array(),
 			'dietary'   => array(),
@@ -1595,6 +1607,65 @@ function list_guests() {
 		}
 	}
 
+	// Orders — the money dimension: settled/delivered orders matched to the
+	// same guest key add order count + lifetime spend.
+	require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+	$orders = get_posts(
+		array(
+			'post_type'      => 'dinekit_order',
+			'post_status'    => 'publish',
+			'posts_per_page' => 2000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- directory build, admin-only.
+			'no_found_rows'  => true,
+		)
+	);
+	foreach ( $orders as $o ) {
+		$status = (string) get_post_meta( $o->ID, 'dinekit_order_status', true );
+		if ( ! in_array( $status, array( 'completed', 'delivered' ), true ) ) {
+			continue;
+		}
+		$email = (string) get_post_meta( $o->ID, 'dinekit_order_email', true );
+		$name  = (string) get_post_meta( $o->ID, 'dinekit_order_name', true );
+		if ( '' === trim( $email ) && '' === trim( $name ) ) {
+			continue; // Anonymous walk-in tab.
+		}
+		$k = $key( $email, $name );
+		if ( ! isset( $map[ $k ] ) ) {
+			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
+		}
+		++$map[ $k ]['orders'];
+		$map[ $k ]['spend'] += \DineKit\Ordering\grand_total( $o->ID );
+		$phone               = (string) get_post_meta( $o->ID, 'dinekit_order_phone', true );
+		if ( '' !== $phone && '' === $map[ $k ]['phone'] ) {
+			$map[ $k ]['phone'] = $phone;
+		}
+	}
+
+	// Loyalty — points balance for members matched by email (or name).
+	$members = get_posts(
+		array(
+			'post_type'      => 'dinekit_member',
+			'post_status'    => 'publish',
+			'posts_per_page' => 2000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- directory build, admin-only.
+			'no_found_rows'  => true,
+		)
+	);
+	foreach ( $members as $m ) {
+		$email = (string) get_post_meta( $m->ID, 'dinekit_member_email', true );
+		$name  = $m->post_title;
+		if ( '' === trim( $email ) && '' === trim( $name ) ) {
+			continue;
+		}
+		$k = $key( $email, $name );
+		if ( ! isset( $map[ $k ] ) ) {
+			$map[ $k ] = $blank( $name, strtolower( trim( $email ) ) );
+		}
+		$map[ $k ]['points'] += (int) get_post_meta( $m->ID, 'dinekit_member_points', true );
+		$phone                = (string) get_post_meta( $m->ID, 'dinekit_member_phone', true );
+		if ( '' !== $phone && '' === $map[ $k ]['phone'] ) {
+			$map[ $k ]['phone'] = $phone;
+		}
+	}
+
 	require_once DINEKIT_DIR . 'includes/guests.php';
 	$today = current_time( 'Y-m-d' );
 	$out   = array();
@@ -1619,6 +1690,10 @@ function list_guests() {
 			'noShows'       => $p['noShows'],
 			'lastVisit'     => $last,
 			'nextVisit'     => $next,
+			'orders'        => $p['orders'],
+			'spend'         => round( $p['spend'], 2 ),
+			'avgSpend'      => $p['orders'] ? round( $p['spend'] / $p['orders'], 2 ) : 0,
+			'points'        => $p['points'],
 			'allergens'     => array_keys( $p['allergens'] ),
 			'dietary'       => array_keys( $p['dietary'] ),
 			'vip'           => $profile['vip'],
@@ -1634,6 +1709,124 @@ function list_guests() {
 		}
 	);
 	return rest_ensure_response( $out );
+}
+
+/**
+ * GET /guests/intel?email=&phone=&name= — one guest's merged profile for the
+ * floor: VIP/tags/notes, allergies, visit count, lifetime spend, loyalty
+ * points and no-show history. Targeted meta queries, not a directory scan, so
+ * it's cheap enough to call when a booking panel opens.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function guest_intel( $request ) {
+	$email = strtolower( trim( sanitize_email( (string) $request->get_param( 'email' ) ) ) );
+	$phone = sanitize_text_field( (string) $request->get_param( 'phone' ) );
+	$name  = sanitize_text_field( (string) $request->get_param( 'name' ) );
+	if ( '' === $email && '' === $phone && '' === $name ) {
+		return new \WP_Error( 'dinekit_guest_id', __( 'A guest email, phone or name is required.', 'dinekit' ), array( 'status' => 400 ) );
+	}
+
+	$by_meta = static function ( $post_type, $pairs ) {
+		$meta = array( 'relation' => 'OR' );
+		foreach ( $pairs as $meta_key => $value ) {
+			if ( '' !== $value ) {
+				$meta[] = array(
+					'key'   => $meta_key,
+					'value' => $value,
+				);
+			}
+		}
+		if ( count( $meta ) < 2 ) {
+			return array();
+		}
+		return get_posts(
+			array(
+				'post_type'      => $post_type,
+				'post_status'    => 'publish',
+				'posts_per_page' => 500, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- one guest's history.
+				'no_found_rows'  => true,
+				'fields'         => 'ids',
+				'meta_query'     => $meta, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- targeted single-guest lookup.
+			)
+		);
+	};
+
+	// Bookings → visits + last visit.
+	$visits = 0;
+	$last   = '';
+	$today  = current_time( 'Y-m-d' );
+	foreach ( $by_meta(
+		'dinekit_booking',
+		array(
+			'dinekit_email' => $email,
+			'dinekit_phone' => $phone,
+		)
+	) as $bid ) {
+		$status = (string) get_post_meta( $bid, 'dinekit_status', true );
+		if ( in_array( $status, array( 'no_show', 'cancelled' ), true ) ) {
+			continue;
+		}
+		++$visits;
+		$date = (string) get_post_meta( $bid, 'dinekit_date', true );
+		if ( '' !== $date && $date < $today && $date > $last ) {
+			$last = $date;
+		}
+	}
+
+	// Orders → count + lifetime spend (settled money states only).
+	require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+	$orders = 0;
+	$spend  = 0.0;
+	foreach ( $by_meta(
+		'dinekit_order',
+		array(
+			'dinekit_order_email' => $email,
+			'dinekit_order_phone' => $phone,
+		)
+	) as $oid ) {
+		$status = (string) get_post_meta( $oid, 'dinekit_order_status', true );
+		if ( in_array( $status, array( 'completed', 'delivered' ), true ) ) {
+			++$orders;
+			$spend += \DineKit\Ordering\grand_total( $oid );
+		}
+	}
+
+	// Loyalty points.
+	$points = 0;
+	foreach ( $by_meta(
+		'dinekit_member',
+		array(
+			'dinekit_member_email' => $email,
+			'dinekit_member_phone' => $phone,
+		)
+	) as $mid ) {
+		$points += (int) get_post_meta( $mid, 'dinekit_member_points', true );
+	}
+
+	require_once DINEKIT_DIR . 'includes/guests.php';
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	$profile  = \DineKit\Guests\get_profile( $email, $name );
+	$settings = \DineKit\Settings\get();
+
+	return rest_ensure_response(
+		array(
+			'currency'  => (string) $settings['currency'],
+			'curPos'    => (string) $settings['currencyPosition'],
+			'vip'       => $profile['vip'],
+			'tags'      => $profile['tags'],
+			'notes'     => $profile['notes'],
+			'allergens' => $profile['allergens'],
+			'visits'    => $visits,
+			'lastVisit' => $last,
+			'orders'    => $orders,
+			'spend'     => round( $spend, 2 ),
+			'avgSpend'  => $orders ? round( $spend / $orders, 2 ) : 0,
+			'points'    => $points,
+			'noShows'   => guest_no_show_count( $email, $phone ),
+		)
+	);
 }
 
 /* -------------------------------------------------------------------------- */

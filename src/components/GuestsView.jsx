@@ -33,11 +33,23 @@ export default function GuestsView() {
 	const [ editing, setEditing ] = useState( null );
 	const [ toast, setToast ] = useState( '' );
 
+	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
+
 	useEffect( () => {
 		api.getGuests()
 			.then( ( rows ) => setGuests( rows || [] ) )
 			.finally( () => setLoading( false ) );
+		api.getState().then( ( s ) => {
+			if ( s && s.currency ) {
+				setCur( { symbol: s.currency, position: s.currencyPosition || 'before' } );
+			}
+		} ).catch( () => {} );
 	}, [] );
+
+	const money = ( n ) => {
+		const v = Number( n || 0 ).toFixed( 2 );
+		return cur.position === 'after' ? `${ v }${ cur.symbol }` : `${ cur.symbol }${ v }`;
+	};
 
 	const filtered = useMemo( () => {
 		const s = q.trim().toLowerCase();
@@ -162,6 +174,21 @@ export default function GuestsView() {
 							<Stack alignItems="flex-end" sx={ { width: 64, flexShrink: 0 } }>
 								<Typography sx={ { fontWeight: 800, fontSize: 18, color: tokens.ink } }>{ g.visits }</Typography>
 								<Typography sx={ { fontSize: 11, color: tokens.muted2 } }>{ g.visits === 1 ? 'booking' : 'bookings' }</Typography>
+							</Stack>
+							<Stack alignItems="flex-end" sx={ { width: 92, flexShrink: 0 } }>
+								{ g.spend > 0 ? (
+									<>
+										<Typography sx={ { fontWeight: 800, fontSize: 15, color: tokens.ink } }>{ money( g.spend ) }</Typography>
+										<Typography sx={ { fontSize: 11, color: tokens.muted2 } }>
+											{ g.orders } order{ g.orders === 1 ? '' : 's' } · avg { money( g.avgSpend ) }
+										</Typography>
+									</>
+								) : (
+									<Typography sx={ { fontSize: 12, color: tokens.muted2 } }>—</Typography>
+								) }
+								{ g.points > 0 && (
+									<Chip label={ `${ g.points } pts` } size="small" sx={ { height: 16, fontSize: 10, mt: 0.25, bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 700 } } />
+								) }
 							</Stack>
 							<Box sx={ { width: 130, flexShrink: 0 } }>
 								{ g.nextVisit ? (

@@ -208,6 +208,13 @@ export const api = {
 	getBookingSettings: () => request( 'GET', 'bookings/settings' ),
 	saveBookingSettings: ( data ) => request( 'POST', 'bookings/settings', data ),
 	getGuests: () => request( 'GET', 'guests' ),
+	getGuestIntel: ( { email = '', phone = '', name = '' } = {} ) => {
+		const q = new URLSearchParams();
+		if ( email ) q.set( 'email', email );
+		if ( phone ) q.set( 'phone', phone );
+		if ( name ) q.set( 'name', name );
+		return request( 'GET', 'guests/intel?' + q.toString() );
+	},
 	// Staff & labour.
 	getStaff: () => request( 'GET', 'staff' ),
 	createStaff: ( data ) => request( 'POST', 'staff', data ),
