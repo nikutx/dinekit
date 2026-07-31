@@ -240,12 +240,22 @@ function render_item( $post, $args, $allergen_map ) {
 	$diet_slugs     = is_array( $diet_terms ) ? wp_list_pluck( $diet_terms, 'slug' ) : array();
 	$allergen_slugs = is_array( $allergen_terms ) ? wp_list_pluck( $allergen_terms, 'slug' ) : array();
 
+	// "May contain" traces — term ids stored on the item, minus anything the
+	// dish already CONTAINS. Their slugs join data-allergens so the diner's
+	// "avoid" filter treats a trace as a hit (safety-first).
+	$contains_ids = is_array( $allergen_terms ) ? wp_list_pluck( $allergen_terms, 'term_id' ) : array();
+	$trace_ids    = trace_ids( $post->ID, $contains_ids, $allergen_map );
+	$trace_slugs  = array();
+	foreach ( $trace_ids as $tid ) {
+		$trace_slugs[] = $allergen_map[ $tid ]['slug'];
+	}
+
 	ob_start();
 	?>
 	<li
 		class="dinekit-item<?php echo $out ? ' dinekit-item--unavailable' : ''; ?>"
 		data-dietary="<?php echo esc_attr( implode( ' ', $diet_slugs ) ); ?>"
-		data-allergens="<?php echo esc_attr( implode( ' ', $allergen_slugs ) ); ?>"
+		data-allergens="<?php echo esc_attr( implode( ' ', array_merge( $allergen_slugs, $trace_slugs ) ) ); ?>"
 	>
 		<?php if ( $args['show_images'] && has_post_thumbnail( $post ) ) : ?>
 			<div class="dinekit-item__media">
@@ -353,6 +363,9 @@ function render_item( $post, $args, $allergen_map ) {
 						}
 						echo '</span>';
 					}
+				}
+				if ( $args['show_allergens'] && $trace_ids ) {
+					echo render_traces( $trace_ids, $allergen_map, $args['allergen_display'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				?>
 			</div>
@@ -512,6 +525,81 @@ function allergen_map() {
 }
 
 /**
+ * "May contain" allergen term ids for an item — validated against the live
+ * allergen map and de-duplicated against what the dish already contains.
+ *
+ * @param int              $post_id      Item id.
+ * @param int[]            $contains_ids Term ids the dish CONTAINS.
+ * @param array<int,array> $allergen_map Allergen data keyed by term id.
+ * @return int[]
+ */
+function trace_ids( $post_id, $contains_ids, $allergen_map ) {
+	$raw = json_decode( (string) get_post_meta( $post_id, 'dinekit_allergen_traces', true ), true );
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$ids = array();
+	foreach ( $raw as $id ) {
+		$id = (int) $id;
+		if ( isset( $allergen_map[ $id ] ) && ! in_array( $id, $contains_ids, true ) && ! in_array( $id, $ids, true ) ) {
+			$ids[] = $id;
+		}
+	}
+	return $ids;
+}
+
+/**
+ * Render the "may contain / traces" badges for one dish, matching the chosen
+ * allergen display mode. Traces read visually quieter than "contains" so the
+ * two are never confused.
+ *
+ * @param int[]            $trace_ids    Trace term ids.
+ * @param array<int,array> $allergen_map Allergen data.
+ * @param string           $display      icons | text | codes.
+ * @return string
+ */
+function render_traces( $trace_ids, $allergen_map, $display ) {
+	$out = '<span class="dinekit-allergens dinekit-allergens--trace">';
+	if ( 'icons' === $display ) {
+		$out .= '<span class="dinekit-trace-label">' . esc_html__( 'may contain', 'dinekit' ) . '</span>';
+		foreach ( $trace_ids as $id ) {
+			$data = $allergen_map[ $id ];
+			/* translators: %s: allergen name. */
+			$title = sprintf( __( 'May contain %s', 'dinekit' ), $data['name'] );
+			if ( $data['icon'] ) {
+				$out .= sprintf(
+					'<img class="dinekit-allergen-icon dinekit-allergen-icon--trace" src="%s" alt="%s" title="%s" width="18" height="18" loading="lazy" />',
+					esc_url( $data['icon'] ),
+					esc_attr( $title ),
+					esc_attr( $title )
+				);
+			} else {
+				$out .= sprintf( '<span class="dinekit-allergen-text dinekit-allergen-text--trace" title="%s">%s</span>', esc_attr( $title ), esc_html( $data['name'] ) );
+			}
+		}
+	} elseif ( 'codes' === $display ) {
+		foreach ( $trace_ids as $id ) {
+			$data = $allergen_map[ $id ];
+			$code = strtoupper( substr( (string) preg_replace( '/[^\p{L}]/u', '', $data['name'] ), 0, 3 ) );
+			/* translators: %s: allergen name. */
+			$title = sprintf( __( 'May contain %s', 'dinekit' ), $data['name'] );
+			$out  .= sprintf( '<span class="dinekit-allergen-text dinekit-allergen-code dinekit-allergen-text--trace" title="%s">%s*</span>', esc_attr( $title ), esc_html( $code ) );
+		}
+	} else {
+		$names = array();
+		foreach ( $trace_ids as $id ) {
+			$names[] = $allergen_map[ $id ]['name'];
+		}
+		$out .= sprintf(
+			'<span class="dinekit-allergen-text dinekit-allergen-text--trace">%s</span>',
+			/* translators: %s: comma-separated allergen names. */
+			esc_html( sprintf( __( 'May contain: %s', 'dinekit' ), implode( ', ', $names ) ) )
+		);
+	}
+	return $out . '</span>';
+}
+
+/**
  * Render the allergen legend (only allergens actually used are worth showing,
  * but we show the full set for clarity/compliance).
  *
@@ -572,15 +660,20 @@ function render_matrix( $groups, $allergen_map ) {
 					<?php
 					foreach ( $groups as $group ) :
 						foreach ( $group['items'] as $post ) :
-							$terms = get_the_terms( $post, 'dinekit_allergen' );
-							$ids   = is_array( $terms ) ? wp_list_pluck( $terms, 'term_id' ) : array();
+							$terms  = get_the_terms( $post, 'dinekit_allergen' );
+							$ids    = is_array( $terms ) ? wp_list_pluck( $terms, 'term_id' ) : array();
+							$traces = trace_ids( $post->ID, $ids, $allergen_map );
 							?>
 							<tr>
 								<th scope="row"><?php echo esc_html( get_the_title( $post ) ); ?></th>
 								<?php foreach ( $allergen_map as $term_id => $data ) : ?>
-									<td class="<?php echo in_array( $term_id, $ids, true ) ? 'is-yes' : ''; ?>">
-										<?php echo in_array( $term_id, $ids, true ) ? '&#10003;' : ''; ?>
-									</td>
+									<?php if ( in_array( $term_id, $ids, true ) ) : ?>
+										<td class="is-yes">&#10003;</td>
+									<?php elseif ( in_array( $term_id, $traces, true ) ) : ?>
+										<td class="is-may" title="<?php esc_attr_e( 'May contain (traces)', 'dinekit' ); ?>">&#177;</td>
+									<?php else : ?>
+										<td></td>
+									<?php endif; ?>
 								<?php endforeach; ?>
 							</tr>
 						<?php endforeach; ?>
@@ -588,6 +681,7 @@ function render_matrix( $groups, $allergen_map ) {
 				</tbody>
 			</table>
 		</div>
+		<p class="dinekit-matrix__note"><?php esc_html_e( '✓ contains · ± may contain (traces)', 'dinekit' ); ?></p>
 	</details>
 	<?php
 	return (string) ob_get_clean();

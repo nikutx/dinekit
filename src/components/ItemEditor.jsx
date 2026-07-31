@@ -484,6 +484,37 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 						);
 					} ) }
 
+					{ /* "May contain" traces — cross-contamination risk, distinct from contains. */ }
+					<Box sx={ { mt: 1.5 } }>
+						<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mb: 0.5 } }>
+							May contain traces of{ ' ' }
+							<Box component="span" sx={ { color: tokens.muted2, fontStyle: 'italic' } }>
+								(cross-contamination risk — shows as “may contain” on the menu)
+							</Box>
+						</Typography>
+						<Stack direction="row" spacing={ 0.75 } flexWrap="wrap" useFlexGap>
+							{ data.allergens
+								.filter( ( a ) => ! ( form.allergens || [] ).includes( a.id ) )
+								.map( ( a ) => {
+									const on = ( form.allergenTraces || [] ).includes( a.id );
+									return (
+										<Box
+											key={ a.id }
+											component="button"
+											type="button"
+											onClick={ () => {
+												const cur = form.allergenTraces || [];
+												setNow( 'allergenTraces', on ? cur.filter( ( id ) => id !== a.id ) : [ ...cur, a.id ] );
+											} }
+											sx={ { px: 1, py: 0.4, borderRadius: 999, fontSize: 11.5, fontWeight: on ? 700 : 500, cursor: 'pointer', border: `1px dashed ${ on ? tokens.amber : tokens.border }`, bgcolor: on ? tokens.amberSoft : tokens.surface, color: on ? tokens.amber : tokens.ink2, fontFamily: 'inherit' } }
+										>
+											{ a.name }
+										</Box>
+									);
+								} ) }
+						</Stack>
+					</Box>
+
 					{ /* Add a custom allergen on the fly. */ }
 					<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { mt: 1.25 } }>
 						<Box component="input" type="text" placeholder="Add your own allergen…" value={ newAllergen }

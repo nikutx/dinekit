@@ -171,6 +171,27 @@
 	padding: 0 0.35rem;
 }
 
+/* ---- "May contain / traces" — visually quieter than contains ---- */
+.dinekit-allergens--trace {
+	opacity: 0.8;
+}
+
+.dinekit-trace-label {
+	font-size: 0.65em;
+	font-style: italic;
+	color: var(--dinekit-muted);
+	margin-right: 0.15rem;
+}
+
+.dinekit-allergen-icon--trace {
+	opacity: 0.45;
+}
+
+.dinekit-allergen-text--trace {
+	border-style: dashed;
+	font-style: italic;
+}
+
 /* ---- Explicit column counts (override the layout default) ---- */
 .dinekit-menu--cols-1 .dinekit-items,
 .dinekit-menu--cols-2 .dinekit-items,
@@ -426,6 +447,18 @@
 	background: #fee2e2;
 	color: #b91c1c;
 	font-weight: 700;
+}
+
+.dinekit-matrix__table td.is-may {
+	background: #fef3c7;
+	color: #92400e;
+	font-weight: 700;
+}
+
+.dinekit-matrix__note {
+	font-size: 0.75em;
+	color: var(--dinekit-muted);
+	margin: 0.5rem 0 0;
 }
 
 .dinekit-menu--empty {

@@ -989,6 +989,7 @@ function item_response( $post ) {
 		'dietary'         => $term_ids( 'dinekit_dietary' ),
 		'allergens'       => $term_ids( 'dinekit_allergen' ),
 		'allergenSources' => (array) json_decode( (string) get_post_meta( $post->ID, 'dinekit_allergen_sources', true ), true ),
+		'allergenTraces'  => array_map( 'intval', (array) json_decode( (string) get_post_meta( $post->ID, 'dinekit_allergen_traces', true ), true ) ),
 		'calories'        => (int) get_post_meta( $post->ID, 'dinekit_calories', true ),
 		'cost'            => (string) get_post_meta( $post->ID, 'dinekit_cost', true ),
 		'image'           => $image,
@@ -1252,6 +1253,22 @@ function apply_item_fields( $post_id, $request ) {
 			}
 		}
 		update_post_meta( $post_id, 'dinekit_allergen_sources', wp_json_encode( $clean ) );
+	}
+	if ( null !== $request->get_param( 'allergenTraces' ) ) {
+		// "May contain" traces — allergen TERM ids; only real allergen terms
+		// are stored, and the render layer also drops any id the dish contains.
+		$traces = $request->get_param( 'allergenTraces' );
+		$clean  = array();
+		if ( is_array( $traces ) ) {
+			foreach ( $traces as $tid ) {
+				$tid  = absint( $tid );
+				$term = $tid ? get_term( $tid, 'dinekit_allergen' ) : null;
+				if ( $term && ! is_wp_error( $term ) && ! in_array( $tid, $clean, true ) ) {
+					$clean[] = $tid;
+				}
+			}
+		}
+		update_post_meta( $post_id, 'dinekit_allergen_traces', wp_json_encode( $clean ) );
 	}
 
 	$taxonomy_params = array(
