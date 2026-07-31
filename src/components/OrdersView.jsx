@@ -161,6 +161,14 @@ const PAYMENT = {
 };
 
 // Group orders (already newest-first) under Today / Yesterday / date headings.
+const todayIso = () => {
+	const d = new Date();
+	const p = ( n ) => ( n < 10 ? '0' : '' ) + n;
+	return d.getFullYear() + '-' + p( d.getMonth() + 1 ) + '-' + p( d.getDate() );
+};
+// "Sat 2 Aug" for a scheduled pre-order's day.
+const fmtWhenDate = ( iso ) => new Date( iso + 'T12:00:00' ).toLocaleDateString( undefined, { weekday: 'short', day: 'numeric', month: 'short' } );
+
 const dayLabel = ( iso ) => {
 	if ( ! iso ) {
 		return 'Earlier';
@@ -299,7 +307,7 @@ export default function OrdersView() {
 		};
 		let body = '<h1>Order #' + o.number + '</h1>';
 		body += '<p class="dinekit-sub">' + esc( o.name ) + ( o.phone ? ' · ' + esc( o.phone ) : '' ) +
-			' · ' + ( o.when === 'asap' ? 'ASAP' : esc( o.when ) ) + '</p>';
+			' · ' + ( o.whenDate ? esc( fmtWhenDate( o.whenDate ) ) + ' · ' + esc( o.when ) : ( o.when === 'asap' ? 'ASAP' : esc( o.when ) ) ) + '</p>';
 		const stations = station === 'all' ? [ 'kitchen', 'bar' ] : [ station ];
 		stations.forEach( ( st ) => {
 			const rows = wanted.filter( ( li ) => stationOf( li ) === st );
@@ -412,8 +420,11 @@ export default function OrdersView() {
 											<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mb: 1 } }>
 												<Typography sx={ { fontWeight: 650, fontSize: 15, fontVariantNumeric: 'tabular-nums' } }>#{ o.number }</Typography>
 												<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
-													{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.when === 'asap' ? 'ASAP' : o.when }
+													{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.whenDate ? `${ fmtWhenDate( o.whenDate ) } · ${ o.when }` : ( o.when === 'asap' ? 'ASAP' : o.when ) }
 												</Typography>
+												{ !! o.whenDate && (
+													<Chip label={ o.whenDate > todayIso() ? 'Scheduled' : 'Pre-ordered' } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: tokens.amber, bgcolor: tokens.amberSoft } } />
+												) }
 												{ pay && (
 													<Chip label={ pay.label } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 600, color: pay.fg, bgcolor: pay.bg } } />
 												) }
@@ -702,6 +713,13 @@ function OrderSettings() {
 					onChange={ ( e ) => patch( { slot_mins: Math.max( 5, parseInt( e.target.value, 10 ) || 15 ) } ) }
 					helperText="Kitchen throttle window"
 					sx={ { width: 150 } }
+				/>
+				<TextField
+					label="Pre-order days ahead" type="number" size="small"
+					value={ cfg.preorder_days != null ? cfg.preorder_days : 0 }
+					onChange={ ( e ) => patch( { preorder_days: Math.max( 0, Math.min( 14, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
+					helperText="0 = today only · scheduled orders arrive held"
+					sx={ { width: 170 } }
 				/>
 				<TextField
 					label="Kitchen email" type="email" size="small"

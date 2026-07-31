@@ -218,6 +218,7 @@ function register() {
 		'dinekit_order_phone'        => 'string',
 		'dinekit_order_notes'        => 'string',
 		'dinekit_order_when'         => 'string',  // 'asap' or H:i.
+		'dinekit_order_when_date'    => 'string',  // Y-m-d when scheduled for a future day ('' = today).
 		'dinekit_order_slot'         => 'string',  // Kitchen capacity slot key (Y-m-d H:i bucket).
 		'dinekit_order_payment'      => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
 		'dinekit_order_source'       => 'string',
@@ -274,6 +275,7 @@ function get_settings() {
 		'min_order'        => 0,     // Minimum order value (0 = none).
 		'slot_mins'        => 15,    // Kitchen time-slot length, minutes (for capacity throttling).
 		'slot_max'         => 0,     // Max orders per slot (0 = unlimited / off).
+		'preorder_days'    => 0,     // Days ahead a diner may schedule an order (0 = today only).
 		'emails_enabled'   => true,  // Send customer + kitchen order emails.
 		'notify_email'     => '',    // Kitchen recipient (empty = site admin).
 		'printer_email'    => '',    // Email-to-print device address (auto-print tickets).
@@ -356,17 +358,21 @@ function accepting_orders() {
  * count how many orders target the same slot.
  *
  * @param string $when 'asap' or 'HH:MM'.
+ * @param string $date Optional Y-m-d for a scheduled future-day order; '' = today.
  * @return string Slot key, e.g. "2026-07-27 19:15".
  */
-function slot_key( $when ) {
+function slot_key( $when, $date = '' ) {
 	$s    = namespace\get_settings();
 	$mins = max( 5, (int) $s['slot_mins'] );
 	// phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- relative slot bucketing, not an absolute/UTC time.
 	$now = current_time( 'timestamp' );
+	$day = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $date ) ? $date : wp_date( 'Y-m-d' );
 	if ( 'asap' === $when || ! preg_match( '/^\d{1,2}:\d{2}$/', (string) $when ) ) {
-		$target = $now + ( (int) $s['prep_mins'] * 60 );
+		// ASAP only makes sense today; a future day without a time lands on noon
+		// so the key is at least stable (the REST layer rejects that combo anyway).
+		$target = wp_date( 'Y-m-d' ) === $day ? $now + ( (int) $s['prep_mins'] * 60 ) : strtotime( $day . ' 12:00:00' );
 	} else {
-		$target = strtotime( wp_date( 'Y-m-d' ) . ' ' . $when . ':00' );
+		$target = strtotime( $day . ' ' . $when . ':00' );
 		if ( ! $target ) {
 			$target = $now;
 		}
@@ -388,23 +394,63 @@ function slot_key( $when ) {
  * for a cheap way to load the site.
  *
  * @param string[] $times Candidate times ('asap' or 'HH:MM').
+ * @param string   $date  Optional Y-m-d for a scheduled day; '' = today.
  * @return string[] The subset that is full. Empty when the throttle is off.
  */
-function full_slots( $times ) {
+function full_slots( $times, $date = '' ) {
 	$s   = namespace\get_settings();
 	$max = (int) $s['slot_max'];
 	if ( $max <= 0 ) {
 		return array();
 	}
-	$counts = namespace\slot_counts_for_day();
+	$counts = namespace\slot_counts_for_day( $date );
 	$full   = array();
 	foreach ( (array) $times as $when ) {
-		$key = namespace\slot_key( $when );
+		$key = namespace\slot_key( $when, $date );
 		if ( isset( $counts[ $key ] ) && $counts[ $key ] >= $max ) {
 			$full[] = $when;
 		}
 	}
 	return $full;
+}
+
+/**
+ * The venue's open periods on a given date, honouring holiday overrides —
+ * the Opening Hours week template projected onto a calendar day.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int,array{open:string,close:string}>
+ */
+function periods_for_date( $date ) {
+	require_once DINEKIT_DIR . 'includes/hours.php';
+	$data = \DineKit\Hours\get();
+	foreach ( (array) $data['holidays'] as $holiday ) {
+		if ( isset( $holiday['date'] ) && $holiday['date'] === $date ) {
+			return ! empty( $holiday['closed'] ) ? array() : (array) $holiday['periods'];
+		}
+	}
+	$ts = strtotime( $date . ' 12:00:00' );
+	if ( ! $ts ) {
+		return array();
+	}
+	$day_key = strtolower( substr( gmdate( 'D', $ts ), 0, 3 ) );
+	return isset( $data['week'][ $day_key ] ) ? (array) $data['week'][ $day_key ] : array();
+}
+
+/**
+ * Is the venue open at a specific date + time (per Opening Hours)?
+ *
+ * @param string $date Y-m-d.
+ * @param string $time HH:MM.
+ * @return bool
+ */
+function open_at( $date, $time ) {
+	foreach ( namespace\periods_for_date( $date ) as $p ) {
+		if ( isset( $p['open'], $p['close'] ) && $time >= $p['open'] && $time < $p['close'] ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -509,6 +555,9 @@ function save_settings( $data ) {
 	}
 	if ( isset( $data['slot_max'] ) ) {
 		$current['slot_max'] = max( 0, min( 500, absint( $data['slot_max'] ) ) );
+	}
+	if ( isset( $data['preorder_days'] ) ) {
+		$current['preorder_days'] = max( 0, min( 14, absint( $data['preorder_days'] ) ) );
 	}
 	if ( isset( $data['service_pct'] ) ) {
 		$current['service_pct'] = max( 0, min( 100, (float) $data['service_pct'] ) );

@@ -501,11 +501,46 @@
 			return slots.slice( 0, 40 );
 		}
 
+		// 15-min slots inside a future day's open periods (from checkout-slots).
+		function buildSlotsForPeriods( periods ) {
+			var slots = [];
+			( periods || [] ).forEach( function ( p ) {
+				if ( ! p || ! p.open || ! p.close ) {
+					return;
+				}
+				var from = parseInt( p.open.slice( 0, 2 ), 10 ) * 60 + parseInt( p.open.slice( 3, 5 ), 10 );
+				var to = parseInt( p.close.slice( 0, 2 ), 10 ) * 60 + parseInt( p.close.slice( 3, 5 ), 10 );
+				from = Math.ceil( from / 15 ) * 15;
+				for ( var m = from; m < to; m += 15 ) {
+					var h = Math.floor( m / 60 );
+					var mm = m % 60;
+					slots.push( ( h < 10 ? '0' : '' ) + h + ':' + ( mm < 10 ? '0' : '' ) + mm );
+				}
+			} );
+			return slots.slice( 0, 60 );
+		}
+
+		// The days a diner may schedule for: today plus preorderDays ahead.
+		function preorderDays() {
+			var out = [];
+			var base = cfg.todayIso ? new Date( cfg.todayIso + 'T12:00:00' ) : new Date();
+			for ( var i = 0; i <= ( cfg.preorderDays || 0 ); i++ ) {
+				var d = new Date( base );
+				d.setDate( base.getDate() + i );
+				var iso = d.toISOString().slice( 0, 10 );
+				var label = i === 0 ? ( t.today || 'Today' )
+					: i === 1 ? ( t.tomorrow || 'Tomorrow' )
+						: d.toLocaleDateString( undefined, { weekday: 'short', day: 'numeric', month: 'short' } );
+				out.push( { iso: i === 0 ? '' : iso, label: label } );
+			}
+			return out;
+		}
+
 		// Grey out fulfilment times the kitchen is already full for, so a diner
 		// doesn't pick one and only find out when their order is refused at the
 		// very end. Purely a courtesy: place_order re-checks server-side and is
 		// still the authority, so a stale answer here can't oversell a slot.
-		function markFullSlots( sel ) {
+		function markFullSlots( sel, date ) {
 			var times = [];
 			for ( var i = 0; i < sel.options.length; i++ ) {
 				times.push( sel.options[ i ].value );
@@ -513,7 +548,7 @@
 			if ( ! times.length || ! cfg.restUrl ) {
 				return;
 			}
-			fetch( cfg.restUrl + 'checkout-slots?times=' + encodeURIComponent( times.join( ',' ) ), { credentials: 'same-origin' } )
+			fetch( cfg.restUrl + 'checkout-slots?times=' + encodeURIComponent( times.join( ',' ) ) + ( date ? '&date=' + encodeURIComponent( date ) : '' ), { credentials: 'same-origin' } )
 				.then( function ( r ) {
 					return r.ok ? r.json() : null;
 				} )
@@ -622,23 +657,79 @@
 				form.appendChild( field( 'address', t.address || 'Delivery address', 'textarea' ) );
 			}
 
+			// Pre-orders: a Day picker ahead of the time select (only when enabled).
+			var daySel = null;
+			if ( ( cfg.preorderDays || 0 ) > 0 && ! cfg.tableMode ) {
+				var dayL = el( 'label', 'dinekit-order__field' );
+				dayL.appendChild( el( 'span', null, t.day || 'Day' ) );
+				daySel = document.createElement( 'select' );
+				daySel.name = 'whenDate';
+				preorderDays().forEach( function ( d ) {
+					var o = document.createElement( 'option' );
+					o.value = d.iso;
+					o.textContent = d.label;
+					daySel.appendChild( o );
+				} );
+				dayL.appendChild( daySel );
+				form.appendChild( dayL );
+			}
+
 			var whenL = el( 'label', 'dinekit-order__field' );
 			whenL.appendChild( el( 'span', null, t.collection || 'Collection' ) );
 			var whenSel = document.createElement( 'select' );
 			whenSel.name = 'when';
-			var o0 = document.createElement( 'option' );
-			o0.value = 'asap';
-			o0.textContent = t.asap || 'As soon as possible';
-			whenSel.appendChild( o0 );
-			buildSlots().forEach( function ( hm ) {
-				var o = document.createElement( 'option' );
-				o.value = hm;
-				o.textContent = hm;
-				whenSel.appendChild( o );
-			} );
+			function fillTimesToday() {
+				whenSel.innerHTML = '';
+				var o0 = document.createElement( 'option' );
+				o0.value = 'asap';
+				o0.textContent = t.asap || 'As soon as possible';
+				whenSel.appendChild( o0 );
+				buildSlots().forEach( function ( hm ) {
+					var o = document.createElement( 'option' );
+					o.value = hm;
+					o.textContent = hm;
+					whenSel.appendChild( o );
+				} );
+				markFullSlots( whenSel );
+			}
+			// A future day: ask the server for that day's open periods (and slot
+			// capacity) and offer only real trading times — no ASAP.
+			function fillTimesForDay( iso ) {
+				whenSel.innerHTML = '';
+				fetch( cfg.restUrl + 'checkout-slots?date=' + encodeURIComponent( iso ), { credentials: 'same-origin' } )
+					.then( function ( r ) { return r.ok ? r.json() : null; } )
+					.then( function ( d ) {
+						var slots = buildSlotsForPeriods( d && d.periods );
+						if ( ! slots.length ) {
+							var oc = document.createElement( 'option' );
+							oc.value = '';
+							oc.textContent = t.closedDay || 'We’re closed that day';
+							oc.disabled = true;
+							oc.selected = true;
+							whenSel.appendChild( oc );
+							return;
+						}
+						slots.forEach( function ( hm ) {
+							var o = document.createElement( 'option' );
+							o.value = hm;
+							o.textContent = hm;
+							whenSel.appendChild( o );
+						} );
+						markFullSlots( whenSel, iso );
+					} );
+			}
+			fillTimesToday();
+			if ( daySel ) {
+				daySel.addEventListener( 'change', function () {
+					if ( daySel.value ) {
+						fillTimesForDay( daySel.value );
+					} else {
+						fillTimesToday();
+					}
+				} );
+			}
 			whenL.appendChild( whenSel );
 			form.appendChild( whenL );
-			markFullSlots( whenSel );
 
 			form.appendChild( field( 'notes', t.notes || 'Notes', 'textarea' ) );
 
@@ -718,6 +809,7 @@
 						email: email,
 						phone: phone,
 						when: form.when.value,
+						whenDate: ( form.whenDate && form.whenDate.value ) || '',
 						notes: form.notes.value,
 						fulfilment: state.fulfilment,
 						address: address,

@@ -176,11 +176,23 @@ function checkout_slots( $request ) {
 		}
 	);
 	$times = array_slice( array_values( $times ), 0, 60 );
-	return rest_ensure_response(
-		array(
-			'full' => $times ? array_values( Ordering\full_slots( $times ) ) : array(),
-		)
+
+	// Optional scheduled day (pre-orders): capacity is counted against THAT
+	// day, and the response carries the day's open periods so the picker can
+	// offer only times the venue actually trades.
+	$settings = Ordering\get_settings();
+	$date     = sanitize_text_field( (string) $request->get_param( 'date' ) );
+	$max_day  = wp_date( 'Y-m-d', strtotime( '+' . (int) $settings['preorder_days'] . ' days' ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || $date <= wp_date( 'Y-m-d' ) || $date > $max_day ) {
+		$date = '';
+	}
+	$out = array(
+		'full' => $times ? array_values( Ordering\full_slots( $times, $date ) ) : array(),
 	);
+	if ( '' !== $date ) {
+		$out['periods'] = Ordering\periods_for_date( $date );
+	}
+	return rest_ensure_response( $out );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -223,6 +235,7 @@ function order_response( $id ) {
 		'phone'        => (string) get_post_meta( $id, 'dinekit_order_phone', true ),
 		'notes'        => (string) get_post_meta( $id, 'dinekit_order_notes', true ),
 		'when'         => (string) get_post_meta( $id, 'dinekit_order_when', true ),
+		'whenDate'     => (string) get_post_meta( $id, 'dinekit_order_when_date', true ),
 		'payment'      => (string) get_post_meta( $id, 'dinekit_order_payment', true ),
 		'source'       => (string) get_post_meta( $id, 'dinekit_order_source', true ),
 		'fulfilment'   => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
@@ -896,11 +909,37 @@ function save_settings( $request ) {
 function place_order( $request ) {
 	$settings = Ordering\get_settings();
 
+	// Scheduled pre-order for a future day? Validated hard: within the
+	// configured window, a concrete time (not ASAP), and the venue must be
+	// open at that date+time per Opening Hours.
+	$when_date = sanitize_text_field( (string) $request->get_param( 'whenDate' ) );
+	if ( wp_date( 'Y-m-d' ) === $when_date ) {
+		$when_date = ''; // "Today" is just a normal order.
+	}
+	if ( '' !== $when_date ) {
+		$max_day = wp_date( 'Y-m-d', strtotime( '+' . (int) $settings['preorder_days'] . ' days' ) );
+		if (
+			(int) $settings['preorder_days'] <= 0
+			|| ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $when_date )
+			|| $when_date < wp_date( 'Y-m-d' )
+			|| $when_date > $max_day
+		) {
+			return new \WP_Error( 'dinekit_order_day', __( 'That day isn’t available for pre-orders.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+	}
+
 	// Trading window (ordering enabled + Opening Hours + last-orders cutoff).
 	// Enforced server-side: the public JS also hides checkout, but that's cosmetic.
-	$gate = Ordering\accepting_orders();
-	if ( empty( $gate['accepting'] ) ) {
-		return new \WP_Error( 'dinekit_order_off', $gate['message'], array( 'status' => 403 ) );
+	// A valid FUTURE-day pre-order skips the "are we open right now" gate — that's
+	// the whole point of scheduling — but still requires ordering to be enabled
+	// and the venue to be open at the scheduled time (checked below).
+	if ( '' === $when_date ) {
+		$gate = Ordering\accepting_orders();
+		if ( empty( $gate['accepting'] ) ) {
+			return new \WP_Error( 'dinekit_order_off', $gate['message'], array( 'status' => 403 ) );
+		}
+	} elseif ( empty( $settings['enabled'] ) ) {
+		return new \WP_Error( 'dinekit_order_off', __( 'Online ordering is currently unavailable.', 'dinekit' ), array( 'status' => 403 ) );
 	}
 
 	// Honeypot.
@@ -958,10 +997,18 @@ function place_order( $request ) {
 	if ( 'asap' !== $when && ! preg_match( '/^\d{1,2}:\d{2}$/', $when ) ) {
 		$when = 'asap';
 	}
+	if ( '' !== $when_date ) {
+		if ( 'asap' === $when ) {
+			return new \WP_Error( 'dinekit_order_when', __( 'Please choose a time for your pre-order.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		if ( ! Ordering\open_at( $when_date, $when ) ) {
+			return new \WP_Error( 'dinekit_order_when', __( 'We’re closed at that time — please choose another.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+	}
 
 	// Slot capacity: throttle how many orders target the same kitchen time slot so
 	// a rush doesn't swamp the pass. Rejected before any order/payment is created.
-	$slot = Ordering\slot_key( $when );
+	$slot = Ordering\slot_key( $when, $when_date );
 	if ( (int) $settings['slot_max'] > 0 && Ordering\slot_count( $slot ) >= (int) $settings['slot_max'] ) {
 		return new \WP_Error( 'dinekit_slot_full', __( 'That time slot is fully booked — please choose another time.', 'dinekit' ), array( 'status' => 409 ) );
 	}
@@ -981,8 +1028,10 @@ function place_order( $request ) {
 	}
 
 	// Auto-accept sends it straight to the kitchen; otherwise it's held as "new"
-	// for the restaurant to accept or reject first.
-	$auto = ! empty( $settings['auto_accept'] );
+	// for the restaurant to accept or reject first. A future-day pre-order is
+	// ALWAYS held — auto-accept would put tomorrow's food on today's kitchen
+	// screen; the KDS also hides it until its day.
+	$auto = ! empty( $settings['auto_accept'] ) && '' === $when_date;
 	update_post_meta( $post_id, 'dinekit_order_number', $number );
 	update_post_meta( $post_id, 'dinekit_order_items', wp_json_encode( $computed['items'] ) );
 	update_post_meta( $post_id, 'dinekit_order_total', number_format( $grand, 2, '.', '' ) );
@@ -992,6 +1041,7 @@ function place_order( $request ) {
 	update_post_meta( $post_id, 'dinekit_order_phone', $phone );
 	update_post_meta( $post_id, 'dinekit_order_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );
 	update_post_meta( $post_id, 'dinekit_order_when', $when );
+	update_post_meta( $post_id, 'dinekit_order_when_date', $when_date );
 	update_post_meta( $post_id, 'dinekit_order_slot', $slot );
 	update_post_meta( $post_id, 'dinekit_order_source', 'online' );
 	update_post_meta( $post_id, 'dinekit_order_fulfilment', $fulfilment );

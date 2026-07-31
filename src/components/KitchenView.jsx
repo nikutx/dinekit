@@ -112,7 +112,12 @@ export default function KitchenView() {
 			const list = await api.getOrders();
 			// 'sent' = a dine-in round just fired from Take Order; it belongs on the
 			// board next to new online orders (both are waiting to be cooked).
-			setOrders( ( list || [] ).filter( ( o ) => [ 'new', 'sent', 'preparing', 'ready' ].includes( o.status ) && ! o.archived ) );
+			// Scheduled pre-orders stay off the kitchen screen until their day —
+		// tomorrow's breakfast must not sit in today's NEW column all night.
+		const today = new Date();
+		const pad2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		const iso = today.getFullYear() + '-' + pad2( today.getMonth() + 1 ) + '-' + pad2( today.getDate() );
+		setOrders( ( list || [] ).filter( ( o ) => [ 'new', 'sent', 'preparing', 'ready' ].includes( o.status ) && ! o.archived && ! ( o.whenDate && o.whenDate > iso ) ) );
 		} catch ( e ) {
 			// Keep the last board on a transient error rather than blanking the kitchen.
 		}

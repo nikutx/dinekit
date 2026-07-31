@@ -66,7 +66,16 @@ function order_data( $id ) {
 		'name'       => (string) get_post_meta( $id, 'dinekit_order_name', true ),
 		'email'      => (string) get_post_meta( $id, 'dinekit_order_email', true ),
 		'phone'      => (string) get_post_meta( $id, 'dinekit_order_phone', true ),
-		'when'       => (string) get_post_meta( $id, 'dinekit_order_when', true ),
+		// A scheduled pre-order folds its day into the printed time ("Sat 2 Aug
+		// · 09:30") so every template that shows {when} shows the day too.
+		'when'       => ( static function () use ( $id ) {
+			$when = (string) get_post_meta( $id, 'dinekit_order_when', true );
+			$date = (string) get_post_meta( $id, 'dinekit_order_when_date', true );
+			if ( '' !== $date && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+				return date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ) . ' · ' . $when;
+			}
+			return $when;
+		} )(),
 		'notes'      => (string) get_post_meta( $id, 'dinekit_order_notes', true ),
 		'fulfilment' => 'delivery' === get_post_meta( $id, 'dinekit_order_fulfilment', true ) ? 'delivery' : 'collection',
 		'address'    => (string) get_post_meta( $id, 'dinekit_order_address', true ),
