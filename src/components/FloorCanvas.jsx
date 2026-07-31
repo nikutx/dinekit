@@ -58,6 +58,8 @@ export default function FloorCanvas( { tables, render, onTile, minScale = 0.4, m
 
 	return (
 		<Box ref={ wrapRef } sx={ { width: '100%', overflow: 'hidden' } }>
+			{ /* Pulse ring for tiles flagged st.pulse (e.g. "needs a check"). */ }
+			<style>{ '@keyframes dkCheckPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.55)}50%{box-shadow:0 0 0 9px rgba(220,38,38,0)}}' }</style>
 			<Box
 				sx={ {
 					position: 'relative',
@@ -103,6 +105,7 @@ export default function FloorCanvas( { tables, render, onTile, minScale = 0.4, m
 								cursor: st.disabled ? 'not-allowed' : 'pointer',
 								userSelect: 'none',
 								transition: 'box-shadow .15s ease, transform .08s ease',
+								animation: st.pulse ? 'dkCheckPulse 1.15s ease-in-out infinite' : 'none',
 								'&:hover': st.disabled ? {} : { boxShadow: tokens.shadowMd },
 							} }
 						>

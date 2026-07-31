@@ -140,6 +140,7 @@ export default function BookingSettingsView( { onBack } ) {
 						{ num( 'Slot gap (min)', 'slot_interval', 5, 240 ) }
 						{ num( 'Turn time (min)', 'turn_time', 15, 480, 'How long a table is held' ) }
 						{ num( 'Buffer (min)', 'buffer', 0, 120, 'Gap between sittings' ) }
+						{ num( '"Check table" alert (min)', 'check_mins', 0, 120, 'Flash a table nobody has visited in N min on the Take Order floor · 0 = off' ) }
 					</Stack>
 					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
 						Bookable times follow your <strong>Opening Hours</strong> — set separate lunch &amp; dinner

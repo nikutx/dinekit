@@ -219,6 +219,7 @@ function register() {
 		'dinekit_order_notes'        => 'string',
 		'dinekit_order_when'         => 'string',  // 'asap' or H:i.
 		'dinekit_order_when_date'    => 'string',  // Y-m-d when scheduled for a future day ('' = today).
+		'dinekit_order_checked'      => 'string',  // ISO time the floor last checked the table.
 		'dinekit_order_slot'         => 'string',  // Kitchen capacity slot key (Y-m-d H:i bucket).
 		'dinekit_order_payment'      => 'string',  // unpaid | pending | authorized | paid | refunded | released | on_collection.
 		'dinekit_order_source'       => 'string',

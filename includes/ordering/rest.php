@@ -264,6 +264,7 @@ function order_response( $id ) {
 		'history'      => is_array( $history ) ? $history : array(),
 		'emailLog'     => is_array( $emaillog ) ? $emaillog : array(),
 		'placed'       => (string) get_post_time( 'c', false, $id ),
+		'checkedAt'    => (string) get_post_meta( $id, 'dinekit_order_checked', true ),
 	);
 }
 
@@ -652,6 +653,10 @@ function update_order( $request ) {
 			/* translators: %s: item name. */
 			Ordering\log_event( $id, sprintf( __( 'Removed %s from the tab', 'dinekit' ), $voided ) );
 		}
+	} elseif ( 'check' === $action ) {
+		// Floor staff checked in on the table — resets the "needs a check" timer.
+		update_post_meta( $id, 'dinekit_order_checked', current_time( 'c' ) );
+		Ordering\log_event( $id, __( 'Table checked', 'dinekit' ) );
 	} elseif ( 'set_charges' === $action ) {
 		foreach ( array( 'service', 'tip', 'discount' ) as $k ) {
 			if ( null !== $request->get_param( $k ) ) {

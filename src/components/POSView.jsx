@@ -122,7 +122,38 @@ const tabTiming = ( order ) => {
 // re-used as the table picker, so staff see at a glance who's seated, how long
 // they've been sat (vs the turn time) and which tables are free to seat next.
 // Switch areas with the same zone chips as the Floor Plan editor.
-function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markReady, turnMin, money } ) {
+// Where a tab is in its lifecycle — drives the small stage word on each
+// occupied floor tile (Seated → Ordered → Cooking → Served).
+function tabStage( tab ) {
+	const items = tab.items || [];
+	if ( ! items.length ) {
+		return 'Seated';
+	}
+	if ( items.some( ( li ) => li.fired && ( li.kstage === 'new' || li.kstage === 'preparing' ) ) ) {
+		return 'Cooking';
+	}
+	if ( items.some( ( li ) => ! li.fired ) ) {
+		return 'Ordered';
+	}
+	return 'Served';
+}
+
+// Minutes since the floor last touched this table: a check, the latest round
+// fired, or when the tab opened — whichever is most recent.
+function minsSinceTouched( tab ) {
+	let last = tab.placed || '';
+	( tab.items || [] ).forEach( ( li ) => {
+		if ( li.firedAt && li.firedAt > last ) {
+			last = li.firedAt;
+		}
+	} );
+	if ( tab.checkedAt && tab.checkedAt > last ) {
+		last = tab.checkedAt;
+	}
+	return last ? ( minsSince( last ) || 0 ) : 0;
+}
+
+function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markReady, turnMin, checkMins, money } ) {
 	const zoneTables = ( floor.tables || [] ).filter( ( t ) => ( t.areaId || 0 ) === ( zone || 0 ) );
 	const seated = zoneTables.filter( ( t ) => tabFor( t.id ) ).length;
 	const dirty = zoneTables.filter( ( t ) => t.cleaning && ! tabFor( t.id ) ).length;
@@ -138,7 +169,12 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markRead
 		if ( tab ) {
 			const mins = minsSince( tab.placed ) || 0;
 			const tone = tableTone( mins, turnMin );
-			return { bg: tone.bg, border: tone.br, fg: tone.fg, sub: `${ mins }m`, raised: true, title: `${ t.name } · open ${ money( tab.total ) }` };
+			const stage = tabStage( tab );
+			const overdue = checkMins > 0 && minsSinceTouched( tab ) >= checkMins;
+			if ( overdue ) {
+				return { bg: tokens.redSoft, border: tokens.red, fg: tokens.red, sub: `CHECK · ${ mins }m`, raised: true, pulse: true, title: `${ t.name } · nobody has checked this table in ${ minsSinceTouched( tab ) } min — tap to open, then "Checked ✓"` };
+			}
+			return { bg: tone.bg, border: tone.br, fg: tone.fg, sub: `${ stage } · ${ mins }m`, raised: true, title: `${ t.name } · ${ stage.toLowerCase() } · open ${ money( tab.total ) }` };
 		}
 		if ( needsBussing ) {
 			return { bg: tokens.skySoft, border: tokens.sky, fg: tokens.sky, sub: 'Clear ✓', dashed: true, title: `${ t.name } · needs bussing — tap when ready` };
@@ -182,7 +218,7 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markRead
 			<Stack direction="row" spacing={ 2 } alignItems="center" sx={ { mb: 1, flexWrap: 'wrap' } }>
 				<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>{ seated } of { zoneTables.length } seated{ dirty ? ` · ${ dirty } to clear` : '' }</Typography>
 				<Stack direction="row" spacing={ 1.5 } alignItems="center" sx={ { flexWrap: 'wrap' } }>
-					{ [ [ 'Free', tokens.muted2 ], [ 'Seated', tokens.green ], [ 'Turning soon', tokens.amber ], [ 'Over turn', tokens.red ], [ 'Needs bussing', tokens.sky ] ].map( ( [ lab, c ] ) => (
+					{ [ [ 'Free', tokens.muted2 ], [ 'Seated', tokens.green ], [ 'Turning soon', tokens.amber ], [ 'Over turn', tokens.red ], [ 'Needs bussing', tokens.sky ], ...( checkMins > 0 ? [ [ 'Needs a check', tokens.red ] ] : [] ) ].map( ( [ lab, c ] ) => (
 						<Stack key={ lab } direction="row" spacing={ 0.5 } alignItems="center">
 							<Box sx={ { width: 10, height: 10, borderRadius: '50%', background: c } } />
 							<Typography sx={ { fontSize: 11, color: tokens.muted } }>{ lab }</Typography>
@@ -219,6 +255,7 @@ export default function POSView() {
 	const [ posView, setPosView ] = useState( 'floor' ); // table picker: 'floor' (live plan) | 'list'
 	const [ zone, setZone ] = useState( 0 ); // selected area for the floor view
 	const [ turnMin, setTurnMin ] = useState( 120 ); // cover duration → occupied-table colour thresholds
+	const [ checkMins, setCheckMins ] = useState( 0 ); // flash tables untouched for N mins (0 = off)
 	const [ , setPosTick ] = useState( 0 ); // 30s heartbeat so table timers tick
 	const [ offlineNote, setOfflineNote ] = useState( '' ); // transient "held on this device" explainer
 	const online = useOnline();
@@ -257,7 +294,10 @@ export default function POSView() {
 				setZone( firstZone.id );
 			}
 		} ).finally( () => setLoading( false ) );
-		api.getBookingSettings().then( ( bs ) => { if ( bs && bs.turn_time ) { setTurnMin( bs.turn_time ); } } ).catch( () => {} );
+		api.getBookingSettings().then( ( bs ) => {
+			if ( bs && bs.turn_time ) { setTurnMin( bs.turn_time ); }
+			if ( bs && bs.check_mins != null ) { setCheckMins( Number( bs.check_mins ) || 0 ); }
+		} ).catch( () => {} );
 	}, [] );
 
 	// Live-sync: when orders change on another tablet or the Orders board, refresh
@@ -531,6 +571,7 @@ export default function POSView() {
 						openTable={ openTable }
 						markReady={ markReady }
 						turnMin={ turnMin }
+						checkMins={ checkMins }
 						money={ money }
 					/>
 				) : zones.map( ( z ) => {
@@ -589,6 +630,17 @@ export default function POSView() {
 						</Stack>
 					<Typography sx={ { fontSize: 13, color: tokens.muted } }>
 						{ active.order ? `Open tab · ${ money( total ) }` : ( active.takeaway ? 'New counter order' : 'New tab — add the first item' ) }
+						{ active.order && ! active.takeaway && (
+							<Box
+								component="button"
+								type="button"
+								title="Record that someone checked on this table — clears the floor's 'needs a check' flash"
+								onClick={ async () => { syncOrder( await api.updateOrder( active.order.id, { action: 'check' } ) ); } }
+								sx={ { ml: 1, px: 1, py: 0.2, borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: `1px solid ${ tokens.border2 }`, bgcolor: tokens.surface, color: tokens.ink2, fontFamily: 'inherit', '&:hover': { borderColor: tokens.green, color: tokens.green } } }
+							>
+								Checked ✓
+							</Box>
+						) }
 					</Typography>
 					{ active.order && ( () => {
 						const tm = tabTiming( active.order );

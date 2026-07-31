@@ -34,6 +34,7 @@ function defaults() {
 		'close_time'      => '22:00',
 		'turn_time'       => 120,   // Minutes a table is held per sitting.
 		'buffer'          => 0,     // Minutes between sittings on the same table.
+		'check_mins'      => 0,     // Flash an occupied table not visited in N mins (0 = off).
 		'deposit_over'    => 0,     // Party >= this needs a deposit (0 = off).
 		'deposit_amount'  => 0,     // Per guest; display only until Stripe (B10).
 		'covers_per_hour' => 0,    // Max covers booked within a clock-hour (0 = unlimited).
@@ -91,6 +92,7 @@ function save( $data ) {
 		'slot_interval'   => array( 5, 240 ),
 		'turn_time'       => array( 15, 480 ),
 		'buffer'          => array( 0, 120 ),
+		'check_mins'      => array( 0, 120 ),
 		'deposit_over'    => array( 0, 100 ),
 		'deposit_amount'  => array( 0, 100000 ),
 		'covers_per_hour' => array( 0, 1000 ),
