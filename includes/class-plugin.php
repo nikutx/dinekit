@@ -135,6 +135,9 @@ final class Plugin {
 		if ( $this->load( 'sync.php' ) ) {
 			Sync\init();
 		}
+		if ( $this->load( 'privacy.php' ) ) {
+			Privacy\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();
