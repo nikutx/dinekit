@@ -334,7 +334,9 @@ export default function POSView() {
 		if ( ! active ) {
 			return;
 		}
-		const payload = { ...line, course };
+		// uid = stable line identity: voids target it instead of an index, so a
+		// second tablet's edits (or an offline replay) can never shift the target.
+		const payload = { ...line, course, uid: offlineQueue.newRef() };
 		// If we're down and can't price this item from the menu already on the
 		// device, refuse it up front. Queueing a line the pad can't show would
 		// mean it silently materialised on the bill after reconnect.
@@ -463,7 +465,8 @@ export default function POSView() {
 		}
 		setBusy( true );
 		try {
-			syncOrder( await api.updateOrder( active.order.id, { action: 'void_line', line: idx, ref: offlineQueue.newRef() } ) );
+			const lineUid = ( ( active.order.items || [] )[ idx ] || {} ).uid || '';
+			syncOrder( await api.updateOrder( active.order.id, { action: 'void_line', line: idx, lineUid, ref: offlineQueue.newRef() } ) );
 		} catch ( e ) {
 			if ( ! isQueued( e ) ) {
 				throw e;

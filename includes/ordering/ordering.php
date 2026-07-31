@@ -748,6 +748,17 @@ function next_number() {
 }
 
 /**
+ * Normalise a client-supplied line uid, or mint one when absent/invalid.
+ *
+ * @param string $uid Raw uid.
+ * @return string
+ */
+function line_uid( $uid ) {
+	$uid = substr( preg_replace( '/[^A-Za-z0-9_-]/', '', $uid ), 0, 48 );
+	return '' !== $uid ? $uid : 'l' . wp_generate_password( 12, false );
+}
+
+/**
  * Recompute order lines from stored item/modifier data — the authoritative
  * price. Never trusts client-supplied prices.
  *
@@ -840,6 +851,10 @@ function recompute( $lines ) {
 			'seat'       => isset( $line['seat'] ) ? (int) $line['seat'] : 0,
 			'course'     => isset( $line['course'] ) ? sanitize_text_field( (string) $line['course'] ) : '',
 			'fired'      => ! empty( $line['fired'] ),
+			// Stable line id: void/edit actions target this, not an index that a
+			// second tablet's mid-outage edit could shift. Client-supplied so an
+			// offline-queued void refers to the same id its queued add created.
+			'uid'        => line_uid( isset( $line['uid'] ) ? (string) $line['uid'] : '' ),
 		);
 	}
 

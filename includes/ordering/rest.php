@@ -605,9 +605,22 @@ function update_order( $request ) {
 		}
 	} elseif ( 'void_line' === $action ) {
 		$idx   = (int) $request->get_param( 'line' );
+		$uid   = sanitize_text_field( (string) $request->get_param( 'lineUid' ) );
 		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 		$items = is_array( $items ) ? $items : array();
-		if ( isset( $items[ $idx ] ) ) {
+		if ( '' !== $uid ) {
+			// Prefer the stable line id: an index can shift if another tablet
+			// edited the tab (e.g. mid-outage) — a uid can't hit the wrong line.
+			// If the uid is gone, the line was already voided → idempotent no-op.
+			$idx = -1;
+			foreach ( $items as $i => $li ) {
+				if ( isset( $li['uid'] ) && $li['uid'] === $uid ) {
+					$idx = $i;
+					break;
+				}
+			}
+		}
+		if ( $idx >= 0 && isset( $items[ $idx ] ) ) {
 			// Voiding a line already fired to the kitchen is a manager action.
 			if ( ! empty( $items[ $idx ]['fired'] ) ) {
 				require_once DINEKIT_DIR . 'includes/access.php';

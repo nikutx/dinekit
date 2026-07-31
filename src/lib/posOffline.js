@@ -77,6 +77,7 @@ export function mirrorLine( menuIndex, line ) {
 		seat: Number( line.seat ) || 0,
 		course: line.course || '',
 		fired: !! line.fired,
+		uid: line.uid || '',
 		unsynced: true,
 	};
 }
