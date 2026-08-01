@@ -210,17 +210,39 @@ const dayLabel = ( iso ) => {
 	return d.toLocaleDateString( undefined, { weekday: 'short', day: 'numeric', month: 'short' } );
 };
 const groupByDay = ( list ) => {
+	// Pre-orders live under the day the KITCHEN needs them, not the day they
+	// were placed — a "for tomorrow" order sitting inside "Today · 10" is how
+	// something gets cooked a day early in a rush. Future days get their own
+	// unmissable "📅 Scheduled — …" groups pinned on top (soonest first); on
+	// its actual day a pre-order flows into "Today" like any other order.
+	const today = todayIso();
+	const scheduled = {};
 	const groups = [];
 	let last = null;
 	list.forEach( ( o ) => {
-		const label = dayLabel( o.placed );
+		if ( o.whenDate && o.whenDate > today ) {
+			( scheduled[ o.whenDate ] = scheduled[ o.whenDate ] || [] ).push( o );
+			return;
+		}
+		const label = dayLabel( o.whenDate === today ? o.whenDate + 'T12:00:00' : o.placed );
 		if ( ! last || last.label !== label ) {
 			last = { label, orders: [] };
 			groups.push( last );
 		}
 		last.orders.push( o );
 	} );
-	return groups;
+	const tmr = ( () => {
+		const d = new Date( today + 'T12:00:00' );
+		d.setDate( d.getDate() + 1 );
+		const p = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		return d.getFullYear() + '-' + p( d.getMonth() + 1 ) + '-' + p( d.getDate() );
+	} )();
+	const future = Object.keys( scheduled ).sort().map( ( iso ) => ( {
+		label: `📅 Scheduled — ${ iso === tmr ? 'tomorrow' : fmtWhenDate( iso ) }`,
+		scheduled: true,
+		orders: scheduled[ iso ].sort( ( a, b ) => ( a.when || '' ) < ( b.when || '' ) ? -1 : 1 ),
+	} ) );
+	return [ ...future, ...groups ];
 };
 
 export default function OrdersView() {
@@ -478,9 +500,14 @@ export default function OrdersView() {
 			) : (
 				<Stack spacing={ 3 }>
 					{ groups.map( ( g ) => (
-						<Box key={ g.label }>
-							<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: tokens.muted2, mb: 1 } }>
+						<Box key={ g.label } sx={ g.scheduled ? { p: 1.5, borderRadius: '12px', border: `1px dashed ${ tokens.amber }`, bgcolor: tokens.amberSoft } : {} }>
+							<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: g.scheduled ? tokens.amber : tokens.muted2, mb: 1 } }>
 								{ g.label } · { g.orders.length }
+								{ g.scheduled && (
+									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 600, ml: 1 } }>
+										— pre-orders, not for today’s kitchen
+									</Box>
+								) }
 							</Typography>
 							<Stack spacing={ 1.5 }>
 								{ g.orders.map( ( o ) => {
