@@ -547,9 +547,11 @@ function SmsCard() {
 							<strong>“API keys and Auth tokens”</strong> link — copy the SID here, then open that link.
 						</li>
 						<li>
-							On that page, <strong>either</strong> copy the existing <strong>Auth token</strong> (press Show — nothing to create),
+							On that page, <strong>either</strong> copy the existing <strong>Auth Token</strong> (Auth Tokens tab, press Show — nothing to create),
 							<strong>or</strong> press <strong>Create API key</strong> and paste the key’s <strong>SID (“SK…”)</strong> into the first
-							field and its <strong>secret</strong> here instead — DineKit understands both.
+							field and its <strong>Client Secret</strong> here instead — DineKit understands both.
+							If it asks for a <strong>region</strong>, keep <strong>United States (US1)</strong> — that’s Twilio’s default and the one
+							DineKit talks to (it’s about where Twilio processes the request, not where your texts can go).
 						</li>
 						<li>
 							Get your sending number: on a trial the homepage shows a <strong>“Get a phone number”</strong> button — one click.
@@ -569,9 +571,9 @@ function SmsCard() {
 				{ field( 'Account SID (AC…) or API key SID (SK…)', 'sid', { placeholder: 'ACxxxxxxxx… or SKxxxxxxxx…', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
 				<Box>
 					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
-						Auth token / API key secret { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
+						Auth Token / Client Secret { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
 					</Typography>
-					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or secret' }
+					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or client secret' }
 						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
 				</Box>
 				{ field( 'Your Twilio number', 'from', { placeholder: '+44 7911 123456', sx: { width: 180 }, onBlur: () => save( { from: cfg.from } ) } ) }
