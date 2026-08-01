@@ -157,6 +157,12 @@ export const api = {
 	getActivity: ( action ) => request( 'GET', 'activity' + ( action ? '?action=' + encodeURIComponent( action ) : '' ) ),
 	getIntegrations: () => request( 'GET', 'integrations' ),
 	saveIntegrations: ( data ) => request( 'POST', 'integrations', data ),
+	// SMS (bring-your-own Twilio).
+	getSms: () => request( 'GET', 'sms' ),
+	saveSms: ( data ) => request( 'POST', 'sms', data ),
+	testSms: ( to ) => request( 'POST', 'sms/test', { to } ),
+	getSmsStatus: () => request( 'GET', 'sms/status' ),
+	smsTableReady: ( bookingId ) => request( 'POST', `sms/table-ready/${ bookingId }` ),
 	testStripe: () => request( 'POST', 'integrations/test' ),
 	registerStripeWebhook: () => request( 'POST', 'integrations/webhook' ),
 	getEmails: () => request( 'GET', 'emails' ),

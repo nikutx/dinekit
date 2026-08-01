@@ -20,6 +20,7 @@ delete_option( 'dinekit_activated_at' );
 // Always clear our cron regardless of the keep-data choice — an uninstalled
 // plugin must never leave a scheduled event behind.
 wp_clear_scheduled_hook( 'dinekit_review_cron' );
+wp_clear_scheduled_hook( 'dinekit_sms_cron' );
 
 if ( ! get_option( 'dinekit_delete_data_on_uninstall' ) ) {
 	// Keep data (default): leave CPT content, taxonomies and seed flag intact.
@@ -30,6 +31,7 @@ if ( ! get_option( 'dinekit_delete_data_on_uninstall' ) ) {
 delete_option( 'dinekit_dietary_seeded' );
 delete_option( 'dinekit_delete_data_on_uninstall' );
 delete_option( 'dinekit_hours' );
+delete_option( 'dinekit_sms' );
 delete_option( 'dinekit_settings' );
 delete_option( 'dinekit_onboarded' );
 delete_option( 'dinekit_booking_settings' );

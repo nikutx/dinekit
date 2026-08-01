@@ -1375,6 +1375,10 @@ function create_booking( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id, false );
 
+	// Optional confirmation SMS (module guards toggles/config/phone/dedupe).
+	require_once DINEKIT_DIR . 'includes/sms.php';
+	\DineKit\SMS\booking_confirmed( $post_id );
+
 	// Auto-assign transparency: say WHICH table the engine chose and why, so a
 	// spread of bookings never reads as them mysteriously piling onto a table.
 	$resp = booking_response( $post_id );
@@ -1453,6 +1457,11 @@ function update_booking( $request ) {
 		if ( in_array( $new_status, array( 'confirmed', 'cancelled' ), true ) ) {
 			require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 			\DineKit\Bookings\Emails\status_changed( $id, $new_status );
+		}
+		// Optional confirmation SMS (BYO Twilio; the module guards every toggle).
+		if ( 'confirmed' === $new_status ) {
+			require_once DINEKIT_DIR . 'includes/sms.php';
+			\DineKit\SMS\booking_confirmed( $id );
 		}
 		// Cancelling a booking with a paid deposit triggers a refund + guest notice.
 		if ( 'cancelled' === $new_status ) {
@@ -2084,6 +2093,10 @@ function public_book( $request ) {
 
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id );
+
+	// Auto-confirmed online booking → optional confirmation SMS.
+	require_once DINEKIT_DIR . 'includes/sms.php';
+	\DineKit\SMS\booking_confirmed( $post_id );
 
 	if ( $waitlisted ) {
 		$message = __( 'You’re on the waitlist — we’ll be in touch if a table frees up.', 'dinekit' );

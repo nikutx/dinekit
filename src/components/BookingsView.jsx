@@ -883,6 +883,8 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 	const [ guests, setGuests ] = useState( [] ); // CRM directory for returning-guest search.
 	const [ sugOpen, setSugOpen ] = useState( false );
 	const [ intel, setIntel ] = useState( null ); // Merged CRM record for the guest being edited.
+	const [ sms, setSms ] = useState( null ); // { configured, waitlist } — gates the table-ready button.
+	const [ smsNote, setSmsNote ] = useState( '' );
 	const debounce = useRef( null );
 
 	// Load the guest directory once (new bookings only) so we can recognise
@@ -895,6 +897,9 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 				api.getGuestIntel( { email: editing.email || '', phone: editing.phone || '', name: editing.name || '' } )
 					.then( setIntel )
 					.catch( () => {} );
+			}
+			if ( editing.phone ) {
+				api.getSmsStatus().then( setSms ).catch( () => {} );
 			}
 			return;
 		}
@@ -1045,6 +1050,27 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 						<Button size="small" variant="contained" onClick={ () => onStatus( 'seated' ) } sx={ { bgcolor: tokens.green, '&:hover': { bgcolor: tokens.green } } }>
 							Seat now
 						</Button>
+					) }
+					{ /* Waitlist rescue: one tap texts the guest their table is free. */ }
+					{ sms && sms.waitlist && editing.phone && ! [ 'cancelled', 'no_show', 'completed', 'seated' ].includes( editing.status ) && (
+						<Button
+							size="small"
+							variant="outlined"
+							onClick={ async () => {
+								setSmsNote( '' );
+								try {
+									await api.smsTableReady( editing.id );
+									setSmsNote( `✓ Texted ${ editing.phone } — table ready` );
+								} catch ( e ) {
+									setSmsNote( `✗ ${ e.message || 'Text failed' }` );
+								}
+							} }
+						>
+							📱 Text: table ready
+						</Button>
+					) }
+					{ smsNote && (
+						<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: smsNote.startsWith( '✓' ) ? tokens.green : tokens.red } }>{ smsNote }</Typography>
 					) }
 					<Box sx={ { flex: 1 } } />
 					{ ! [ 'cancelled', 'no_show' ].includes( editing.status ) && (

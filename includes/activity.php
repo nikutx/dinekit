@@ -39,6 +39,7 @@ function categories() {
 		'payments' => __( 'Payment settings', 'dinekit' ),
 		'access'   => __( 'Access & staff', 'dinekit' ),
 		'login'    => __( 'Sign-ins', 'dinekit' ),
+		'sms'      => __( 'Text messages', 'dinekit' ),
 	);
 }
 

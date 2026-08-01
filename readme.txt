@@ -104,6 +104,11 @@ If you do not enable payments, DineKit makes no external requests. Stripe is a t
 * Terms: https://stripe.com/legal
 * Privacy: https://stripe.com/privacy
 
+DineKit's optional **text message (SMS)** feature uses **Twilio**, with your own Twilio account and credentials (DineKit → Integrations → Text messages). Twilio is contacted only when SMS is enabled and a notification you turned on actually fires (a booking confirmation or reminder, a "table ready" tap, or a collection order marked ready): DineKit sends the recipient's phone number and the message text to Twilio's API (https://api.twilio.com) so Twilio can deliver the text. Your Twilio auth token is stored encrypted on your own site. If you do not set up SMS, Twilio is never contacted. Twilio is a third-party service; by using it you agree to Twilio's terms and privacy policy:
+
+* Terms: https://www.twilio.com/en-us/legal/tos
+* Privacy: https://www.twilio.com/en-us/legal/privacy
+
 DineKit's optional **direct support** feature (DineKit → Support) sends your support request to Web Level Up, the makers of DineKit, at https://weblevelup.co.uk. Nothing is sent automatically or in the background — the service is contacted only when a logged-in user opens the Support screen or presses send:
 
 * When you send a request or reply, DineKit transmits the name, email address, subject and message you typed, plus your site address (used to link replies back to your dashboard and keep your ticket history together).

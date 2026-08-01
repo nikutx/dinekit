@@ -138,6 +138,9 @@ final class Plugin {
 		if ( $this->load( 'privacy.php' ) ) {
 			Privacy\init();
 		}
+		if ( $this->load( 'sms.php' ) ) {
+			SMS\init();
+		}
 		if ( is_admin() ) {
 			if ( $this->load( 'admin/admin.php' ) ) {
 				Admin\init();

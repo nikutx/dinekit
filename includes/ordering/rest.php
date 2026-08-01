@@ -734,6 +734,12 @@ function update_order( $request ) {
 		update_post_meta( $id, 'dinekit_order_status', $status );
 		/* translators: %s: order status label. */
 		Ordering\log_event( $id, sprintf( __( 'Status changed to %s', 'dinekit' ), $statuses[ $status ] ) );
+		// Collection order ready → optional "come and get it" SMS (BYO Twilio;
+		// the module guards toggle/config/phone and sends once per order).
+		if ( 'ready' === $status ) {
+			require_once DINEKIT_DIR . 'includes/sms.php';
+			\DineKit\SMS\order_ready( $id );
+		}
 		// When the kitchen finishes a round (Ready → Done → served/completed), mark
 		// the lines it just made as done. That way, if a LATER round is fired for
 		// the same tab, the Kitchen Display shows only the NEW items — not the ones

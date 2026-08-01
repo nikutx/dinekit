@@ -368,6 +368,8 @@ export default function IntegrationsView() {
 				) }
 			</Card>
 
+			<SmsCard />
+
 			{ /* Coming soon: accounting & CRM */ }
 			<Typography variant="subtitle2" sx={ { color: tokens.ink2, mt: 4, mb: 1.5 } }>
 				Accounting &amp; CRM
@@ -442,5 +444,136 @@ export default function IntegrationsView() {
 				site only when you press send.
 			</Typography>
 		</Page>
+	);
+}
+
+// ---- SMS via the venue's own Twilio account (BYO — no middleman, no markup).
+function SmsCard() {
+	const [ cfg, setCfg ] = useState( null );
+	const [ token, setToken ] = useState( '' ); // never echoed back; typed fresh
+	const [ testTo, setTestTo ] = useState( '' );
+	const [ msg, setMsg ] = useState( null ); // { ok, text }
+	const [ busy, setBusy ] = useState( false );
+
+	useEffect( () => {
+		api.getSms().then( setCfg ).catch( () => setCfg( null ) );
+	}, [] );
+	if ( ! cfg ) {
+		return null;
+	}
+
+	const save = async ( patch = {} ) => {
+		setBusy( true );
+		try {
+			const body = { ...patch };
+			if ( token.trim() ) {
+				body.token = token.trim();
+			}
+			const next = await api.saveSms( body );
+			setCfg( next );
+			if ( body.token ) {
+				setToken( '' );
+			}
+			setMsg( { ok: true, text: 'SMS settings saved.' } );
+		} catch ( e ) {
+			setMsg( { ok: false, text: e.message || 'Could not save.' } );
+		} finally {
+			setBusy( false );
+		}
+	};
+	const sendTest = async () => {
+		setBusy( true );
+		setMsg( null );
+		try {
+			await save( {} ); // persist any pending edits first
+			await api.testSms( testTo );
+			setMsg( { ok: true, text: `Test text sent to ${ testTo } — check the phone. 🎉` } );
+			api.getSms().then( setCfg ).catch( () => {} );
+		} catch ( e ) {
+			setMsg( { ok: false, text: e.message || 'Twilio refused the message.' } );
+		} finally {
+			setBusy( false );
+		}
+	};
+	const field = ( label, key, props = {} ) => (
+		<Box>
+			<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>{ label }</Typography>
+			<TextField size="small" value={ cfg[ key ] || '' } onChange={ ( e ) => setCfg( { ...cfg, [ key ]: e.target.value } ) } { ...props } />
+		</Box>
+	);
+	const toggle = ( label, key, hint ) => (
+		<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { py: 0.25 } }>
+			<Switch checked={ !! cfg[ key ] } onChange={ ( e ) => { const v = e.target.checked; setCfg( { ...cfg, [ key ]: v } ); save( { [ key ]: v } ); } } />
+			<Box>
+				<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>{ label }</Typography>
+				{ hint && <Typography sx={ { fontSize: 12, color: tokens.muted } }>{ hint }</Typography> }
+			</Box>
+		</Stack>
+	);
+
+	return (
+		<Card sx={ { p: 2.5, mt: 2 } }>
+			<Stack direction="row" alignItems="center" spacing={ 1.25 } sx={ { mb: 0.5 } }>
+				<Typography sx={ { fontWeight: 700, fontSize: 16 } }>Text messages (SMS)</Typography>
+				{ cfg.enabled && cfg.sid && cfg.tokenSet && cfg.from ? (
+					<Chip icon={ <CheckCircleIcon sx={ { fontSize: 15 } } /> } label="Connected" size="small" sx={ { bgcolor: tokens.greenSoft, color: tokens.green, fontWeight: 700 } } />
+				) : (
+					<Chip label="Not set up" size="small" sx={ { bgcolor: tokens.soft, color: tokens.muted, fontWeight: 600 } } />
+				) }
+				{ cfg.sentMonth > 0 && (
+					<Chip label={ `${ cfg.sentMonth } sent this month` } size="small" sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600 } } />
+				) }
+			</Stack>
+			<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 2 } }>
+				Booking confirmations, reminders, “your table is ready” and “order ready for collection” —
+				sent through <strong>your own Twilio account</strong>, so you pay Twilio’s raw price and
+				DineKit never sees your messages. Get your keys at{ ' ' }
+				<Link href="https://console.twilio.com" target="_blank" rel="noreferrer">console.twilio.com <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
+			</Typography>
+
+			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
+				{ field( 'Account SID', 'sid', { placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
+				<Box>
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
+						Auth token { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
+					</Typography>
+					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste your auth token' }
+						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
+				</Box>
+				{ field( 'Your Twilio number', 'from', { placeholder: '+44 7911 123456', sx: { width: 180 }, onBlur: () => save( { from: cfg.from } ) } ) }
+				{ field( 'Country dial code', 'cc', { placeholder: '44', sx: { width: 120 }, onBlur: () => save( { cc: cfg.cc } ),
+					helperText: 'For local numbers (07… → +44…)' } ) }
+			</Stack>
+
+			{ toggle( 'Enable SMS', 'enabled', 'Master switch — nothing sends while this is off.' ) }
+			{ toggle( 'Booking confirmation text', 'confirm', 'When a booking is confirmed (once per booking).' ) }
+			<Stack direction="row" alignItems="center" spacing={ 1 }>
+				{ toggle( 'Booking reminder text', 'remind', 'Sent automatically before the booking.' ) }
+				<TextField size="small" type="number" value={ cfg.remind_hours } sx={ { width: 84 } }
+					onChange={ ( e ) => setCfg( { ...cfg, remind_hours: Math.max( 1, Math.min( 48, parseInt( e.target.value, 10 ) || 1 ) ) } ) }
+					onBlur={ () => save( { remind_hours: cfg.remind_hours } ) } />
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>hours before</Typography>
+			</Stack>
+			{ toggle( '“Your table is ready” button', 'waitlist', 'Shows on waitlisted/pending bookings with a phone number.' ) }
+			{ toggle( '“Order ready for collection” text', 'order_ready', 'When the kitchen marks a collection order ready.' ) }
+
+			<Divider sx={ { my: 1.5 } } />
+			<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap>
+				<TextField size="small" placeholder="Your mobile, e.g. 07700 900123" value={ testTo } onChange={ ( e ) => setTestTo( e.target.value ) } sx={ { width: 240 } } />
+				<Button variant="outlined" disabled={ busy || ! testTo.trim() } onClick={ sendTest }>Send a test text</Button>
+				{ busy && <CircularProgress size={ 16 } /> }
+			</Stack>
+			{ msg && (
+				<Typography sx={ { fontSize: 13, fontWeight: 600, mt: 1, color: msg.ok ? tokens.green : tokens.red } }>
+					{ msg.ok ? '✓ ' : '✗ ' }{ msg.text }
+				</Typography>
+			) }
+			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
+				On a Twilio <strong>trial</strong>: texts only reach numbers you’ve verified in the Twilio
+				console (up to 5), every message is prefixed “Sent from your Twilio trial account”, and
+				you have a small free credit. Upgrading removes all three limits. Messages are sent to
+				Twilio only when a trigger fires — disclosed under “External services” in the readme.
+			</Typography>
+		</Card>
 	);
 }
