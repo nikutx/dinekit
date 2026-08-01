@@ -351,6 +351,31 @@ export default function OrdersView() {
 		api.updateOrder( id, body ).then( ( o ) => o && patchLocal( id, o ) );
 	};
 
+	// History tabs are day-scoped: Completed/All/Archived would otherwise grow
+	// into an endless scroll. Active is never scoped — live work is live work.
+	// Defaults: All opens on yesterday (today's story lives in Active +
+	// Completed), Completed/Archived on today. 'all' = no day filter.
+	const isoDayOffset = ( n ) => {
+		const d = new Date();
+		d.setDate( d.getDate() + n );
+		const p = ( x ) => ( x < 10 ? '0' : '' ) + x;
+		return d.getFullYear() + '-' + p( d.getMonth() + 1 ) + '-' + p( d.getDate() );
+	};
+	const [ dayFilter, setDayFilter ] = useState( { done: isoDayOffset( 0 ), all: isoDayOffset( -1 ), archived: isoDayOffset( 0 ) } );
+	const dayScoped = [ 'done', 'all', 'archived' ].includes( tab );
+	const curDay = dayFilter[ tab ];
+	const setDay = ( v ) => setDayFilter( ( f ) => ( { ...f, [ tab ]: v } ) );
+	const stepDay = ( n ) => {
+		const base = curDay && curDay !== 'all' ? curDay : isoDayOffset( 0 );
+		const d = new Date( base + 'T12:00:00' );
+		d.setDate( d.getDate() + n );
+		const p = ( x ) => ( x < 10 ? '0' : '' ) + x;
+		setDay( d.getFullYear() + '-' + p( d.getMonth() + 1 ) + '-' + p( d.getDate() ) );
+	};
+	// The day an order belongs to on the board: its scheduled day when it has
+	// one, else the day it was placed — matches the group headings.
+	const effectiveDay = ( o ) => o.whenDate || String( o.placed || '' ).slice( 0, 10 );
+
 	// Channel focus: one stream stays one stream, but "just the website
 	// orders" is one tap. Remembered per device (a front-desk tablet can live
 	// on Online while the till lives on All).
@@ -379,8 +404,12 @@ export default function OrdersView() {
 		} else {
 			list = orders;
 		}
+		if ( dayScoped && curDay && curDay !== 'all' ) {
+			list = list.filter( ( o ) => effectiveDay( o ) === curDay );
+		}
 		return channel === 'all' ? list : list.filter( ( o ) => orderChannel( o ) === channel );
-	}, [ orders, archived, tab, channel ] );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ orders, archived, tab, channel, dayScoped, curDay ] );
 
 	// Live per-channel counts for the current status tab (pre-channel-filter).
 	const channelCounts = useMemo( () => {
@@ -521,6 +550,37 @@ export default function OrdersView() {
 				<ToggleButton value="all">All</ToggleButton>
 				<ToggleButton value="archived">Archived</ToggleButton>
 			</ToggleButtonGroup>
+
+			{ /* Day navigator for the history tabs — step, jump or open the floodgates. */ }
+			{ dayScoped && (
+				<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mb: 1.25 } }>
+					<IconButton size="small" onClick={ () => stepDay( -1 ) } disabled={ curDay === 'all' } sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2 } } title="Previous day">
+						<Typography component="span" sx={ { fontSize: 14, lineHeight: 1 } }>◀</Typography>
+					</IconButton>
+					<TextField
+						type="date"
+						size="small"
+						value={ curDay === 'all' ? '' : ( curDay || '' ) }
+						onChange={ ( e ) => setDay( e.target.value || 'all' ) }
+						sx={ { width: 170 } }
+					/>
+					<IconButton size="small" onClick={ () => stepDay( 1 ) } disabled={ curDay === 'all' } sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2 } } title="Next day">
+						<Typography component="span" sx={ { fontSize: 14, lineHeight: 1 } }>▶</Typography>
+					</IconButton>
+					{ [ [ 'Today', isoDayOffset( 0 ) ], [ 'Yesterday', isoDayOffset( -1 ) ], [ 'All days', 'all' ] ].map( ( [ lab, v ] ) => (
+						<Chip
+							key={ lab }
+							label={ lab }
+							size="small"
+							onClick={ () => setDay( v ) }
+							sx={ { fontWeight: 700, cursor: 'pointer', bgcolor: curDay === v ? tokens.accentSoft : tokens.surface, color: curDay === v ? tokens.accentDark : tokens.muted, border: `1px solid ${ curDay === v ? tokens.accentDark : tokens.border2 }` } }
+						/>
+					) ) }
+					<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>
+						{ filtered.length } order{ filtered.length === 1 ? '' : 's' }{ curDay !== 'all' && curDay ? ` on ${ fmtWhenDate( curDay ) }` : ' in total' }
+					</Typography>
+				</Stack>
+			) }
 
 			{ /* Where from? One stream, but any channel is one tap away. */ }
 			<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
