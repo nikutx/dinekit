@@ -920,6 +920,28 @@ function NewOrder( { money, onCreated, onCancel } ) {
 	);
 }
 
+// Settings-row furniture: every setting gets a name + a plain-English line on
+// the left and its control on the right — first-time readable, never mushed.
+function SGroup( { title, children } ) {
+	return (
+		<Box sx={ { mb: 2 } }>
+			<Typography sx={ { fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: tokens.muted2, mb: 0.5 } }>{ title }</Typography>
+			<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: '12px', px: 2, py: 0.5 } }>{ children }</Box>
+		</Box>
+	);
+}
+function SRow( { title, desc, children, last } ) {
+	return (
+		<Stack direction={ { xs: 'column', sm: 'row' } } alignItems={ { xs: 'flex-start', sm: 'center' } } spacing={ 1.5 } sx={ { py: 1.4, borderBottom: last ? 'none' : `1px solid ${ tokens.soft }` } }>
+			<Box sx={ { flex: 1, minWidth: 0, pr: 1 } }>
+				<Typography sx={ { fontSize: 13.5, fontWeight: 650, color: tokens.ink } }>{ title }</Typography>
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted, mt: 0.2, lineHeight: 1.5 } }>{ desc }</Typography>
+			</Box>
+			<Box sx={ { flexShrink: 0 } }>{ children }</Box>
+		</Stack>
+	);
+}
+
 function OrderSettings() {
 	const [ cfg, setCfg ] = useState( null );
 	const [ saveState, setSaveState ] = useState( 'idle' );
@@ -957,109 +979,79 @@ function OrderSettings() {
 				</Typography>
 			</Stack>
 
-			<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
+			<SGroup title="Taking orders">
+				<SRow title="Accept online orders" desc="The master switch for your ordering page. Off = the menu still shows online, but checkout is closed.">
 					<Switch checked={ cfg.enabled } onChange={ ( e ) => patch( { enabled: e.target.checked } ) } />
-					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Accept online orders</Typography>
-				</Stack>
-				<Stack direction="row" alignItems="center" spacing={ 1 }>
+				</SRow>
+				<SRow title="Auto-accept orders" desc="On: new orders go straight to the kitchen. Off (recommended with card payments): every order waits for your Accept — a held card is only charged when you accept.">
+					<Switch checked={ !! cfg.auto_accept } onChange={ ( e ) => patch( { auto_accept: e.target.checked } ) } />
+				</SRow>
+				<SRow title="Table QR: pay upfront" desc="Off: an order from a table's QR code joins that table's tab, paid at the end like normal dining. On: guests pay by card as they order, each time." last>
+					<Switch checked={ !! cfg.table_qr_pay } onChange={ ( e ) => patch( { table_qr_pay: e.target.checked } ) } />
+				</SRow>
+			</SGroup>
+
+			<SGroup title="Timing & capacity">
+				<SRow title="Prep time (minutes)" desc="How long the kitchen needs. An “ASAP” order is promised in about this long, and it's the earliest collection time diners are offered.">
+					<TextField type="number" size="small" value={ cfg.prep_mins } onChange={ ( e ) => patch( { prep_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) } sx={ { width: 110 } } />
+				</SRow>
+				<SRow title="Slot length (minutes)" desc="Orders are counted in time slots of this length — the window the capacity cap below applies to.">
+					<TextField type="number" size="small" value={ cfg.slot_mins != null ? cfg.slot_mins : 15 } onChange={ ( e ) => patch( { slot_mins: Math.max( 5, parseInt( e.target.value, 10 ) || 15 ) } ) } sx={ { width: 110 } } />
+				</SRow>
+				<SRow title="Max orders per slot" desc="Cap how many online orders can target the same slot, so a rush can't swamp the kitchen. Full slots grey out in the diner's time picker. 0 = no limit.">
+					<TextField type="number" size="small" value={ cfg.slot_max != null ? cfg.slot_max : 0 } onChange={ ( e ) => patch( { slot_max: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) } sx={ { width: 110 } } />
+				</SRow>
+				<SRow title="Pre-order days ahead" desc="Let diners order for later days — tomorrow's lunch, Saturday's collection. They're only offered times you're open, and scheduled orders always arrive held for your Accept. 0 = today only.">
+					<TextField type="number" size="small" value={ cfg.preorder_days != null ? cfg.preorder_days : 0 } onChange={ ( e ) => patch( { preorder_days: Math.max( 0, Math.min( 14, parseInt( e.target.value, 10 ) || 0 ) ) } ) } sx={ { width: 110 } } />
+				</SRow>
+				<SRow title="Kitchen sees timed orders (minutes before)" desc="A “collect at 19:00” order joins the Kitchen Display this many minutes before its slot, instead of sitting on the screen all day. 0 = show all day." last>
+					<TextField type="number" size="small" value={ cfg.kds_lead_mins != null ? cfg.kds_lead_mins : 60 } onChange={ ( e ) => patch( { kds_lead_mins: Math.max( 0, Math.min( 1440, parseInt( e.target.value, 10 ) || 0 ) ) } ) } sx={ { width: 110 } } />
+				</SRow>
+			</SGroup>
+
+			<SGroup title="Money">
+				<SRow title="Minimum order" desc="The smallest basket the checkout accepts. 0 = no minimum." last>
+					<TextField type="number" size="small" value={ cfg.min_order } onChange={ ( e ) => patch( { min_order: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } sx={ { width: 110 } } />
+				</SRow>
+			</SGroup>
+
+			<SGroup title="Notifications & printing">
+				<SRow title="Email notifications" desc="Email the customer their confirmation and receipt, and alert the kitchen about each new order.">
 					<Switch checked={ cfg.emails_enabled } onChange={ ( e ) => patch( { emails_enabled: e.target.checked } ) } />
-					<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Email notifications</Typography>
-				</Stack>
-				<Tooltip title="On: orders go straight to the kitchen. Off: you accept or reject each order first (recommended when a card is held)." placement="top">
-					<Stack direction="row" alignItems="center" spacing={ 1 }>
-						<Switch checked={ !! cfg.auto_accept } onChange={ ( e ) => patch( { auto_accept: e.target.checked } ) } />
-						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Auto-accept orders</Typography>
-					</Stack>
-				</Tooltip>
-				<Tooltip title="Off: table-QR orders join the table's tab and are paid at the end. On: guests pay by card upfront each time." placement="top">
-					<Stack direction="row" alignItems="center" spacing={ 1 }>
-						<Switch checked={ !! cfg.table_qr_pay } onChange={ ( e ) => patch( { table_qr_pay: e.target.checked } ) } />
-						<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Table QR: pay upfront</Typography>
-					</Stack>
-				</Tooltip>
-			</Stack>
+				</SRow>
+				<SRow title="Kitchen email" desc="Where new-order alerts are sent. Leave blank to use the site admin address.">
+					<TextField type="email" size="small" placeholder="Defaults to site admin" value={ cfg.notify_email } onChange={ ( e ) => patch( { notify_email: e.target.value } ) } sx={ { width: 240 } } />
+				</SRow>
+				<SRow
+					title="Kitchen printer email"
+					desc={ <>Auto-print tickets on a thermal printer that has its own email address (e.g. <strong>Epson TM-m30</strong> via Epson Connect, <strong>Star mC-Print</strong> via CloudPRNT) — when an order is accepted, DineKit emails it a plain ticket and it prints itself, no computer needed. Leave blank to print manually from the order card.</> }
+					last
+				>
+					<TextField type="email" size="small" placeholder="abc123@print.epsonconnect.com" value={ cfg.printer_email || '' } onChange={ ( e ) => patch( { printer_email: e.target.value } ) } sx={ { width: 260 } } />
+				</SRow>
+			</SGroup>
 
-			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
-				<TextField
-					label="Prep time (min)" type="number" size="small"
-					value={ cfg.prep_mins }
-					onChange={ ( e ) => patch( { prep_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) }
-					helperText="Earliest collection"
-					sx={ { width: 150 } }
-				/>
-				<TextField
-					label="Min order" type="number" size="small"
-					value={ cfg.min_order }
-					onChange={ ( e ) => patch( { min_order: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) }
-					helperText="0 = none"
-					sx={ { width: 130 } }
-				/>
-				<TextField
-					label="Max orders / slot" type="number" size="small"
-					value={ cfg.slot_max != null ? cfg.slot_max : 0 }
-					onChange={ ( e ) => patch( { slot_max: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) }
-					helperText="0 = no limit"
-					sx={ { width: 150 } }
-				/>
-				<TextField
-					label="Slot length (min)" type="number" size="small"
-					value={ cfg.slot_mins != null ? cfg.slot_mins : 15 }
-					onChange={ ( e ) => patch( { slot_mins: Math.max( 5, parseInt( e.target.value, 10 ) || 15 ) } ) }
-					helperText="Kitchen throttle window"
-					sx={ { width: 150 } }
-				/>
-				<TextField
-					label="Pre-order days ahead" type="number" size="small"
-					value={ cfg.preorder_days != null ? cfg.preorder_days : 0 }
-					onChange={ ( e ) => patch( { preorder_days: Math.max( 0, Math.min( 14, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
-					helperText="0 = today only · scheduled orders arrive held"
-					sx={ { width: 170 } }
-				/>
-				<TextField
-					label="Kitchen sees timed orders (min before)" type="number" size="small"
-					value={ cfg.kds_lead_mins != null ? cfg.kds_lead_mins : 60 }
-					onChange={ ( e ) => patch( { kds_lead_mins: Math.max( 0, Math.min( 1440, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
-					helperText="A 19:00 collection joins the KDS this early · 0 = all day"
-					sx={ { width: 220 } }
-				/>
-				<TextField
-					label="Kitchen email" type="email" size="small"
-					placeholder="Defaults to site admin"
-					value={ cfg.notify_email }
-					onChange={ ( e ) => patch( { notify_email: e.target.value } ) }
-					sx={ { width: 240 } }
-				/>
-			</Stack>
-
-			<Divider sx={ { my: 2 } } />
-			<Typography sx={ { fontSize: 14, fontWeight: 700, mb: 0.5 } }>Kitchen printer</Typography>
-			<Typography sx={ { fontSize: 12.5, color: tokens.muted2, mb: 1.5 } }>
-				Auto-print tickets to a network thermal printer with its own email address. When an order is accepted (or auto-accepted), DineKit emails a plain ticket the printer prints itself — no computer needed. Works with email-to-print printers such as <strong>Epson TM-m30 (Epson Connect)</strong> or <strong>Star mC-Print</strong>; find the printer’s address in its Epson Connect / Star CloudPRNT setup.
-			</Typography>
-			<TextField
-				label="Printer email" type="email" size="small"
-				placeholder="e.g. abc123@print.epsonconnect.com"
-				value={ cfg.printer_email || '' }
-				onChange={ ( e ) => patch( { printer_email: e.target.value } ) }
-				helperText="Leave blank to print manually from the order card."
-				sx={ { width: 320 } }
-			/>
-
-			<Divider sx={ { my: 2 } } />
-			<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: cfg.delivery_enabled ? 1.5 : 0 } }>
-				<Switch checked={ !! cfg.delivery_enabled } onChange={ ( e ) => patch( { delivery_enabled: e.target.checked } ) } />
-				<Typography sx={ { fontSize: 14, fontWeight: 600 } }>Offer delivery</Typography>
-				<Typography sx={ { fontSize: 12.5, color: tokens.muted2 } }>Diners choose collection or delivery at checkout (no live tracking yet).</Typography>
-			</Stack>
-			{ cfg.delivery_enabled && (
-				<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
-					<TextField label="Delivery fee" type="number" size="small" value={ cfg.delivery_fee } onChange={ ( e ) => patch( { delivery_fee: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } sx={ { width: 130 } } />
-					<TextField label="Delivery min" type="number" size="small" value={ cfg.delivery_min } onChange={ ( e ) => patch( { delivery_min: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } helperText="0 = none" sx={ { width: 130 } } />
-					<TextField label="Delivery time (min)" type="number" size="small" value={ cfg.delivery_mins } onChange={ ( e ) => patch( { delivery_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) } sx={ { width: 150 } } />
-					<TextField label="Delivery area (note)" size="small" placeholder="e.g. within 3 miles" value={ cfg.delivery_area } onChange={ ( e ) => patch( { delivery_area: e.target.value } ) } sx={ { width: 240 } } />
-				</Stack>
-			) }
+			<SGroup title="Delivery">
+				<SRow title="Offer delivery" desc="Diners choose collection or delivery at checkout. (No live driver tracking yet.)" last={ ! cfg.delivery_enabled }>
+					<Switch checked={ !! cfg.delivery_enabled } onChange={ ( e ) => patch( { delivery_enabled: e.target.checked } ) } />
+				</SRow>
+				{ cfg.delivery_enabled && (
+					<>
+						<SRow title="Delivery fee" desc="Flat fee added to every delivery order.">
+							<TextField type="number" size="small" value={ cfg.delivery_fee } onChange={ ( e ) => patch( { delivery_fee: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } sx={ { width: 110 } } />
+						</SRow>
+						<SRow title="Delivery minimum" desc="The smallest food total you'll deliver for. 0 = none.">
+							<TextField type="number" size="small" value={ cfg.delivery_min } onChange={ ( e ) => patch( { delivery_min: Math.max( 0, parseFloat( e.target.value ) || 0 ) } ) } sx={ { width: 110 } } />
+						</SRow>
+						<SRow title="Delivery time (minutes)" desc="The estimate shown to diners at checkout.">
+							<TextField type="number" size="small" value={ cfg.delivery_mins } onChange={ ( e ) => patch( { delivery_mins: Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) } ) } sx={ { width: 110 } } />
+						</SRow>
+						<SRow title="Delivery area" desc="A note shown at checkout so diners know if you'll reach them — e.g. “within 3 miles of GL1”." last>
+							<TextField size="small" placeholder="e.g. within 3 miles" value={ cfg.delivery_area } onChange={ ( e ) => patch( { delivery_area: e.target.value } ) } sx={ { width: 240 } } />
+						</SRow>
+					</>
+				) }
+			</SGroup>
 
 			<Divider sx={ { my: 2 } } />
 			<Stack direction="row" alignItems="center" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
