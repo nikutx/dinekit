@@ -475,6 +475,10 @@ export default function OrdersView() {
 			}
 			rows.forEach( ( li ) => { body += line( li ); } );
 		} );
+		// Round ticket notes typed at fire time ("no rush", "allergy seat 2").
+		[ ...new Set( wanted.map( ( li ) => li.fnote ).filter( Boolean ) ) ].forEach( ( n ) => {
+			body += '<p class="dinekit-flag">🔥 ' + esc( n ) + '</p>';
+		} );
 		if ( o.notes ) {
 			body += '<p class="dinekit-flag">“' + esc( o.notes ) + '”</p>';
 		}

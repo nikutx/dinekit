@@ -1252,7 +1252,7 @@ function apply_item_fields( $post_id, $request ) {
 				}
 			}
 		}
-		update_post_meta( $post_id, 'dinekit_allergen_sources', wp_json_encode( $clean ) );
+		update_post_meta( $post_id, 'dinekit_allergen_sources', wp_slash( wp_json_encode( $clean ) ) );
 	}
 	if ( null !== $request->get_param( 'allergenTraces' ) ) {
 		// "May contain" traces — allergen TERM ids; only real allergen terms
@@ -1268,7 +1268,7 @@ function apply_item_fields( $post_id, $request ) {
 				}
 			}
 		}
-		update_post_meta( $post_id, 'dinekit_allergen_traces', wp_json_encode( $clean ) );
+		update_post_meta( $post_id, 'dinekit_allergen_traces', wp_slash( wp_json_encode( $clean ) ) );
 	}
 
 	$taxonomy_params = array(

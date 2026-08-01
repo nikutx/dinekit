@@ -400,7 +400,7 @@ function erase_orders( $email, $page = 1 ) {
 					$log[ $i ]['to'] = wp_privacy_anonymize_data( 'email', (string) $entry['to'] );
 				}
 			}
-			update_post_meta( $id, 'dinekit_order_email_log', wp_json_encode( $log ) );
+			update_post_meta( $id, 'dinekit_order_email_log', wp_slash( wp_json_encode( $log ) ) );
 		}
 	}
 	return array(

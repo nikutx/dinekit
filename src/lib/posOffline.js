@@ -149,14 +149,15 @@ export const fold = {
 	addLines: ( order, lines ) => recalc( { ...order, items: [ ...( order.items || [] ), ...lines ], unsynced: true } ),
 
 	// Fire stamps the round the same way the server does, so the pad's timing
-	// strip and per-round grouping keep working offline.
-	fire: ( order ) => {
+	// strip and per-round grouping keep working offline. `note` mirrors the
+	// server's fireNote — the ticket note for this round.
+	fire: ( order, note = '' ) => {
 		const firedAt = new Date().toISOString();
 		return recalc( {
 			...order,
 			status: 'dine_in' === order.channel ? 'sent' : order.status,
 			items: ( order.items || [] ).map( ( li ) =>
-				( li.fired ? li : { ...li, fired: true, firedAt, kstage: 'new' } )
+				( li.fired ? li : { ...li, fired: true, firedAt, kstage: 'new', ...( note ? { fnote: note } : {} ) } )
 			),
 			unsynced: true,
 		} );

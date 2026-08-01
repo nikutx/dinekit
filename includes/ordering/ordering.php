@@ -616,7 +616,7 @@ function log_event( $id, $event ) {
 	if ( count( $log ) > 100 ) {
 		$log = array_slice( $log, -100 );
 	}
-	update_post_meta( $id, 'dinekit_order_history', wp_json_encode( $log ) );
+	update_post_meta( $id, 'dinekit_order_history', wp_slash( wp_json_encode( $log ) ) );
 }
 
 /**
@@ -717,7 +717,7 @@ function refund_lines( $id, $indexes ) {
 	if ( $amount <= 0 ) {
 		return 0.0;
 	}
-	update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+	update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $items ) ) );
 
 	$pi  = (string) get_post_meta( $id, 'dinekit_order_pi', true );
 	$pay = (string) get_post_meta( $id, 'dinekit_order_payment', true );
@@ -787,7 +787,7 @@ function log_email( $id, $to, $type, $ok ) {
 	if ( count( $log ) > 50 ) {
 		$log = array_slice( $log, -50 );
 	}
-	update_post_meta( $id, 'dinekit_order_email_log', wp_json_encode( $log ) );
+	update_post_meta( $id, 'dinekit_order_email_log', wp_slash( wp_json_encode( $log ) ) );
 }
 
 /**
@@ -973,7 +973,7 @@ function add_tender( $order_id, $type, $amount, $via = '', $ref = '' ) {
 		$tender['ref'] = $ref;
 	}
 	$tenders[] = $tender;
-	update_post_meta( $order_id, 'dinekit_order_tenders', wp_json_encode( $tenders ) );
+	update_post_meta( $order_id, 'dinekit_order_tenders', wp_slash( wp_json_encode( $tenders ) ) );
 	/* translators: 1: tender type, 2: amount. */
 	log_event( $order_id, sprintf( __( 'Payment taken: %1$s %2$s', 'dinekit' ), $type, number_format( $amount, 2 ) ) );
 

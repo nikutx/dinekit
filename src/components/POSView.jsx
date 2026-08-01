@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Stack, Typography, Button, IconButton, Chip, CircularProgress, Modal, ToggleButton, ToggleButtonGroup } from '../ui';
+import { Box, Stack, Typography, Button, IconButton, Chip, CircularProgress, Modal, TextField, ToggleButton, ToggleButtonGroup } from '../ui';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -473,9 +473,12 @@ export default function POSView() {
 			if ( stale ) {
 				return;
 			}
-			const live = ( rows || [] ).filter( ( b ) => b.tableId === active.tableId && ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) );
-			// Prefer the seated party over a later reservation on the same table.
-			const booking = live.find( ( b ) => b.status === 'seated' ) || live[ 0 ];
+			const live = ( rows || [] ).filter( ( b ) => ( b.tableId === active.tableId || ( b.comboId && ( comboTables[ b.comboId ] || [] ).includes( active.tableId ) ) ) && ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) );
+			// Prefer the seated party — and when the day holds more than one
+			// (a lunch sitting nobody completed + tonight's), the LATEST seated
+			// booking is who's actually at the table now.
+			const seatedLive = live.filter( ( b ) => 'seated' === b.status ).sort( ( a, b ) => ( b.time || '' ).localeCompare( a.time || '' ) );
+			const booking = seatedLive[ 0 ] || live[ 0 ];
 			if ( ! booking ) {
 				return;
 			}
@@ -632,13 +635,18 @@ export default function POSView() {
 		} finally { setBusy( false ); }
 	};
 
-	const fire = async () => {
+	// Fire confirm popup: what's about to hit the kitchen/bar + an optional
+	// ticket note that prints and shows on the kitchen screen for this round.
+	const [ fireOpen, setFireOpen ] = useState( false );
+	const [ fireNote, setFireNote ] = useState( '' );
+	const fire = async ( note = '' ) => {
 		if ( ! active || ! active.order ) {
 			return;
 		}
 		setBusy( true );
+		setFireOpen( false );
 		try {
-			syncOrder( await api.updateOrder( active.order.id, { action: 'fire', ref: offlineQueue.newRef() } ) );
+			syncOrder( await api.updateOrder( active.order.id, { action: 'fire', fireNote: note, ref: offlineQueue.newRef() } ) );
 			setJustFired( true );
 			window.setTimeout( () => setJustFired( false ), 2500 );
 		} catch ( e ) {
@@ -647,7 +655,7 @@ export default function POSView() {
 			}
 			// The round is stamped locally so the pad's timing strip keeps working;
 			// the kitchen screen only sees it once we're back on the network.
-			syncOrder( fold.fire( active.order ) );
+			syncOrder( fold.fire( active.order, note ) );
 			setJustFired( true );
 			window.setTimeout( () => setJustFired( false ), 2500 );
 			setOfflineNote( 'Fired on this device — the kitchen screen will get it when the connection is back. Tell the pass.' );
@@ -948,7 +956,7 @@ export default function POSView() {
 								fullWidth
 								startIcon={ <LocalFireDepartmentIcon /> }
 								disabled={ busy || unfired === 0 }
-								onClick={ fire }
+								onClick={ () => { setFireNote( '' ); setFireOpen( true ); } }
 								sx={ justFired ? { bgcolor: tokens.green, '&:hover': { bgcolor: tokens.green } } : undefined }
 							>
 								{ justFired ? 'Sent to kitchen ✓' : ( unfired > 0 ? `Fire ${ unfired } to kitchen` : 'Nothing to fire' ) }
@@ -976,6 +984,59 @@ export default function POSView() {
 					onAdd={ ( line ) => { setMod( null ); addLine( line ); } }
 				/>
 			) }
+
+			{ /* Fire confirm: exactly what's about to hit the kitchen/bar, plus an
+			     optional ticket note that prints and shows on the kitchen screen. */ }
+			{ fireOpen && active && active.order && ( () => {
+				const toFire = ( active.order.items || [] ).filter( ( li ) => ! li.fired );
+				const isBar = ( li ) => 'bar' === li.station;
+				const mixed = toFire.some( isBar ) && toFire.some( ( li ) => ! isBar( li ) );
+				const roundTotal = toFire.reduce( ( s, li ) => s + ( parseFloat( li.lineTotal ) || 0 ), 0 );
+				return (
+					<Modal open onClose={ () => setFireOpen( false ) }>
+						<Box sx={ { p: 2.5, width: 'min(460px, 94vw)' } }>
+							<Typography variant="h6" sx={ { fontSize: 17 } }>Send to the { mixed ? 'kitchen & bar' : ( toFire.every( isBar ) ? 'bar' : 'kitchen' ) }</Typography>
+							<Typography sx={ { fontSize: 12.5, color: tokens.muted, mb: 1.5 } }>
+								{ active.tableName } · { toFire.length } item{ toFire.length === 1 ? '' : 's' } this round · { money( roundTotal ) }
+							</Typography>
+							<Stack spacing={ 0.5 } sx={ { mb: 2, maxHeight: '38vh', overflowY: 'auto' } }>
+								{ toFire.map( ( li, i ) => (
+									<Stack key={ i } direction="row" alignItems="center" spacing={ 1 } sx={ { px: 1, py: 0.5, borderRadius: '8px', bgcolor: tokens.soft } }>
+										<Typography sx={ { fontSize: 13, fontWeight: 700, color: tokens.ink, fontVariantNumeric: 'tabular-nums' } }>{ li.qty || 1 }×</Typography>
+										<Box sx={ { flex: 1, minWidth: 0 } }>
+											<Typography sx={ { fontSize: 13, fontWeight: 600, color: tokens.ink } } noWrap>{ li.title }{ li.priceLabel ? ` (${ li.priceLabel })` : '' }</Typography>
+											{ !! ( ( li.chosen && li.chosen.length ) || ( li.removed && li.removed.length ) ) && (
+												<Typography sx={ { fontSize: 11.5, color: tokens.muted } } noWrap>
+													{ [ ...( li.chosen || [] ).map( ( c ) => c.label ), ...( li.removed || [] ).map( ( r ) => 'no ' + ( r.label || r ) ) ].join( ', ' ) }
+												</Typography>
+											) }
+										</Box>
+										{ mixed && (
+											<Chip label={ isBar( li ) ? 'Bar' : 'Kitchen' } size="small" sx={ { height: 18, fontSize: 10.5, fontWeight: 700, bgcolor: isBar( li ) ? tokens.violetSoft : tokens.amberSoft, color: isBar( li ) ? tokens.violet : tokens.amber } } />
+										) }
+									</Stack>
+								) ) }
+							</Stack>
+							<TextField
+								label="Note for this ticket (optional)"
+								placeholder="e.g. Allergy at seat 2 — nothing with nuts"
+								value={ fireNote }
+								onChange={ ( e ) => setFireNote( e.target.value ) }
+								fullWidth
+							/>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted, mt: 0.5 } }>
+								Prints on the ticket and shows on the kitchen screen with this round.
+							</Typography>
+							<Stack direction="row" justifyContent="flex-end" spacing={ 1 } sx={ { mt: 2 } }>
+								<Button onClick={ () => setFireOpen( false ) } sx={ { color: tokens.muted } }>Cancel</Button>
+								<Button variant="contained" startIcon={ <LocalFireDepartmentIcon /> } disabled={ busy } onClick={ () => fire( fireNote.trim() ) }>
+									Fire { toFire.length } item{ toFire.length === 1 ? '' : 's' }
+								</Button>
+							</Stack>
+						</Box>
+					</Modal>
+				);
+			} )() }
 
 			{ moveOpen && (
 				<Modal open onClose={ () => setMoveOpen( false ) }>

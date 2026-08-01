@@ -386,7 +386,7 @@ function log_event( $id, $event ) {
 	if ( count( $log ) > 100 ) {
 		$log = array_slice( $log, -100 );
 	}
-	update_post_meta( $id, 'dinekit_history', wp_json_encode( $log ) );
+	update_post_meta( $id, 'dinekit_history', wp_slash( wp_json_encode( $log ) ) );
 }
 
 /**

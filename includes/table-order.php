@@ -210,7 +210,7 @@ function rest_place( $request ) {
 	foreach ( $existing as $li ) {
 		$total += (float) $li['lineTotal'];
 	}
-	update_post_meta( $oid, 'dinekit_order_items', wp_json_encode( $existing ) );
+	update_post_meta( $oid, 'dinekit_order_items', wp_slash( wp_json_encode( $existing ) ) );
 	update_post_meta( $oid, 'dinekit_order_total', number_format( $total, 2, '.', '' ) );
 	update_post_meta( $oid, 'dinekit_order_status', 'sent' );
 	$count = count( $computed['items'] );

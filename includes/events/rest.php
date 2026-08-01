@@ -363,7 +363,7 @@ function apply_event_fields( $id, $request ) {
 				'size' => absint( $g['size'] ?? 0 ),
 			);
 		}
-		update_post_meta( $id, 'dinekit_event_groups', wp_json_encode( $clean ) );
+		update_post_meta( $id, 'dinekit_event_groups', wp_slash( wp_json_encode( $clean ) ) );
 	}
 }
 
@@ -504,7 +504,7 @@ function update_guest( $request ) {
 		foreach ( $sel_in as $section => $item ) {
 			$sel[ (int) $section ] = (int) $item;
 		}
-		update_post_meta( $gid, 'dinekit_guest_selections', wp_json_encode( $sel ) );
+		update_post_meta( $gid, 'dinekit_guest_selections', wp_slash( wp_json_encode( $sel ) ) );
 	}
 
 	if ( array_key_exists( 'notes', $params ) ) {
@@ -668,7 +668,7 @@ function public_submit( $request ) {
 	update_post_meta( $gid, 'dinekit_guest_event', (int) $event->ID );
 	update_post_meta( $gid, 'dinekit_guest_group', $group_ok ? $group : '' );
 	update_post_meta( $gid, 'dinekit_guest_email', sanitize_email( (string) $request->get_param( 'email' ) ) );
-	update_post_meta( $gid, 'dinekit_guest_selections', wp_json_encode( $sel ) );
+	update_post_meta( $gid, 'dinekit_guest_selections', wp_slash( wp_json_encode( $sel ) ) );
 	update_post_meta( $gid, 'dinekit_guest_allergens', $to_ids( $request->get_param( 'allergens' ) ) );
 	update_post_meta( $gid, 'dinekit_guest_dietary', $to_ids( $request->get_param( 'dietary' ) ) );
 	update_post_meta( $gid, 'dinekit_guest_notes', sanitize_textarea_field( (string) $request->get_param( 'notes' ) ) );

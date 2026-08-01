@@ -322,7 +322,7 @@ function create_order( $request ) {
 	}
 
 	update_post_meta( $post_id, 'dinekit_order_number', $number );
-	update_post_meta( $post_id, 'dinekit_order_items', wp_json_encode( $computed['items'] ) );
+	update_post_meta( $post_id, 'dinekit_order_items', wp_slash( wp_json_encode( $computed['items'] ) ) );
 	update_post_meta( $post_id, 'dinekit_order_total', number_format( $computed['total'], 2, '.', '' ) );
 	update_post_meta( $post_id, 'dinekit_order_status', $dine_in ? 'open' : 'new' );
 	update_post_meta( $post_id, 'dinekit_order_channel', $channel );
@@ -493,7 +493,7 @@ function update_order( $request ) {
 			return rest_ensure_response( order_response( $id ) );
 		}
 		$applied_refs[] = $action_ref;
-		update_post_meta( $id, 'dinekit_order_applied_refs', wp_json_encode( array_slice( $applied_refs, -200 ) ) );
+		update_post_meta( $id, 'dinekit_order_applied_refs', wp_slash( wp_json_encode( array_slice( $applied_refs, -200 ) ) ) );
 	}
 
 	// Rejecting or cancelling releases/refunds the payment — a sensitive action
@@ -566,24 +566,30 @@ function update_order( $request ) {
 		// second precision, so two rounds fired in the same second would otherwise
 		// merge into one Kitchen Display ticket.
 		$round_id = uniqid( 'r', true );
+		// Optional ticket note for THIS round ("no rush", "allergy at seat 2")
+		// — rides on the round's lines, shows on the KDS ticket and prints.
+		$fnote = sanitize_text_field( (string) $request->get_param( 'fireNote' ) );
 		foreach ( $items as &$li ) {
 			if ( empty( $li['fired'] ) ) {
 				$li['fired']   = true;
 				$li['firedAt'] = $now;
 				$li['firedId'] = $round_id; // groups this round's lines on the KDS.
 				$li['kstage']  = 'new'; // a fresh round starts in the kitchen's "New" column.
+				if ( '' !== $fnote ) {
+					$li['fnote'] = $fnote;
+				}
 				++$new;
 			}
 		}
 		unset( $li );
 		if ( $new > 0 ) {
-			update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+			update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $items ) ) );
 			// There's a new active round, so keep the tab on the board. Each round's
 			// own kstage (not the order status) decides its column, so an earlier
 			// round stays where it is (e.g. still "Ready") when a new one fires.
 			update_post_meta( $id, 'dinekit_order_status', 'sent' );
 			/* translators: %d: number of items fired. */
-			Ordering\log_event( $id, sprintf( _n( 'Fired %d item to the kitchen', 'Fired %d items to the kitchen', $new, 'dinekit' ), $new ) );
+			Ordering\log_event( $id, sprintf( _n( 'Fired %d item to the kitchen', 'Fired %d items to the kitchen', $new, 'dinekit' ), $new ) . ( '' !== $fnote ? ' — “' . $fnote . '”' : '' ) );
 		}
 	} elseif ( 'kitchen_stage' === $action ) {
 		// Advance ONE fired round (identified by its firedAt) through the kitchen —
@@ -626,7 +632,7 @@ function update_order( $request ) {
 			}
 			unset( $li );
 		}
-		update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+		update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $items ) ) );
 		// Tab status for the till: it drops to 'served'/'completed' only once NO
 		// round is still cooking; otherwise it stays on the board.
 		$active = false;
@@ -673,7 +679,7 @@ function update_order( $request ) {
 			foreach ( $items as $li ) {
 				$total += (float) $li['lineTotal'];
 			}
-			update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
+			update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $items ) ) );
 			update_post_meta( $id, 'dinekit_order_total', number_format( $total, 2, '.', '' ) );
 			/* translators: %s: item name. */
 			Ordering\log_event( $id, sprintf( __( 'Removed %s from the tab', 'dinekit' ), $voided ) );
@@ -785,7 +791,7 @@ function update_order( $request ) {
 				}
 				unset( $kl );
 				if ( $touched ) {
-					update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $kitems ) );
+					update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $kitems ) ) );
 				}
 			}
 		}
@@ -896,7 +902,7 @@ function add_lines( $request ) {
 			return rest_ensure_response( order_response( $id ) );
 		}
 		$applied[] = $batch_ref;
-		update_post_meta( $id, 'dinekit_order_applied_refs', wp_json_encode( array_slice( $applied, -200 ) ) );
+		update_post_meta( $id, 'dinekit_order_applied_refs', wp_slash( wp_json_encode( array_slice( $applied, -200 ) ) ) );
 	}
 	$existing = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 	$existing = is_array( $existing ) ? $existing : array();
@@ -905,7 +911,7 @@ function add_lines( $request ) {
 	foreach ( $merged as $li ) {
 		$total += (float) $li['lineTotal'];
 	}
-	update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $merged ) );
+	update_post_meta( $id, 'dinekit_order_items', wp_slash( wp_json_encode( $merged ) ) );
 	update_post_meta( $id, 'dinekit_order_total', number_format( $total, 2, '.', '' ) );
 	$n = count( $computed['items'] );
 	/* translators: %d: number of items added. */
@@ -1070,7 +1076,7 @@ function place_order( $request ) {
 	// screen; the KDS also hides it until its day.
 	$auto = ! empty( $settings['auto_accept'] ) && '' === $when_date;
 	update_post_meta( $post_id, 'dinekit_order_number', $number );
-	update_post_meta( $post_id, 'dinekit_order_items', wp_json_encode( $computed['items'] ) );
+	update_post_meta( $post_id, 'dinekit_order_items', wp_slash( wp_json_encode( $computed['items'] ) ) );
 	update_post_meta( $post_id, 'dinekit_order_total', number_format( $grand, 2, '.', '' ) );
 	update_post_meta( $post_id, 'dinekit_order_status', $auto ? 'preparing' : 'new' );
 	update_post_meta( $post_id, 'dinekit_order_name', $name );
