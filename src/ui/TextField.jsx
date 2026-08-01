@@ -50,8 +50,30 @@ const TextField = React.forwardRef( function TextField(
 
 	// The whole field is a <label> so clicking anywhere in the bordered box (not
 	// just the small inner input) focuses/opens the control — no dead padding.
+	// For selects, focusing isn't enough (focus never opens a native picker), so
+	// a click anywhere in the field — including the label text — opens it
+	// explicitly where the browser supports showPicker().
+	const openSelect = ( e ) => {
+		if ( ! select || disabled ) {
+			return;
+		}
+		const sel = e.currentTarget.querySelector( 'select' );
+		if ( ! sel || e.target === sel ) {
+			return; // A direct click already toggles the picker natively.
+		}
+		e.preventDefault();
+		sel.focus();
+		if ( sel.showPicker ) {
+			try {
+				sel.showPicker();
+			} catch ( _ ) {
+				// Not a user gesture / already open — focus alone is the fallback.
+			}
+		}
+	};
 	return (
 		<label
+			onMouseDown={ select ? openSelect : undefined }
 			className={ cx(
 				'dk-field',
 				size === 'small' && 'dk-field--sm',

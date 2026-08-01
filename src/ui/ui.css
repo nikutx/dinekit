@@ -567,6 +567,17 @@ body .dk-inputbase:focus {
 }
 .dk-field--select .dk-field__wrap {
 	cursor: pointer;
+	/* The native select must cover the WHOLE bordered box. With padding on the
+	   wrapper, a click on that padding (edges/corners) only FOCUSES the select
+	   via label behaviour — focusing never opens the picker, so the field
+	   looked clicked but did nothing. Move the padding onto the select itself
+	   and stretch it, so every pixel of the box is the real control. */
+	padding: 0;
+	align-items: stretch;
+}
+.dk-field--select select.dk-field__input {
+	padding: 9px 13px;
+	min-height: 100%;
 }
 .dk-field--sm .dk-field__wrap {
 	min-height: 40px;
