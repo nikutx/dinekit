@@ -142,7 +142,7 @@ add_action(
 			wp_doing_ajax()
 			|| is_network_admin()
 			|| isset( $_GET['activate-multi'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only bulk-activation detection, no action taken on the value.
-			|| (int) $user !== get_current_user_id()
+			|| get_current_user_id() !== (int) $user
 			|| ! current_user_can( 'manage_options' )
 		) {
 			return;
