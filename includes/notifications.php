@@ -219,8 +219,8 @@ function rest_get() {
 				'key'   => 'support',
 				'count' => $replies,
 				'label' => sprintf(
-					/* translators: %d: number of support requests with a new reply. */
-					_n( 'Support replied to your request', 'Support replied to %d of your requests', $replies, 'dinekit' ),
+					/* translators: %d: number of new replies from the support team. */
+					_n( '%d new reply from DineKit support', '%d new replies from DineKit support', $replies, 'dinekit' ),
 					$replies
 				),
 				'view'  => 'support',
