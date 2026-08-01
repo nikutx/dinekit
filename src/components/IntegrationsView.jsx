@@ -554,11 +554,13 @@ function SmsCard() {
 							DineKit talks to (it’s about where Twilio processes the request, not where your texts can go).
 						</li>
 						<li>
-							Get your sending number:{ ' ' }
-							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
-							{ ' ' }(free on trial — pick your country, press Search, take one), and{ ' ' }
-							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">your active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
-							{ ' ' }if you already have one. Paste it here with the country code (+44…).
+							Get your sending number — on a trial, the easy way is the <strong>“Start SMS trial”</strong> button on the
+							console home page (it grants a free number without the paperwork). The full route is{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>,
+							where Twilio may first ask for a one-time <strong>compliance profile</strong> (~5 minutes, pick “Individual” —
+							regulators require it for business texting, on every provider). Numbers you own are under{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
+							Paste yours here with the country code (+44…, or +1… for a US trial number — both send fine).
 						</li>
 						<li>
 							<strong>Trial accounts</strong> can only text numbers you’ve verified — the mobile you signed up with
