@@ -526,10 +526,40 @@ function SmsCard() {
 			</Stack>
 			<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 2 } }>
 				Booking confirmations, reminders, “your table is ready” and “order ready for collection” —
-				sent through <strong>your own Twilio account</strong>, so you pay Twilio’s raw price and
-				DineKit never sees your messages. Get your keys at{ ' ' }
-				<Link href="https://console.twilio.com" target="_blank" rel="noreferrer">console.twilio.com <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
+				sent through <strong>your own Twilio account</strong>, so you pay Twilio’s raw price
+				(fractions of a penny per text) and DineKit never sees your messages.
 			</Typography>
+
+			{ /* Until it's connected, walk the owner to the exact spots in the
+			     Twilio console — "get your keys" is not enough for someone who
+			     has never seen it. */ }
+			{ ! ( cfg.sid && cfg.tokenSet && cfg.from ) && (
+				<Box sx={ { mb: 2, px: 1.75, py: 1.5, borderRadius: '10px', bgcolor: tokens.accentSoft, border: `1px solid ${ tokens.border }` } }>
+					<Typography sx={ { fontSize: 12.5, fontWeight: 700, color: tokens.accentDark, mb: 0.75 } }>Where to find these (5 minutes, free):</Typography>
+					<Box component="ol" sx={ { m: 0, pl: 2.5, fontSize: 12.5, color: tokens.ink2, '& li': { mb: 0.5, lineHeight: 1.5 } } }>
+						<li>
+							Create a free account at{ ' ' }
+							<Link href="https://console.twilio.com" target="_blank" rel="noreferrer">console.twilio.com <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }(no card needed for the trial).
+						</li>
+						<li>
+							On the console <strong>homepage</strong>, scroll down to the <strong>“Account Info”</strong> box —
+							that’s where the <strong>Account SID</strong> (starts with “AC”) and the <strong>Auth Token</strong> live.
+							Click the eye icon to reveal the token, then copy both here.
+						</li>
+						<li>
+							Get your sending number: on a trial the homepage shows a <strong>“Get a phone number”</strong> button — one click.
+							Otherwise it’s under <strong>Phone Numbers → Manage → Active numbers</strong>. Paste it here with the country code (+44…).
+						</li>
+						<li>
+							<strong>Trial accounts</strong> can only text numbers you’ve verified
+							(Phone Numbers → Manage → <strong>Verified Caller IDs</strong> — add your own mobile),
+							and Twilio prefixes each text with “Sent from your Twilio trial account”. Upgrading removes both limits.
+						</li>
+						<li>Flip <strong>Enable SMS</strong> on and use <strong>Send a test text</strong> below — to your verified mobile.</li>
+					</Box>
+				</Box>
+			) }
 
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
 				{ field( 'Account SID', 'sid', { placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
