@@ -589,18 +589,37 @@ function update_order( $request ) {
 		}
 		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
 		$items = is_array( $items ) ? $items : array();
+		$hit   = false;
 		foreach ( $items as &$li ) {
 			// Match by the unique round id; fall back to firedAt for pre-existing
 			// rounds fired before round ids were stored.
 			$lid = isset( $li['firedId'] ) ? (string) $li['firedId'] : (string) ( isset( $li['firedAt'] ) ? $li['firedAt'] : '' );
 			if ( ! empty( $li['fired'] ) && $lid === $round && ( isset( $li['kstage'] ) ? $li['kstage'] : 'new' ) !== 'done' ) {
 				$li['kstage'] = $stage;
+				$hit          = true;
 				if ( 'done' === $stage && empty( $li['doneAt'] ) ) {
 					$li['doneAt'] = current_time( 'c' ); // served — for the tab's time-to-serve.
 				}
 			}
 		}
 		unset( $li );
+		// Legacy rounds: lines fired before round ids existed have NO firedId or
+		// firedAt, so the board sends the 'r' fallback key and nothing above can
+		// match — the Start button would silently do nothing. Advance those
+		// lines as one round (and stamp ids so next time they match normally).
+		if ( ! $hit ) {
+			$legacy_id = 'legacy-' . $id;
+			foreach ( $items as &$li ) {
+				if ( ! empty( $li['fired'] ) && empty( $li['firedId'] ) && empty( $li['firedAt'] ) && ( isset( $li['kstage'] ) ? $li['kstage'] : 'new' ) !== 'done' ) {
+					$li['firedId'] = $legacy_id;
+					$li['kstage']  = $stage;
+					if ( 'done' === $stage && empty( $li['doneAt'] ) ) {
+						$li['doneAt'] = current_time( 'c' );
+					}
+				}
+			}
+			unset( $li );
+		}
 		update_post_meta( $id, 'dinekit_order_items', wp_json_encode( $items ) );
 		// Tab status for the till: it drops to 'served'/'completed' only once NO
 		// round is still cooking; otherwise it stays on the board.

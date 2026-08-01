@@ -81,7 +81,9 @@ function buildTickets( orders ) {
 				out.push( {
 					id: o.id + '|' + k, orderId: o.id, number: o.number, dineIn: true,
 					round: k, stage: lines[ 0 ].kstage || 'new', lines,
-					table: o.table, fulfilment: o.fulfilment, notes: o.notes, placed: lines[ 0 ].firedAt || null,
+					// Legacy lines fired before round ids carry no firedAt — fall back
+					// to the order's own age so the clock never lies with "0m".
+					table: o.table, fulfilment: o.fulfilment, notes: o.notes, placed: lines[ 0 ].firedAt || o.placed || null,
 				} );
 			} );
 		} else {
