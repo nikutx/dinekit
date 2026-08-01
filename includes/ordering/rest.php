@@ -711,6 +711,51 @@ function update_order( $request ) {
 		$sym = isset( \DineKit\Settings\get()['currency'] ) ? \DineKit\Settings\get()['currency'] : '£';
 		/* translators: 1: order number, 2: currency symbol, 3: amount, 4: tender type. */
 		\DineKit\Activity\log( 'order', sprintf( __( 'Order #%1$d — %2$s%3$s taken (%4$s)', 'dinekit' ), $num, $sym, number_format_i18n( $amt, 2 ), $ttype ) );
+	} elseif ( 'remove_tender' === $action ) {
+		// Manager fix-up: a mis-keyed payment (wrong cash amount, wrong button)
+		// comes OFF the order so it can be settled again correctly. Same gate
+		// as refunds/voids. If the order drops below fully-paid, a settled
+		// dine-in tab reopens on the floor.
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_amend', __( 'You do not have permission to amend payments.', 'dinekit' ), array( 'status' => 403 ) );
+		}
+		$tenders = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
+		$tenders = is_array( $tenders ) ? $tenders : array();
+		$tidx    = (int) $request->get_param( 'tenderIndex' );
+		if ( isset( $tenders[ $tidx ] ) ) {
+			$t = $tenders[ $tidx ];
+			// Stale-screen guard: what the till showed must match what's stored.
+			if ( sanitize_key( (string) $request->get_param( 'tenderType' ) ) !== (string) $t['type'] || round( (float) $request->get_param( 'amount' ), 2 ) !== round( (float) $t['amount'], 2 ) ) {
+				return new \WP_Error( 'dinekit_amend_stale', __( 'That payment list is out of date — reopen it and try again.', 'dinekit' ), array( 'status' => 409 ) );
+			}
+			array_splice( $tenders, $tidx, 1 );
+			update_post_meta( $id, 'dinekit_order_tenders', wp_slash( wp_json_encode( $tenders ) ) );
+			/* translators: 1: tender type, 2: amount. */
+			Ordering\log_event( $id, sprintf( __( 'Payment removed by manager: %1$s %2$s', 'dinekit' ), $t['type'], number_format( (float) $t['amount'], 2 ) ) );
+			$paid = 0.0;
+			foreach ( $tenders as $x ) {
+				$paid += (float) $x['amount'];
+			}
+			if ( round( $paid - Ordering\grand_total( $id ), 2 ) < 0 ) {
+				update_post_meta( $id, 'dinekit_order_payment', 'unpaid' );
+				if ( 'dine_in' === (string) get_post_meta( $id, 'dinekit_order_channel', true ) && 'completed' === (string) get_post_meta( $id, 'dinekit_order_status', true ) ) {
+					Ordering\reopen_tab( $id );
+					Ordering\log_event( $id, __( 'Tab reopened — balance outstanding', 'dinekit' ) );
+				}
+			}
+		}
+	} elseif ( 'reopen' === $action ) {
+		// Manager fix-up: a tab settled/closed by mistake goes back on the floor.
+		require_once DINEKIT_DIR . 'includes/access.php';
+		if ( ! \DineKit\Access\can( 'refunds' ) ) {
+			return new \WP_Error( 'dinekit_no_amend', __( 'You do not have permission to reopen a settled tab.', 'dinekit' ), array( 'status' => 403 ) );
+		}
+		if ( 'dine_in' !== (string) get_post_meta( $id, 'dinekit_order_channel', true ) ) {
+			return new \WP_Error( 'dinekit_not_tab', __( 'Only dine-in tabs can be reopened.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		Ordering\reopen_tab( $id );
+		Ordering\log_event( $id, __( 'Tab reopened by manager', 'dinekit' ) );
 	} elseif ( 'pay_link' === $action ) {
 		require_once DINEKIT_DIR . 'includes/pay.php';
 		\DineKit\Pay\ensure_token( $id );

@@ -18,6 +18,7 @@ import CloudOffIcon from '@mui/icons-material/CloudOff';
 import { tokens } from '../theme';
 import { api, isQueued } from '../api/client';
 import FloorCanvas from './FloorCanvas';
+import ConfirmDialog from './ui/ConfirmDialog';
 import { useSyncRevision, useOnline } from '../lib/useSync';
 import { offlineQueue } from '../lib/offlineQueue';
 import { indexMenu, mirrorLine, localOrder, fold, isUnsynced } from '../lib/posOffline';
@@ -871,7 +872,22 @@ export default function POSView() {
 			</Stack>
 
 			{ histOpen && active.tableId ? (
-					<TableHistorySheet tableId={ active.tableId } tableName={ active.tableName } money={ money } onClose={ () => setHistOpen( false ) } />
+					<TableHistorySheet
+						tableId={ active.tableId }
+						tableName={ active.tableName }
+						money={ money }
+						onClose={ () => setHistOpen( false ) }
+						onChanged={ async () => {
+							// A reopened tab must land straight back on the floor AND in
+							// the open pad — not wait for the next heartbeat.
+							try {
+								const all = await api.getOrders();
+								const list = ( all || [] ).filter( isOpenTab );
+								setOrders( list );
+								setActive( ( a ) => ( a && ! a.takeaway && ! a.order ? { ...a, order: list.find( ( o ) => o.tableId === a.tableId ) || null } : a ) );
+							} catch ( e ) {}
+						} }
+					/>
 				) : null }
 				{ offlineNote ? (
 					<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 2, px: 1.5, py: 1, borderRadius: 2, bgcolor: tokens.amberSoft, border: `1px solid ${ tokens.amber }`, color: tokens.amber } }>
@@ -1071,9 +1087,14 @@ export default function POSView() {
 }
 
 // A table's previous (settled) orders — opened from the order pad's history icon.
-function TableHistorySheet( { tableId, tableName, money, onClose } ) {
+function TableHistorySheet( { tableId, tableName, money, onClose, onChanged } ) {
 	const [ orders, setOrders ] = useState( null );
 	const [ openId, setOpenId ] = useState( 0 );
+	const [ confirmAmend, setConfirmAmend ] = useState( null ); // { o, ti, t } remove tender | { o, reopen } reopen tab
+	const [ amendErr, setAmendErr ] = useState( '' );
+	// Amending money is a manager action (same permission as refunds/voids).
+	const canAmend = ! window.DINEKIT || ! window.DINEKIT.caps || !! window.DINEKIT.caps.refunds;
+	const refresh = () => api.tableHistory( tableId ).then( ( r ) => setOrders( Array.isArray( r ) ? r : [] ) ).catch( () => {} );
 	useEffect( () => {
 		let live = true;
 		api.tableHistory( tableId )
@@ -1081,6 +1102,20 @@ function TableHistorySheet( { tableId, tableName, money, onClose } ) {
 			.catch( () => { if ( live ) { setOrders( [] ); } } );
 		return () => { live = false; };
 	}, [ tableId ] );
+	const doAmend = async ( c ) => {
+		setAmendErr( '' );
+		try {
+			if ( c.reopen ) {
+				await api.updateOrder( c.o.id, { action: 'reopen' } );
+			} else {
+				await api.updateOrder( c.o.id, { action: 'remove_tender', tenderIndex: c.ti, tenderType: c.t.type, amount: c.t.amount } );
+			}
+			await refresh();
+			onChanged && onChanged();
+		} catch ( e ) {
+			setAmendErr( e.message || 'Could not amend that order.' );
+		}
+	};
 	return (
 		<Modal open onClose={ onClose } sx={ { maxWidth: 620 } }>
 			<Box sx={ { p: 3, maxHeight: '82vh', overflowY: 'auto' } }>
@@ -1128,6 +1163,30 @@ function TableHistorySheet( { tableId, tableName, money, onClose } ) {
 													{ [ Number( o.service ) > 0 ? `Service ${ money( Number( o.service ) ) }` : '', Number( o.tip ) > 0 ? `Tip ${ money( Number( o.tip ) ) }` : '' ].filter( Boolean ).join( ' · ' ) }
 												</Typography>
 											) }
+											{ /* The money trail + the manager's fix-up tools: a
+											     mis-keyed payment comes off (the tab reopens if
+											     no longer covered), or the whole tab reopens. */ }
+											{ ( o.tenders || [] ).length > 0 && (
+												<Box sx={ { mt: 1.25, pt: 1, borderTop: `1px dashed ${ tokens.border }` } }>
+													<Typography sx={ { fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: tokens.muted } }>Payments</Typography>
+													{ o.tenders.map( ( t, ti ) => (
+														<Stack key={ ti } direction="row" alignItems="center" spacing={ 1 } sx={ { mt: 0.5 } }>
+															<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>
+																{ t.type } · { money( Number( t.amount ) ) }{ t.t ? ` · ${ fmtDateTime( t.t ) }` : '' }
+															</Typography>
+															<Box sx={ { flex: 1 } } />
+															{ canAmend && (
+																<Button size="small" color="error" onClick={ () => setConfirmAmend( { o, ti, t } ) }>Remove</Button>
+															) }
+														</Stack>
+													) ) }
+												</Box>
+											) }
+											{ canAmend && (
+												<Stack direction="row" justifyContent="flex-end" sx={ { mt: 1.25 } }>
+													<Button size="small" variant="outlined" onClick={ () => setConfirmAmend( { o, reopen: true } ) }>Reopen this tab</Button>
+												</Stack>
+											) }
 										</Box>
 									) }
 								</Card>
@@ -1135,7 +1194,22 @@ function TableHistorySheet( { tableId, tableName, money, onClose } ) {
 						} ) }
 					</Stack>
 				) }
+				{ !! amendErr && (
+					<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.red, mt: 1.5 } }>{ amendErr }</Typography>
+				) }
 			</Box>
+			<ConfirmDialog
+				open={ !! confirmAmend }
+				title={ confirmAmend && confirmAmend.reopen ? 'Reopen this tab?' : 'Remove this payment?' }
+				message={ confirmAmend
+					? ( confirmAmend.reopen
+						? `Order #${ confirmAmend.o.number } goes back onto ${ tableName } as an open tab — settle it again when it's right.`
+						: `The ${ confirmAmend.t.type } payment of ${ money( Number( confirmAmend.t.amount ) ) } comes off order #${ confirmAmend.o.number }. If the bill is no longer covered, the tab reopens on ${ tableName } so it can be settled correctly.` )
+					: '' }
+				confirmLabel={ confirmAmend && confirmAmend.reopen ? 'Reopen tab' : 'Remove payment' }
+				onConfirm={ () => { const c = confirmAmend; setConfirmAmend( null ); doAmend( c ); } }
+				onCancel={ () => setConfirmAmend( null ) }
+			/>
 		</Modal>
 	);
 }

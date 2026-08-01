@@ -746,7 +746,15 @@ export default function OrdersView() {
 				</Stack>
 			) }
 			<Drawer anchor="right" open={ !! detail } onClose={ () => setDetail( null ) } disableEnforceFocus sx={ { zIndex: 100000 } }>
-				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } onCancel={ () => { reject( detail.id ); setDetail( null ); } } onPrint={ ( st ) => printTicket( detail, st ) } onRefund={ ( lines ) => { refund( detail.id, lines ); setDetail( null ); } } /> }
+				{ detail && <OrderDetail order={ detail } money={ money } onClose={ () => setDetail( null ) } onResend={ () => resend( detail.id ) } onCancel={ () => { reject( detail.id ); setDetail( null ); } } onPrint={ ( st ) => printTicket( detail, st ) } onRefund={ ( lines ) => { refund( detail.id, lines ); setDetail( null ); } } onAmend={ async ( body ) => {
+				try {
+					const fresh = await api.updateOrder( detail.id, body );
+					setDetail( fresh );
+					setOrders( ( os ) => os.map( ( o ) => ( o.id === fresh.id ? fresh : o ) ) );
+				} catch ( e ) {
+					toast.error( e.message || 'Could not amend the payment.' );
+				}
+			} } /> }
 			</Drawer>
 		</Page>
 	);
@@ -1103,8 +1111,10 @@ function DRow( { label, value, mono } ) {
 
 // Full order detail: customer, items, payment (+Stripe id), receipt email log
 // with resend, and the status/payment history trail.
-function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRefund } ) {
+function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRefund, onAmend } ) {
 	const m = O_STATUS.find( ( s ) => s.key === order.status ) || O_STATUS[ 0 ];
+	// Amending money is a manager action (same permission as refunds/voids).
+	const canAmendPay = ! window.DINEKIT || ! window.DINEKIT.caps || !! window.DINEKIT.caps.refunds;
 	const pay = PAYMENT[ order.payment ];
 	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
 	const hasBar = ( order.items || [] ).some( ( li ) => li.station === 'bar' );
@@ -1211,6 +1221,48 @@ function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRe
 
 			<DSection title="Payment">
 				<DRow label="Status" value={ pay ? pay.label : ( order.payment || '—' ) } />
+				{ /* Every payment taken, each removable by a manager — the fix for
+				     "pressed cash with the wrong amount". Removing one that leaves
+				     the bill uncovered reopens a settled dine-in tab. */ }
+				{ ( order.tenders || [] ).length > 0 && (
+					<Stack spacing={ 0.5 } sx={ { mt: 1 } }>
+						{ order.tenders.map( ( t, i ) => (
+							<Stack key={ i } direction="row" alignItems="center" spacing={ 1 } >
+								<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>{ t.type } · { money( Number( t.amount ) ) }</Typography>
+								<Box sx={ { flex: 1 } } />
+								{ canAmendPay && onAmend && (
+									<Button
+										size="small"
+										color="error"
+										onClick={ () => setConfirm( {
+											title: 'Remove this payment?',
+											message: `The ${ t.type } payment of ${ money( Number( t.amount ) ) } comes off order #${ order.number }. If the bill is no longer covered, a settled tab reopens on its table.`,
+											confirmLabel: 'Remove payment',
+											onConfirm: () => onAmend( { action: 'remove_tender', tenderIndex: i, tenderType: t.type, amount: t.amount } ),
+										} ) }
+									>
+										Remove
+									</Button>
+								) }
+							</Stack>
+						) ) }
+					</Stack>
+				) }
+				{ canAmendPay && onAmend && 'dine_in' === order.channel && 'completed' === order.status && (
+					<Button
+						size="small"
+						variant="outlined"
+						sx={ { mt: 1 } }
+						onClick={ () => setConfirm( {
+							title: 'Reopen this tab?',
+							message: `Order #${ order.number } goes back onto ${ order.table || 'its table' } as an open tab — settle it again when it's right.`,
+							confirmLabel: 'Reopen tab',
+							onConfirm: () => onAmend( { action: 'reopen' } ),
+						} ) }
+					>
+						Reopen tab
+					</Button>
+				) }
 				{ order.pi && (
 					<DRow
 						label="Stripe"

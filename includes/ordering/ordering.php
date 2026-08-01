@@ -1161,3 +1161,24 @@ function complete_linked_booking( $order_id ) {
 		update_post_meta( $bid, 'dinekit_status', 'completed' );
 	}
 }
+
+/**
+ * Reopen a settled dine-in tab (manager fix-up: settled by mistake, or a
+ * mis-keyed payment removed). The sitting is live again everywhere: the tab
+ * returns to the floor, the linked booking un-completes back to seated, and
+ * the table comes off the "needs bussing" pile.
+ *
+ * @param int $order_id Order id.
+ * @return void
+ */
+function reopen_tab( $order_id ) {
+	update_post_meta( $order_id, 'dinekit_order_status', 'served' );
+	$bid = (int) get_post_meta( $order_id, 'dinekit_order_booking', true );
+	if ( $bid && 'completed' === (string) get_post_meta( $bid, 'dinekit_status', true ) ) {
+		update_post_meta( $bid, 'dinekit_status', 'seated' );
+	}
+	$table = (int) get_post_meta( $order_id, 'dinekit_order_table_id', true );
+	if ( $table && 'dinekit_table' === get_post_type( $table ) ) {
+		delete_post_meta( $table, 'dinekit_cleaning' );
+	}
+}
