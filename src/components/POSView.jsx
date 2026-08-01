@@ -160,6 +160,54 @@ const minsUntil = ( hm ) => {
 	return ( ( p[ 0 ] || 0 ) * 60 + ( p[ 1 ] || 0 ) ) - ( d.getHours() * 60 + d.getMinutes() );
 };
 
+// The table's notes, front and centre on the order pad: what the guest told
+// us when booking (allergies, occasion) plus the standing service note from
+// their guest profile ("tops the wine up all the time"). Open by default —
+// the ✕ folds it to a slim pill for the rest of this table's session.
+function PadNotes( { booking, intel } ) {
+	const [ open, setOpen ] = useState( true );
+	const notes = [
+		booking && booking.notes ? { label: 'Booking note', text: booking.notes } : null,
+		intel && intel.notes ? { label: 'Guest note', text: intel.notes } : null,
+	].filter( Boolean );
+	if ( ! notes.length ) {
+		return null;
+	}
+	if ( ! open ) {
+		return (
+			<Chip
+				label={ `📝 Notes · ${ notes.length }` }
+				onClick={ () => setOpen( true ) }
+				size="small"
+				sx={ { mt: 0.75, height: 22, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', bgcolor: tokens.amberSoft, color: tokens.amber, border: `1px solid ${ tokens.amber }` } }
+			/>
+		);
+	}
+	return (
+		<Box sx={ { mt: 0.75, px: 1.5, py: 1, borderRadius: '10px', bgcolor: tokens.amberSoft, border: `1px solid ${ tokens.amber }`, maxWidth: 680 } }>
+			<Stack direction="row" alignItems="flex-start" spacing={ 1 }>
+				<Box sx={ { flex: 1, minWidth: 0 } }>
+					{ notes.map( ( n ) => (
+						<Typography key={ n.label } sx={ { fontSize: 12.5, color: tokens.ink2, lineHeight: 1.5 } }>
+							<Box component="span" sx={ { fontWeight: 700, color: tokens.amber } }>{ n.label }: </Box>
+							{ n.text }
+						</Typography>
+					) ) }
+				</Box>
+				<Box
+					component="button"
+					type="button"
+					onClick={ () => setOpen( false ) }
+					title="Fold the notes away for this table"
+					sx={ { border: 'none', background: 'none', cursor: 'pointer', color: tokens.amber, fontSize: 14, fontWeight: 700, p: 0, lineHeight: 1 } }
+				>
+					✕
+				</Box>
+			</Stack>
+		</Box>
+	);
+}
+
 function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, nextBooking, openTable, markReady, turnMin, checkMins, money } ) {
 	const zoneTables = ( floor.tables || [] ).filter( ( t ) => ( t.areaId || 0 ) === ( zone || 0 ) );
 	const seated = zoneTables.filter( ( t ) => tabFor( t.id ) ).length;
@@ -786,11 +834,9 @@ export default function POSView() {
 							{ padGuest.intel && padGuest.intel.visits > 1 && (
 								<Chip label={ `${ padGuest.intel.visits } visits` } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 600 } } />
 							) }
-							{ padGuest.booking.notes && (
-								<Typography sx={ { fontSize: 11.5, color: tokens.ink2, fontStyle: 'italic' } }>“{ padGuest.booking.notes }”</Typography>
-							) }
 						</Stack>
 					) }
+					{ padGuest && <PadNotes key={ active.tableId } booking={ padGuest.booking } intel={ padGuest.intel } /> }
 					{ active.order && ( () => {
 						const tm = tabTiming( active.order );
 						if ( ! tm || ( ! tm.opened && ! tm.rounds.length ) ) {
