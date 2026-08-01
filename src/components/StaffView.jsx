@@ -37,7 +37,35 @@ export default function StaffView() {
 	const [ roles, setRoles ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ editing, setEditing ] = useState( null ); // staff object being edited, or null.
-	const [ tab, setTab ] = useState( 'people' );
+	// The tab lives in the URL (#/staff/rota) so a refresh, a bookmark or a
+	// shared link lands on the same tab instead of snapping back to People.
+	const STAFF_TABS = [ 'people', 'rota', 'holiday', 'dashboard' ];
+	const [ tab, setTabState ] = useState( () => {
+		const sub = window.location.hash.replace( /^#\/?/, '' ).split( '/' )[ 1 ];
+		return STAFF_TABS.includes( sub ) ? sub : 'people';
+	} );
+	const setTab = ( v ) => {
+		setTabState( v );
+		window.history.replaceState(
+			null,
+			'',
+			window.location.pathname + window.location.search + '#/staff' + ( 'people' === v ? '' : '/' + v )
+		);
+	};
+	// Follow the address bar too (an emailed #/staff/holiday link clicked while
+	// already on this screen). replaceState above fires no hashchange → no loop.
+	useEffect( () => {
+		const onHash = () => {
+			if ( ! window.location.hash.startsWith( '#/staff' ) ) {
+				return;
+			}
+			const sub = window.location.hash.replace( /^#\/?/, '' ).split( '/' )[ 1 ];
+			setTabState( STAFF_TABS.includes( sub ) ? sub : 'people' );
+		};
+		window.addEventListener( 'hashchange', onHash );
+		return () => window.removeEventListener( 'hashchange', onHash );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 	const [ confirmRemove, setConfirmRemove ] = useState( null ); // staff member pending removal.
 
 	useEffect( () => {
