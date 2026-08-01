@@ -20,6 +20,7 @@ import {
 	Snackbar,
 	Drawer,
 	Checkbox,
+	Modal,
 } from '../ui';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
@@ -536,13 +537,15 @@ export default function OrdersView() {
 				<OrderSettings />
 			</Collapse>
 
-			<Collapse in={ adding } unmountOnExit>
-				<NewOrder
-					money={ money }
-					onCancel={ () => setAdding( false ) }
-					onCreated={ ( order ) => { setOrders( ( os ) => [ order, ...os ] ); setAdding( false ); setTab( 'active' ); } }
-				/>
-			</Collapse>
+			<Modal open={ adding } onClose={ () => setAdding( false ) } sx={ { maxWidth: 1060, width: '96vw' } }>
+				{ adding && (
+					<NewOrder
+						money={ money }
+						onCancel={ () => setAdding( false ) }
+						onCreated={ ( order ) => { setOrders( ( os ) => [ order, ...os ] ); setAdding( false ); setTab( 'active' ); } }
+					/>
+				) }
+			</Modal>
 
 			<ToggleButtonGroup size="small" exclusive value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 1.25 } }>
 				<ToggleButton value="active">Active</ToggleButton>
@@ -746,9 +749,12 @@ export default function OrdersView() {
 
 // Staff order builder — phone/walk-in orders. Amount is recomputed server-side.
 function NewOrder( { money, onCreated, onCancel } ) {
-	const [ menu, setMenu ] = useState( [] );
-	const [ lines, setLines ] = useState( [] );
-	const [ pick, setPick ] = useState( '' );
+	// The same tap-to-add menu the till uses — a phone order is taken at POS
+	// speed, not through a dropdown. Multi-price dishes render one tile per
+	// price so no configurator sheet is ever needed here.
+	const [ sections, setSections ] = useState( null );
+	const [ sec, setSec ] = useState( 0 ); // 0 = all sections
+	const [ lines, setLines ] = useState( [] ); // key = itemId|priceIndex
 	const [ name, setName ] = useState( '' );
 	const [ phone, setPhone ] = useState( '' );
 	const [ notes, setNotes ] = useState( '' );
@@ -756,30 +762,48 @@ function NewOrder( { money, onCreated, onCancel } ) {
 	const [ error, setError ] = useState( '' );
 
 	useEffect( () => {
-		api.getState().then( ( s ) => {
-			// Only items with at least one price are orderable.
-			const priced = ( s.items || [] )
-				.filter( ( it ) => ( it.prices || [] ).length > 0 && it.title )
-				.map( ( it ) => ( { id: it.id, title: it.title, unit: Number( it.prices[ 0 ].amount ) || 0 } ) );
-			setMenu( priced );
-		} );
+		api.getPosMenu()
+			.then( ( m ) => setSections( ( m && m.sections ) || [] ) )
+			.catch( () => setSections( [] ) );
 	}, [] );
 
-	const addLine = ( id ) => {
-		const it = menu.find( ( m ) => m.id === id );
-		if ( ! it ) {
+	// One tappable tile per priced variant: "Fish & Chips · Regular £14.50"
+	// and "… · Large £17" are separate tiles — the fastest possible pick.
+	const tiles = useMemo( () => {
+		const out = [];
+		( sections || [] ).forEach( ( s ) => {
+			( s.items || [] ).forEach( ( it ) => {
+				( it.prices || [] ).forEach( ( p, pi ) => {
+					out.push( {
+						key: it.id + '|' + pi,
+						id: it.id,
+						priceIndex: pi,
+						title: it.title,
+						label: p.label || '',
+						unit: Number( p.amount ) || 0,
+						off: it.available === false,
+						sectionId: s.id,
+					} );
+				} );
+			} );
+		} );
+		return out;
+	}, [ sections ] );
+	const visibleTiles = sec ? tiles.filter( ( t ) => t.sectionId === sec ) : tiles;
+
+	const tap = ( t ) => {
+		if ( t.off ) {
 			return;
 		}
 		setLines( ( ls ) => {
-			const existing = ls.find( ( l ) => l.id === id );
+			const existing = ls.find( ( l ) => l.key === t.key );
 			return existing
-				? ls.map( ( l ) => ( l.id === id ? { ...l, qty: l.qty + 1 } : l ) )
-				: [ ...ls, { id, title: it.title, unit: it.unit, qty: 1 } ];
+				? ls.map( ( l ) => ( l.key === t.key ? { ...l, qty: l.qty + 1 } : l ) )
+				: [ ...ls, { key: t.key, id: t.id, priceIndex: t.priceIndex, title: t.title + ( t.label ? ` (${ t.label })` : '' ), unit: t.unit, qty: 1 } ];
 		} );
-		setPick( '' );
 	};
-	const setQty = ( id, d ) => setLines( ( ls ) => ls.map( ( l ) => ( l.id === id ? { ...l, qty: Math.max( 1, l.qty + d ) } : l ) ).filter( ( l ) => l.qty > 0 ) );
-	const removeLine = ( id ) => setLines( ( ls ) => ls.filter( ( l ) => l.id !== id ) );
+	const setQty = ( key, d ) => setLines( ( ls ) => ls.map( ( l ) => ( l.key === key ? { ...l, qty: Math.max( 1, l.qty + d ) } : l ) ).filter( ( l ) => l.qty > 0 ) );
+	const removeLine = ( key ) => setLines( ( ls ) => ls.filter( ( l ) => l.key !== key ) );
 	const total = lines.reduce( ( s, l ) => s + l.unit * l.qty, 0 );
 
 	const create = async () => {
@@ -791,7 +815,7 @@ function NewOrder( { money, onCreated, onCancel } ) {
 		setError( '' );
 		try {
 			const order = await api.createOrder( {
-				items: lines.map( ( l ) => ( { itemId: l.id, qty: l.qty } ) ),
+				items: lines.map( ( l ) => ( { itemId: l.id, qty: l.qty, priceIndex: l.priceIndex } ) ),
 				name,
 				phone,
 				notes,
@@ -807,52 +831,92 @@ function NewOrder( { money, onCreated, onCancel } ) {
 	};
 
 	return (
-		<Card sx={ { p: 2.5, mb: 2 } }>
-			<Typography variant="subtitle2" sx={ { color: tokens.ink, mb: 1.5 } }>New order (phone / walk-in)</Typography>
-			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
-				<Select
-					size="small"
-					displayEmpty
-					value={ pick }
-					onChange={ ( e ) => addLine( e.target.value ) }
-					sx={ { minWidth: 260 } }
-					renderValue={ () => 'Add an item…' }
-				>
-					{ menu.length === 0 && <MenuItem value="" disabled>No priced items yet</MenuItem> }
-					{ menu.map( ( m ) => (
-						<MenuItem key={ m.id } value={ m.id }>{ m.title } · { money( m.unit ) }</MenuItem>
-					) ) }
-				</Select>
-				<TextField size="small" label="Customer name" value={ name } onChange={ ( e ) => setName( e.target.value ) } sx={ { width: 200 } } />
-				<TextField size="small" label="Phone" value={ phone } onChange={ ( e ) => setPhone( e.target.value ) } sx={ { width: 160 } } />
-			</Stack>
-
-			{ lines.length > 0 && (
-				<Stack spacing={ 0.75 } sx={ { mb: 1.5 } }>
-					{ lines.map( ( l ) => (
-						<Stack key={ l.id } direction="row" alignItems="center" spacing={ 1 } sx={ { bgcolor: tokens.soft, borderRadius: 2, px: 1.5, py: 0.75 } }>
-							<Typography sx={ { flex: 1, fontSize: 14 } }>{ l.title }</Typography>
-							<IconButton size="small" onClick={ () => setQty( l.id, -1 ) }>−</IconButton>
-							<Typography sx={ { width: 24, textAlign: 'center', fontWeight: 700 } }>{ l.qty }</Typography>
-							<IconButton size="small" onClick={ () => setQty( l.id, 1 ) }>+</IconButton>
-							<Typography sx={ { width: 70, textAlign: 'right', fontWeight: 650 } }>{ money( l.unit * l.qty ) }</Typography>
-							<IconButton size="small" onClick={ () => removeLine( l.id ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
+		<Box sx={ { p: { xs: 2, md: 3 }, maxHeight: '90vh', overflowY: 'auto' } }>
+			<Typography variant="subtitle2" sx={ { color: tokens.ink, mb: 1.5, fontSize: 16, fontWeight: 700 } }>New order (phone / walk-in)</Typography>
+			<Stack direction={ { xs: 'column', md: 'row' } } spacing={ 2.5 } alignItems="flex-start">
+				{ /* Left: the tap-to-add menu, straight from the till. */ }
+				<Box sx={ { flex: 1, minWidth: 0, width: '100%' } }>
+					{ sections === null ? (
+						<Stack direction="row" spacing={ 1 } alignItems="center" sx={ { color: tokens.muted, py: 3 } }>
+							<CircularProgress size={ 16 } />
+							<Typography sx={ { fontSize: 13 } }>Loading the menu…</Typography>
 						</Stack>
-					) ) }
-				</Stack>
-			) }
+					) : tiles.length === 0 ? (
+						<Typography sx={ { fontSize: 13, color: tokens.muted, py: 3 } }>No priced dishes yet — add prices in the Menu Builder first.</Typography>
+					) : (
+						<>
+							<Stack direction="row" spacing={ 0.75 } flexWrap="wrap" useFlexGap sx={ { mb: 1.25 } }>
+								<Chip label="All" size="small" onClick={ () => setSec( 0 ) } sx={ { fontWeight: 700, cursor: 'pointer', bgcolor: sec === 0 ? tokens.accentSoft : tokens.surface, color: sec === 0 ? tokens.accentDark : tokens.muted, border: `1px solid ${ sec === 0 ? tokens.accentDark : tokens.border2 }` } } />
+								{ ( sections || [] ).filter( ( s ) => ( s.items || [] ).length ).map( ( s ) => (
+									<Chip key={ s.id } label={ s.name } size="small" onClick={ () => setSec( s.id ) } sx={ { fontWeight: 700, cursor: 'pointer', bgcolor: sec === s.id ? tokens.accentSoft : tokens.surface, color: sec === s.id ? tokens.accentDark : tokens.muted, border: `1px solid ${ sec === s.id ? tokens.accentDark : tokens.border2 }` } } />
+								) ) }
+							</Stack>
+							<Box sx={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 1 } }>
+								{ visibleTiles.map( ( t ) => (
+									<Box
+										key={ t.key }
+										component="button"
+										type="button"
+										onClick={ () => tap( t ) }
+										disabled={ t.off }
+										sx={ {
+											textAlign: 'left', fontFamily: 'inherit', cursor: t.off ? 'not-allowed' : 'pointer',
+											border: `1px solid ${ tokens.border }`, borderRadius: '10px', bgcolor: t.off ? tokens.soft : tokens.surface,
+											px: 1.25, py: 1, opacity: t.off ? 0.55 : 1, transition: 'border-color .12s, box-shadow .12s',
+											'&:hover': t.off ? {} : { borderColor: tokens.accent, boxShadow: tokens.shadowSm },
+										} }
+									>
+										<Typography sx={ { fontSize: 13, fontWeight: 650, color: tokens.ink, lineHeight: 1.25 } }>
+											{ t.title }{ t.label ? <Box component="span" sx={ { color: tokens.muted, fontWeight: 600 } }> · { t.label }</Box> : null }
+										</Typography>
+										<Typography sx={ { fontSize: 12.5, fontWeight: 700, color: t.off ? tokens.muted2 : tokens.accentDark, mt: 0.25 } }>
+											{ t.off ? '86’d' : money( t.unit ) }
+										</Typography>
+									</Box>
+								) ) }
+							</Box>
+						</>
+					) }
+				</Box>
 
-			<TextField size="small" fullWidth label="Notes (optional)" value={ notes } onChange={ ( e ) => setNotes( e.target.value ) } sx={ { mb: 1.5 } } />
-			{ error && <Typography sx={ { color: tokens.red, fontSize: 13, mb: 1 } }>{ error }</Typography> }
-			<Stack direction="row" alignItems="center" spacing={ 2 }>
-				<Typography sx={ { fontWeight: 700, fontSize: 16 } }>Total: { money( total ) }</Typography>
-				<Box sx={ { flex: 1 } } />
-				<Button onClick={ onCancel } sx={ { color: tokens.muted } }>Cancel</Button>
-				<Button variant="contained" onClick={ create } disabled={ saving || lines.length === 0 }>
-					{ saving ? 'Creating…' : 'Create order' }
-				</Button>
+				{ /* Right: the order so far + customer details. */ }
+				<Box sx={ { width: { xs: '100%', md: 340 }, flexShrink: 0 } }>
+					<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: tokens.muted2, mb: 0.75 } }>
+						The order
+					</Typography>
+					{ lines.length === 0 ? (
+						<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 1.5 } }>Tap dishes to add them.</Typography>
+					) : (
+						<Stack spacing={ 0.75 } sx={ { mb: 1.5 } }>
+							{ lines.map( ( l ) => (
+								<Stack key={ l.key } direction="row" alignItems="center" spacing={ 0.75 } sx={ { bgcolor: tokens.soft, borderRadius: 2, px: 1.25, py: 0.6 } }>
+									<Typography sx={ { flex: 1, fontSize: 13, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>{ l.title }</Typography>
+									<IconButton size="small" onClick={ () => setQty( l.key, -1 ) }>−</IconButton>
+									<Typography sx={ { width: 22, textAlign: 'center', fontWeight: 700, fontSize: 13 } }>{ l.qty }</Typography>
+									<IconButton size="small" onClick={ () => setQty( l.key, 1 ) }>+</IconButton>
+									<Typography sx={ { width: 62, textAlign: 'right', fontWeight: 650, fontSize: 13 } }>{ money( l.unit * l.qty ) }</Typography>
+									<IconButton size="small" onClick={ () => removeLine( l.key ) } sx={ { color: tokens.muted2 } }><DeleteOutlineIcon fontSize="small" /></IconButton>
+								</Stack>
+							) ) }
+						</Stack>
+					) }
+					<Stack spacing={ 1.25 }>
+						<TextField size="small" label="Customer name" value={ name } onChange={ ( e ) => setName( e.target.value ) } fullWidth />
+						<TextField size="small" label="Phone" value={ phone } onChange={ ( e ) => setPhone( e.target.value ) } fullWidth />
+						<TextField size="small" fullWidth label="Notes (allergies, requests…)" value={ notes } onChange={ ( e ) => setNotes( e.target.value ) } />
+					</Stack>
+					{ error && <Typography sx={ { color: tokens.red, fontSize: 13, mt: 1 } }>{ error }</Typography> }
+					<Stack direction="row" alignItems="center" spacing={ 1.5 } sx={ { mt: 1.5 } }>
+						<Typography sx={ { fontWeight: 800, fontSize: 17 } }>{ money( total ) }</Typography>
+						<Box sx={ { flex: 1 } } />
+						<Button onClick={ onCancel } sx={ { color: tokens.muted } }>Cancel</Button>
+						<Button variant="contained" onClick={ create } disabled={ saving || lines.length === 0 }>
+							{ saving ? 'Creating…' : 'Create order' }
+						</Button>
+					</Stack>
+				</Box>
 			</Stack>
-		</Card>
+		</Box>
 	);
 }
 
