@@ -393,6 +393,30 @@
 	color: var(--dinekit-muted);
 }
 
+/* ---- "Order online" bridge button (menu page → ordering page) ---- */
+.dinekit-menu__ordercta {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 0.75rem;
+}
+
+.dinekit-ordercta {
+	display: inline-block;
+	padding: 0.55rem 1.1rem;
+	border-radius: 999px;
+	background: var(--dinekit-accent);
+	color: #fff !important;
+	font-weight: 700;
+	font-size: 0.9em;
+	text-decoration: none;
+	transition: filter 0.15s ease, transform 0.08s ease;
+}
+
+.dinekit-ordercta:hover {
+	filter: brightness(1.08);
+	transform: translateY(-1px);
+}
+
 /* ---- Allergen matrix ---- */
 .dinekit-matrix {
 	margin-top: 1.25rem;

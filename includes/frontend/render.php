@@ -32,6 +32,7 @@ function defaults() {
 		'columns'           => 0,      // 0 = layout default; 1–4 forces a column count.
 		'show_images'       => true,
 		'show_allergens'    => true,
+		'order_link'        => true,   // "Order online" bridge button (auto-hides when ordering is off).
 		'show_dietary'      => true,
 		'show_matrix'       => true,
 		'show_filter'       => true,
@@ -173,6 +174,9 @@ function menu( $args = array() ) {
 		<?php echo $style ? 'style="' . esc_attr( $style ) . '"' : ''; ?>
 	>
 		<?php
+		if ( ! empty( $args['order_link'] ) ) {
+			echo render_order_cta(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
 		if ( $args['show_filter'] ) {
 			echo render_filter_bar( $groups, $allergen_map, $filter_style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
@@ -522,6 +526,34 @@ function allergen_map() {
 		}
 	}
 	return $map;
+}
+
+/**
+ * The browsing-menu → ordering-page bridge: an "Order online" button shown
+ * only when online ordering is actually ON and a published ordering page
+ * exists — a hungry visitor on the menu page should never have to hunt for
+ * the way to order. Opt out per menu with order_link="no".
+ *
+ * @return string
+ */
+function render_order_cta() {
+	require_once DINEKIT_DIR . 'includes/ordering/ordering.php';
+	$settings = \DineKit\Ordering\get_settings();
+	if ( empty( $settings['enabled'] ) ) {
+		return '';
+	}
+	require_once DINEKIT_DIR . 'includes/sample.php';
+	$page = \DineKit\Sample\find_page( 'order' );
+	if ( ! $page || 'publish' !== $page['status'] || '' === $page['url'] ) {
+		return '';
+	}
+	// Don't render the bridge on the ordering page itself (both surfaces on
+	// one page is a valid setup — a self-link would just be noise).
+	if ( get_the_ID() && (int) get_the_ID() === (int) $page['id'] ) {
+		return '';
+	}
+	return '<div class="dinekit-menu__ordercta"><a class="dinekit-ordercta" href="' . esc_url( $page['url'] ) . '">'
+		. esc_html__( 'Order online', 'dinekit' ) . ' &rarr;</a></div>';
 }
 
 /**

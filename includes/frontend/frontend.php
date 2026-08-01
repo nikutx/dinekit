@@ -202,6 +202,7 @@ function shortcode( $atts ) {
 			'filter'       => 'yes',
 			'filter_style' => 'chips',
 			'allergens_as' => 'icons',
+			'order_link'   => 'yes',
 		),
 		$atts,
 		'dinekit_menu'
@@ -232,6 +233,7 @@ function shortcode( $atts ) {
 			'show_filter'      => $show_filter,
 			'filter_style'     => (string) $atts['filter_style'],
 			'allergen_display' => (string) $atts['allergens_as'],
+			'order_link'       => $truthy( $atts['order_link'] ),
 		)
 	);
 }
