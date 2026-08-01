@@ -755,6 +755,34 @@ function update_order( $request ) {
 				}
 			}
 		}
+	} elseif ( 'cancel_tab' === $action ) {
+		// The accidental-open escape hatch: a tab with nothing fired and
+		// nothing paid can be walked back entirely — the tab cancels, the
+		// auto-booked walk-in cancels (a REAL booking it seated returns to
+		// confirmed), and the table frees with no bussing: nothing happened.
+		if ( 'dine_in' !== (string) get_post_meta( $id, 'dinekit_order_channel', true ) ) {
+			return new \WP_Error( 'dinekit_not_tab', __( 'Only dine-in tabs can be cancelled this way.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		$tenders = json_decode( (string) get_post_meta( $id, 'dinekit_order_tenders', true ), true );
+		if ( is_array( $tenders ) && count( $tenders ) > 0 ) {
+			return new \WP_Error( 'dinekit_tab_paid', __( 'Money has been taken on this tab — settle or amend it instead.', 'dinekit' ), array( 'status' => 400 ) );
+		}
+		$items = json_decode( (string) get_post_meta( $id, 'dinekit_order_items', true ), true );
+		foreach ( (array) $items as $li ) {
+			if ( ! empty( $li['fired'] ) ) {
+				return new \WP_Error( 'dinekit_tab_fired', __( 'The kitchen already has part of this tab — void the lines instead.', 'dinekit' ), array( 'status' => 400 ) );
+			}
+		}
+		update_post_meta( $id, 'dinekit_order_status', 'cancelled' );
+		Ordering\log_event( $id, __( 'Tab cancelled — opened by mistake, nothing fired or paid', 'dinekit' ) );
+		$bid = (int) get_post_meta( $id, 'dinekit_order_booking', true );
+		if ( $bid && 'dinekit_booking' === get_post_type( $bid ) && 'seated' === (string) get_post_meta( $bid, 'dinekit_status', true ) ) {
+			if ( 'pos' === (string) get_post_meta( $bid, 'dinekit_source', true ) ) {
+				update_post_meta( $bid, 'dinekit_status', 'cancelled' );
+			} else {
+				update_post_meta( $bid, 'dinekit_status', 'confirmed' );
+			}
+		}
 	} elseif ( 'retype_tender' === $action ) {
 		// Manager fix-up for "pressed voucher, meant cash": swap a payment's
 		// METHOD in place. The amount and the settle are untouched — the tab

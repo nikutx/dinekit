@@ -466,14 +466,15 @@ export default function POSView() {
 	// sync channel (the auto walk-in the till creates bumps it too).
 	const [ dayBookings, setDayBookings ] = useState( [] );
 	const bookingsRev = useSyncRevision( 'bookings' );
-	useEffect( () => {
+	const loadDayBookings = () => {
 		const d = new Date();
 		const p2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
 		const iso = d.getFullYear() + '-' + p2( d.getMonth() + 1 ) + '-' + p2( d.getDate() );
 		api.listBookings( { from: iso, to: iso } )
 			.then( ( rows ) => setDayBookings( ( rows || [] ).filter( ( b ) => ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) ) ) )
 			.catch( () => {} );
-	}, [ bookingsRev ] );
+	};
+	useEffect( loadDayBookings, [ bookingsRev ] );
 	// Floor state (cleaning flags, maintenance, layout) must follow the server:
 	// settling on ANY device flags the table, and this screen has to show it
 	// without a reload. The floor sync channel bumps on any table change.
@@ -606,6 +607,27 @@ export default function POSView() {
 	const openTakeaway = () => { setActive( { tableId: 0, tableName: 'Takeaway', order: null, takeaway: true } ); setCourse( '' ); };
 	const back = () => setActive( null );
 
+	// Accidental table open: scrap the tab (nothing fired/paid), release the
+	// booking it seated, free the table — as if it never happened.
+	const [ cancelTabOpen, setCancelTabOpen ] = useState( false );
+	const cancelTab = async () => {
+		if ( ! active || ! active.order ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			const fresh = await api.updateOrder( active.order.id, { action: 'cancel_tab' } );
+			setOrders( ( os ) => os.filter( ( o ) => o.id !== fresh.id ) );
+			loadDayBookings(); // the released booking must stop lighting the tile now
+			setActive( null );
+		} catch ( e ) {
+			setOfflineNote( e.message || 'Could not cancel the tab.' );
+		} finally {
+			setBusy( false );
+			setCancelTabOpen( false );
+		}
+	};
+
 	// Reflect an updated/created order into both the active pad and the tab list.
 	const syncOrder = ( order ) => {
 		setActive( ( a ) => ( a ? { ...a, order } : a ) );
@@ -615,8 +637,9 @@ export default function POSView() {
 		} );
 		// Settling THIS tab flags its table for clearing server-side — mirror
 		// that locally so the tile flips to "Clear ✓" the moment the bill is
-		// paid, not on the next heartbeat.
-		if ( order && 'dine_in' === order.channel && TAB_CLOSED.includes( order.status ) && order.tableId ) {
+		// paid, not on the next heartbeat. (Settled only — a CANCELLED tab
+		// served nobody, so there's nothing to clear.)
+		if ( order && 'dine_in' === order.channel && 'completed' === order.status && order.tableId ) {
 			setFloor( ( f ) => ( { ...f, tables: ( f.tables || [] ).map( ( x ) => ( x.id === order.tableId ? { ...x, cleaning: x.cleaning || new Date().toISOString() } : x ) ) } ) );
 		}
 	};
@@ -979,6 +1002,11 @@ export default function POSView() {
 					{ active.order && ! active.takeaway && (
 					<Button variant="outlined" startIcon={ <TableRestaurantIcon /> } onClick={ () => setMoveOpen( true ) }>Move</Button>
 				) }
+					{ /* Escape hatch for an accidental open: nothing fired, nothing
+					     paid → the tab can be scrapped and the table freed. */ }
+					{ active.order && ! active.takeaway && isOpenTab( active.order ) && ! ( active.order.tenders || [] ).length && ( active.order.items || [] ).every( ( li ) => ! li.fired ) && (
+						<Button variant="outlined" color="error" onClick={ () => setCancelTabOpen( true ) }>Cancel tab</Button>
+					) }
 			</Stack>
 
 			{ histOpen && active.tableId ? (
@@ -1154,6 +1182,15 @@ export default function POSView() {
 					</Modal>
 				);
 			} )() }
+
+			<ConfirmDialog
+				open={ cancelTabOpen }
+				title="Cancel this tab?"
+				message={ `Nothing has been fired or paid — the tab is scrapped, ${ active.tableName } frees up, and any booking it seated is released.` }
+				confirmLabel="Cancel tab"
+				onConfirm={ cancelTab }
+				onCancel={ () => setCancelTabOpen( false ) }
+			/>
 
 			{ moveOpen && (
 				<Modal open onClose={ () => setMoveOpen( false ) }>
