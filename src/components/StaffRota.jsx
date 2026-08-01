@@ -24,6 +24,10 @@ import { tokens } from '../theme';
 import { api } from '../api/client';
 
 const pad = ( n ) => ( n < 10 ? '0' : '' ) + n;
+const toMinRota = ( t ) => {
+	const p = String( t || '' ).split( ':' );
+	return ( parseInt( p[ 0 ], 10 ) || 0 ) * 60 + ( parseInt( p[ 1 ], 10 ) || 0 );
+};
 const isoOf = ( d ) => d.getFullYear() + '-' + pad( d.getMonth() + 1 ) + '-' + pad( d.getDate() );
 const DAYNAMES = [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ];
 
@@ -212,12 +216,41 @@ export default function StaffRota( { staff, roles } ) {
 	const setBlock = ( i, patch ) => {
 		setEditing( { ...editing, blocks: editing.blocks.map( ( b, bi ) => ( bi === i ? { ...b, ...patch } : b ) ) } );
 	};
+	// Blocks can be typed in ANY order (late shift first, then add the
+	// morning) — they sort themselves by start time on save, and overlapping
+	// times block the Save with a plain warning instead of policing the order
+	// of entry. end <= start means the shift runs past midnight (the server
+	// already pays it that way), so 18:00–02:00 is legal, not an error.
+	const blockSpan = ( b ) => {
+		const s = toMinRota( b.start );
+		const e = toMinRota( b.end );
+		return { s, e: e <= s ? e + 1440 : e };
+	};
+	const blockIssues = ( ed ) => {
+		if ( ! ed || 'work' !== ( ed.type || 'work' ) ) {
+			return [];
+		}
+		const rows = ed.blocks
+			.map( ( b, i ) => ( { ...blockSpan( b ), n: i + 1, start: b.start, end: b.end } ) )
+			.filter( ( r ) => r.start && r.end )
+			.sort( ( a, b ) => a.s - b.s );
+		const out = [];
+		for ( let i = 1; i < rows.length; i++ ) {
+			if ( rows[ i ].s < rows[ i - 1 ].e ) {
+				out.push( `Shifts ${ rows[ i - 1 ].n } and ${ rows[ i ].n } overlap (${ rows[ i - 1 ].start }–${ rows[ i - 1 ].end } and ${ rows[ i ].start }–${ rows[ i ].end }). Adjust one of them — the same person can't work both at once.` );
+			}
+		}
+		return out;
+	};
 	// ONE Save: update/create every block, delete removed ones, then copy the
 	// whole day (all blocks) to any ticked days that are still empty.
 	const saveShift = async () => {
 		const base = { staffId: editing.staffId, date: editing.date, role: editing.role, note: editing.note, type: editing.type || 'work' };
-		// Day off / sick is a single record for the day.
-		const blocks = 'work' === base.type ? editing.blocks.filter( ( b ) => b.start && b.end ) : editing.blocks.slice( 0, 1 );
+		// Day off / sick is a single record for the day. Work blocks store in
+		// time order no matter the order they were typed in.
+		const blocks = 'work' === base.type
+			? editing.blocks.filter( ( b ) => b.start && b.end ).sort( ( a, b ) => toMinRota( a.start ) - toMinRota( b.start ) )
+			: editing.blocks.slice( 0, 1 );
 		for ( const id of editing.removed ) {
 			// eslint-disable-next-line no-await-in-loop
 			await api.deleteShift( id );
@@ -558,11 +591,22 @@ export default function StaffRota( { staff, roles } ) {
 											Add shift
 										</Button>
 									) }
-									{ editing.blocks.length > 1 && (
+									{ /* What the day adds up to, in plain terms — including a
+									     "past midnight" tag so 09:00–08:00 typos expose
+									     themselves as a 23h shift instead of saving silently. */ }
+									{ 'work' === ( editing.type || 'work' ) && editing.blocks.some( ( b ) => b.start && b.end ) && (
 										<Typography sx={ { fontSize: 12, color: tokens.muted } }>
-											Split day — { editing.blocks.length } blocks of hours. Copying to other days copies all of them.
+											{ editing.blocks.filter( ( b ) => b.start && b.end ).map( ( b ) => {
+												const sp = blockSpan( b );
+												const h = Math.round( ( ( sp.e - sp.s ) / 60 ) * 10 ) / 10;
+												return `${ b.start }–${ b.end } (${ h }h${ sp.e > 1440 ? ', past midnight' : '' })`;
+											} ).join( ' · ' ) }
+											{ editing.blocks.length > 1 ? ' — copying to other days copies the whole day.' : '' }
 										</Typography>
 									) }
+									{ blockIssues( editing ).map( ( msg ) => (
+										<Typography key={ msg } sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.red } }>⚠ { msg }</Typography>
+									) ) }
 								</Stack>
 							) }
 							{ ( editing.type || 'work' ) === 'sick' && (
@@ -609,7 +653,7 @@ export default function StaffRota( { staff, roles } ) {
 								) }
 								<Box sx={ { flex: 1 } } />
 								<Button onClick={ () => setEditing( null ) } sx={ { color: tokens.muted } }>Cancel</Button>
-								<Button variant="contained" onClick={ saveShift }>
+								<Button variant="contained" onClick={ saveShift } disabled={ blockIssues( editing ).length > 0 }>
 									{ copyTargets.length ? `Save + copy to ${ copyTargets.length } day${ copyTargets.length === 1 ? '' : 's' }` : ( editing.blocks.length > 1 ? `Save ${ editing.blocks.length } shifts` : 'Save shift' ) }
 								</Button>
 							</Stack>
