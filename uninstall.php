@@ -21,6 +21,9 @@ delete_option( 'dinekit_activated_at' );
 // plugin must never leave a scheduled event behind.
 wp_clear_scheduled_hook( 'dinekit_review_cron' );
 wp_clear_scheduled_hook( 'dinekit_sms_cron' );
+wp_clear_scheduled_hook( 'dinekit_support_cron' );
+delete_option( 'dinekit_support_unread_count' );
+delete_option( 'dinekit_support_seen_at' );
 
 if ( ! get_option( 'dinekit_delete_data_on_uninstall' ) ) {
 	// Keep data (default): leave CPT content, taxonomies and seed flag intact.

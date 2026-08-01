@@ -28,6 +28,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const TOKEN_OPTION    = 'dinekit_support_token';
 const IDENTITY_OPTION = 'dinekit_support_identity';
+const UNREAD_OPTION   = 'dinekit_support_unread_count';
+const SEEN_OPTION     = 'dinekit_support_seen_at';
+const CRON            = 'dinekit_support_cron';
 
 /**
  * Hook registration.
@@ -36,6 +39,80 @@ const IDENTITY_OPTION = 'dinekit_support_identity';
  */
 function init() {
 	add_action( 'rest_api_init', __NAMESPACE__ . '\\register_routes' );
+
+	// Reply awareness for the notification bell. Runs ONLY when this site has
+	// a support token (i.e. the owner has actually used Support) — a site that
+	// never opened a ticket never contacts the hub. Disclosed in readme.
+	add_action( CRON, __NAMESPACE__ . '\\check_replies' );
+	add_filter(
+		'cron_schedules', // phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval -- 10 min; a support conversation at hourly granularity is useless.
+		static function ( $schedules ) {
+			$schedules['dinekit_10min'] = array(
+				'interval' => 10 * MINUTE_IN_SECONDS,
+				'display'  => __( 'Every 10 minutes (DineKit support)', 'dinekit' ),
+			);
+			return $schedules;
+		}
+	);
+	add_action(
+		'init',
+		static function () {
+			$has_token = '' !== (string) get_option( TOKEN_OPTION, '' );
+			if ( $has_token && ! wp_next_scheduled( CRON ) ) {
+				wp_schedule_event( time() + MINUTE_IN_SECONDS, 'dinekit_10min', CRON );
+			} elseif ( ! $has_token && wp_next_scheduled( CRON ) ) {
+				wp_clear_scheduled_hook( CRON );
+			}
+		}
+	);
+}
+
+/**
+ * How many replies from the support team the user hasn't seen yet. Read by
+ * the notification bell — local option only, never a hub call in a request.
+ *
+ * @return int
+ */
+function unread_count() {
+	return max( 0, (int) get_option( UNREAD_OPTION, 0 ) );
+}
+
+/**
+ * Cron: ask the hub whether any of THIS site's tickets got a team reply since
+ * the user last looked at the Support screen, and cache the count locally.
+ *
+ * @return void
+ */
+function check_replies() {
+	if ( '' === (string) get_option( TOKEN_OPTION, '' ) ) {
+		return;
+	}
+	$data = proxy( 'GET', 'tickets' );
+	if ( is_wp_error( $data ) || ! isset( $data['items'] ) ) {
+		return; // Hub unreachable — keep the last known state, never guess.
+	}
+	$seen   = (int) get_option( SEEN_OPTION, 0 );
+	$unread = 0;
+	foreach ( (array) $data['items'] as $ticket ) {
+		// "pending" = the support team replied and the ball is in the user's court.
+		if ( isset( $ticket['status'] ) && 'pending' === $ticket['status'] ) {
+			$updated = isset( $ticket['updated_at'] ) ? strtotime( (string) $ticket['updated_at'] ) : 0;
+			if ( $updated > $seen ) {
+				++$unread;
+			}
+		}
+	}
+	update_option( UNREAD_OPTION, $unread, false );
+}
+
+/**
+ * The user is looking at Support right now — everything is "seen".
+ *
+ * @return void
+ */
+function mark_seen() {
+	update_option( SEEN_OPTION, time(), false );
+	update_option( UNREAD_OPTION, 0, false );
 }
 
 /**
@@ -241,6 +318,7 @@ function rest_list() {
 	if ( is_wp_error( $data ) ) {
 		return $data;
 	}
+	mark_seen(); // They're looking at the list — the bell's support item clears.
 	return rest_ensure_response(
 		array(
 			'items'     => isset( $data['items'] ) ? $data['items'] : array(),

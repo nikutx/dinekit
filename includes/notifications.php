@@ -209,6 +209,26 @@ function rest_get() {
 		}
 	}
 
+	// A reply from DineKit support (cached locally by the support cron — the
+	// bell itself never calls the hub).
+	require_once DINEKIT_DIR . 'includes/support.php';
+	if ( \DineKit\Support\can_use() ) {
+		$replies = \DineKit\Support\unread_count();
+		if ( $replies > 0 ) {
+			$items[] = array(
+				'key'   => 'support',
+				'count' => $replies,
+				'label' => sprintf(
+					/* translators: %d: number of support requests with a new reply. */
+					_n( 'Support replied to your request', 'Support replied to %d of your requests', $replies, 'dinekit' ),
+					$replies
+				),
+				'view'  => 'support',
+				'tone'  => 'green',
+			);
+		}
+	}
+
 	$total = 0;
 	foreach ( $items as $item ) {
 		$total += (int) $item['count'];

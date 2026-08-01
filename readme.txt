@@ -109,11 +109,12 @@ DineKit's optional **text message (SMS)** feature uses **Twilio**, with your own
 * Terms: https://www.twilio.com/en-us/legal/tos
 * Privacy: https://www.twilio.com/en-us/legal/privacy
 
-DineKit's optional **direct support** feature (DineKit → Support) sends your support request to Web Level Up, the makers of DineKit, at https://weblevelup.co.uk. Nothing is sent automatically or in the background — the service is contacted only when a logged-in user opens the Support screen or presses send:
+DineKit's optional **direct support** feature (DineKit → Support) sends your support request to Web Level Up, the makers of DineKit, at https://weblevelup.co.uk. If you have never used Support, this service is never contacted:
 
 * When you send a request or reply, DineKit transmits the name, email address, subject and message you typed, plus your site address (used to link replies back to your dashboard and keep your ticket history together).
 * If — and only if — you tick the "include my site details" box, your WordPress, PHP and DineKit version numbers are attached to help with debugging.
 * Opening the Support screen fetches your own site's ticket history from the same service.
+* Once you HAVE made a support request, DineKit periodically checks that same service for replies to your own requests (roughly every 10 minutes, sending only your site's support token) so the notification bell can tell you when the team has answered. No other data is sent, and the check stops entirely if you uninstall or never had a request.
 
 If you prefer not to use direct support, the Support screen also links to the plugin's free forum at https://wordpress.org/support/plugin/dinekit/ — using the forum sends nothing to Web Level Up. Web Level Up privacy policy: https://weblevelup.co.uk/privacy-policy/
 

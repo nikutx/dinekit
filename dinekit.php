@@ -122,6 +122,7 @@ register_deactivation_hook(
 	function () {
 		wp_clear_scheduled_hook( 'dinekit_review_cron' );
 		wp_clear_scheduled_hook( 'dinekit_sms_cron' );
+		wp_clear_scheduled_hook( 'dinekit_support_cron' );
 		flush_rewrite_rules();
 	}
 );
