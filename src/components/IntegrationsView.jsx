@@ -554,13 +554,17 @@ function SmsCard() {
 							DineKit talks to (it’s about where Twilio processes the request, not where your texts can go).
 						</li>
 						<li>
-							Get your sending number: on a trial the homepage shows a <strong>“Get a phone number”</strong> button — one click.
-							Otherwise it’s under <strong>Phone Numbers → Manage → Active numbers</strong>. Paste it here with the country code (+44…).
+							Get your sending number:{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }(free on trial — pick your country, press Search, take one), and{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">your active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }if you already have one. Paste it here with the country code (+44…).
 						</li>
 						<li>
-							<strong>Trial accounts</strong> can only text numbers you’ve verified
-							(Phone Numbers → Manage → <strong>Verified Caller IDs</strong> — add your own mobile),
-							and Twilio prefixes each text with “Sent from your Twilio trial account”. Upgrading removes both limits.
+							<strong>Trial accounts</strong> can only text numbers you’ve verified — the mobile you signed up with
+							already is; add others under{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noreferrer">Verified Caller IDs <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
+							Twilio also prefixes each trial text with “Sent from your Twilio trial account”. Upgrading removes both limits.
 						</li>
 						<li>Flip <strong>Enable SMS</strong> on and use <strong>Send a test text</strong> below — to your verified mobile.</li>
 					</Box>
