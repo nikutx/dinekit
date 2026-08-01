@@ -515,6 +515,7 @@ function SmsCard() {
 		<Card sx={ { p: 2.5, mt: 2 } }>
 			<Stack direction="row" alignItems="center" spacing={ 1.25 } sx={ { mb: 0.5 } }>
 				<Typography sx={ { fontWeight: 700, fontSize: 16 } }>Text messages (SMS)</Typography>
+				<Chip label="Beta" size="small" sx={ { bgcolor: tokens.violetSoft, color: tokens.violet, fontWeight: 700 } } />
 				{ cfg.enabled && cfg.sid && cfg.tokenSet && cfg.from ? (
 					<Chip icon={ <CheckCircleIcon sx={ { fontSize: 15 } } /> } label="Connected" size="small" sx={ { bgcolor: tokens.greenSoft, color: tokens.green, fontWeight: 700 } } />
 				) : (
@@ -528,6 +529,8 @@ function SmsCard() {
 				Booking confirmations, reminders, “your table is ready” and “order ready for collection” —
 				sent through <strong>your own Twilio account</strong>, so you pay Twilio’s raw price
 				(fractions of a penny per text) and DineKit never sees your messages.
+				{ ' ' }<strong>Beta:</strong> new in this release and still being field-tested — everything is off until you
+				switch it on, and the test button below tells you straight away whether your setup works.
 			</Typography>
 
 			{ /* Until it's connected, walk the owner to the exact spots in the
