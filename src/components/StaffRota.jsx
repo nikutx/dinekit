@@ -20,7 +20,6 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckIcon from '@mui/icons-material/Check';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 
@@ -140,6 +139,9 @@ export default function StaffRota( { staff, roles } ) {
 		setCopyTargets( [] );
 		setEditing( { ...sh, staffName: m ? m.name : '' } );
 	};
+	// Save = save AND copy: ticked days are intent, so one press does the lot
+	// (the button says so). Copies skip a day that already has a shift for the
+	// same person — the + in the cell is the deliberate route to split shifts.
 	const saveShift = async () => {
 		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' };
 		if ( editing.id ) {
@@ -147,18 +149,12 @@ export default function StaffRota( { staff, roles } ) {
 		} else {
 			await api.createShift( body );
 		}
-		setEditing( null );
-		load();
-	};
-	// Clone this shift's times/role onto the ticked days for the same person
-	// (skips a day that already has a shift for them).
-	const copyShift = async () => {
 		for ( const date of copyTargets ) {
-			if ( cellShifts( editing.staffId, date ).length ) {
+			if ( date === editing.date || cellShifts( editing.staffId, date ).length ) {
 				continue;
 			}
 			// eslint-disable-next-line no-await-in-loop
-			await api.createShift( { staffId: editing.staffId, date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' } );
+			await api.createShift( { ...body, date } );
 		}
 		setEditing( null );
 		setCopyTargets( [] );
@@ -170,6 +166,21 @@ export default function StaffRota( { staff, roles } ) {
 		}
 		setEditing( null );
 		load();
+	};
+	// Split shift from inside the drawer: save what's on screen, then flip the
+	// drawer to the NEXT block of hours for the same person/day — starting
+	// where the last one ended. Press it as many times as the day needs.
+	const addSplit = async () => {
+		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' };
+		if ( editing.id ) {
+			await api.updateShift( editing.id, body );
+		} else {
+			await api.createShift( body );
+		}
+		load();
+		const start = /^\d{1,2}:\d{2}$/.test( editing.end || '' ) && editing.end < '23:00' ? editing.end : '17:00';
+		setCopyTargets( [] );
+		setEditing( { staffId: editing.staffId, staffName: editing.staffName, date: editing.date, start, end: '23:00', role: editing.role, note: '', type: 'work' } );
 	};
 
 	if ( ! active.length ) {
@@ -432,41 +443,50 @@ export default function StaffRota( { staff, roles } ) {
 							</TextField>
 							<TextField label="Note (optional)" size="small" value={ editing.note } onChange={ ( e ) => setEditing( { ...editing, note: e.target.value } ) } fullWidth />
 
-							{ /* Clone this shift onto other days for the same person */ }
-							{ editing.id && (
-								<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, p: 1.5 } }>
-									<Typography sx={ { fontSize: 12.5, fontWeight: 700, color: tokens.ink2, mb: 1 } }>Copy these times to…</Typography>
-									<Stack direction="row" spacing={ 0.75 } flexWrap="wrap" useFlexGap>
-										{ days.map( ( d, i ) => {
-											const date = isoOf( d );
-											if ( date === editing.date ) {
-												return null;
-											}
-											const on = copyTargets.includes( date );
-											return (
-												<Chip
-													key={ date }
-													label={ `${ DAYNAMES[ i ] } ${ d.getDate() }` }
-													size="small"
-													onClick={ () => setCopyTargets( ( t ) => ( on ? t.filter( ( x ) => x !== date ) : [ ...t, date ] ) ) }
-													sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: on ? tokens.accent : tokens.soft, color: on ? '#fff' : tokens.ink2 } }
-												/>
-											);
-										} ) }
-									</Stack>
-									<Button size="small" variant="outlined" startIcon={ <ContentCopyIcon /> } disabled={ ! copyTargets.length } onClick={ copyShift } sx={ { mt: 1.25 } }>
-										Copy to { copyTargets.length || '' } day{ copyTargets.length === 1 ? '' : 's' }
-									</Button>
-								</Box>
-							) }
+							{ /* Copy to other days: tick the days, then ONE press of Save does
+						     the saving and the copying — the button says so. Available
+						     when creating too (make Monday, tick Tue–Fri, done). */ }
+							<Box sx={ { border: `1px solid ${ tokens.border }`, borderRadius: 2, p: 1.5 } }>
+								<Typography sx={ { fontSize: 12.5, fontWeight: 700, color: tokens.ink2, mb: 1 } }>Also copy to…</Typography>
+								<Stack direction="row" spacing={ 0.75 } flexWrap="wrap" useFlexGap>
+									{ days.map( ( d, i ) => {
+										const date = isoOf( d );
+										if ( date === editing.date ) {
+											return null;
+										}
+										const on = copyTargets.includes( date );
+										return (
+											<Chip
+												key={ date }
+												label={ `${ DAYNAMES[ i ] } ${ d.getDate() }` }
+												size="small"
+												onClick={ () => setCopyTargets( ( t ) => ( on ? t.filter( ( x ) => x !== date ) : [ ...t, date ] ) ) }
+												sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: on ? tokens.accent : tokens.soft, color: on ? '#fff' : tokens.ink2 } }
+											/>
+										);
+									} ) }
+								</Stack>
+								{ copyTargets.length > 0 && (
+									<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 1 } }>
+										Saving will also create this shift on { copyTargets.length } more day{ copyTargets.length === 1 ? '' : 's' } (days that already have one are skipped).
+									</Typography>
+								) }
+							</Box>
 
 							<Stack direction="row" alignItems="center" spacing={ 1 }>
 								{ editing.id && (
 									<Button color="error" size="small" startIcon={ <DeleteOutlineIcon /> } onClick={ () => setConfirmDel( true ) }>Delete</Button>
 								) }
+								{ ( editing.type || 'work' ) === 'work' && (
+									<Button size="small" startIcon={ <AddIcon /> } onClick={ addSplit } title="Save this shift, then add another block of hours the same day">
+										Split shift
+									</Button>
+								) }
 								<Box sx={ { flex: 1 } } />
 								<Button onClick={ () => setEditing( null ) } sx={ { color: tokens.muted } }>Cancel</Button>
-								<Button variant="contained" onClick={ saveShift }>Save shift</Button>
+								<Button variant="contained" onClick={ saveShift }>
+									{ copyTargets.length ? `Save + copy to ${ copyTargets.length } day${ copyTargets.length === 1 ? '' : 's' }` : 'Save shift' }
+								</Button>
 							</Stack>
 						</Stack>
 					</Box>
