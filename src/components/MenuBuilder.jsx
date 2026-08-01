@@ -530,6 +530,10 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					Add section
 				</Button>
 			</Stack>
+			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 0.75 } }>
+				Sections organise dishes <em>within</em> this menu (Starters, Mains…). Running separate
+				menus — Lunch, Dinner, Christmas? Use the menu switcher at the top instead.
+			</Typography>
 
 			{ board.order.filter( ( k ) => k !== NONE ).length === 0 && (
 				<Typography color="text.secondary" sx={ { textAlign: 'center', mt: 4 } }>

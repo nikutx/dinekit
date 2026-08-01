@@ -869,6 +869,15 @@ function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRe
 				</Box>
 			) }
 
+			{ /* The customer's note first — allergies and requests must never be
+			     buried under items and totals. */ }
+			{ order.notes && (
+				<Box sx={ { mb: 2, p: 1.25, borderRadius: '10px', bgcolor: tokens.amberSoft, border: `1px solid ${ tokens.amber }` } }>
+					<Typography sx={ { fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: tokens.amber } }>Customer note</Typography>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink, mt: 0.25 } }>“{ order.notes }”</Typography>
+				</Box>
+			) }
+
 			<DSection title="Customer">
 				<DRow label="Name" value={ order.name || '—' } />
 				{ order.phone && <DRow label="Phone" value={ order.phone } /> }

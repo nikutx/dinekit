@@ -27,6 +27,46 @@ function init() {
 	add_action( 'init', __NAMESPACE__ . '\\register' );
 	add_shortcode( 'dinekit_menu', __NAMESPACE__ . '\\shortcode' );
 	add_shortcode( 'dinekit_hours', __NAMESPACE__ . '\\hours_shortcode' );
+	add_action( 'admin_bar_menu', __NAMESPACE__ . '\\admin_bar_link', 90 );
+}
+
+/**
+ * Admin-bar shortcut on DineKit's public pages: viewing your own live menu /
+ * ordering / booking page, one click gets you back to the matching DineKit
+ * screen — "how do I get back to the system?" answered where it's asked.
+ *
+ * @param \WP_Admin_Bar $bar Admin bar.
+ * @return void
+ */
+function admin_bar_link( $bar ) {
+	if ( is_admin() || ! is_singular() || ! current_user_can( 'edit_posts' ) ) {
+		return;
+	}
+	$post = get_post();
+	if ( ! $post ) {
+		return;
+	}
+	$content = (string) $post->post_content;
+	$view    = '';
+	if ( has_shortcode( $content, 'dinekit_order' ) ) {
+		$view = 'orders';
+	} elseif ( has_shortcode( $content, 'dinekit_booking' ) ) {
+		$view = 'bookings';
+	} elseif ( has_shortcode( $content, 'dinekit_menu' ) || str_contains( $content, 'wp:dinekit/menu' ) ) {
+		$view = 'builder';
+	} elseif ( has_shortcode( $content, 'dinekit_hours' ) ) {
+		$view = 'hours';
+	}
+	if ( '' === $view ) {
+		return;
+	}
+	$bar->add_node(
+		array(
+			'id'    => 'dinekit-manage',
+			'title' => '🍽 ' . __( 'Manage in DineKit', 'dinekit' ),
+			'href'  => admin_url( 'admin.php?page=dinekit#/' . $view ),
+		)
+	);
 }
 
 /**

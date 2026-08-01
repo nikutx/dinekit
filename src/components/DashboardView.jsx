@@ -212,7 +212,7 @@ export default function DashboardView( { navigate } ) {
 									{ d.todayBookings.map( ( b, i ) => {
 										const sm = statusMeta( b.status );
 										return (
-											<Stack key={ i } direction="row" alignItems="center" spacing={ 1.5 } sx={ { py: 1, borderBottom: `1px solid ${ tokens.soft }` } }>
+											<Stack key={ i } direction="row" alignItems="center" spacing={ 1.5 } onClick={ () => navigate( 'bookings' ) } sx={ { py: 1, borderBottom: `1px solid ${ tokens.soft }`, cursor: 'pointer', '&:hover': { bgcolor: tokens.soft } } }>
 												<Box sx={ { width: 3, height: 30, borderRadius: 999, bgcolor: sm.fg, flexShrink: 0 } } />
 												<Typography sx={ { fontWeight: 650, width: 46, fontVariantNumeric: 'tabular-nums', fontSize: 14 } }>{ b.time }</Typography>
 												<Box sx={ { flex: 1, minWidth: 0 } }>
@@ -235,7 +235,7 @@ export default function DashboardView( { navigate } ) {
 							) : (
 								<Stack spacing={ 0.5 }>
 									{ d.recentOrders.map( ( o, i ) => (
-										<Stack key={ i } direction="row" alignItems="center" spacing={ 1.5 } sx={ { py: 1, borderBottom: `1px solid ${ tokens.soft }` } }>
+										<Stack key={ i } direction="row" alignItems="center" spacing={ 1.5 } onClick={ () => navigate( 'orders' ) } sx={ { py: 1, borderBottom: `1px solid ${ tokens.soft }`, cursor: 'pointer', '&:hover': { bgcolor: tokens.soft } } }>
 											<Typography sx={ { fontWeight: 700, width: 56, fontVariantNumeric: 'tabular-nums' } }>#{ o.number }</Typography>
 											<Typography sx={ { flex: 1, fontSize: 14 } } noWrap>{ o.name || 'Customer' }</Typography>
 											<Typography sx={ { fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }>{ money( o.total ) }</Typography>
