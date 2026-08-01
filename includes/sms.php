@@ -55,8 +55,9 @@ function init() {
  */
 function defaults() {
 	return array(
-		'sid'          => '',    // Twilio account SID (ACxxxxxxxx…).
-		'token'        => '',    // Auth token — stored encrypted (dkenc1: prefix).
+		'sid'          => '',    // Twilio account SID (AC…) — or an API key SID (SK…), which the new console pushes people toward.
+		'account_sid'  => '',    // When sid is an API key: the owning account SID, resolved once via the API.
+		'token'        => '',    // Auth token (for AC…) or the API key's secret (for SK…) — stored encrypted (dkenc1: prefix).
 		'from'         => '',    // The venue's Twilio number, E.164.
 		'cc'           => '',    // Default country dial code for local numbers ('' = derive from venue country).
 		'enabled'      => false, // Master switch.
@@ -92,8 +93,16 @@ function save_settings( $input ) {
 	$s = namespace\get_settings();
 
 	if ( isset( $input['sid'] ) ) {
-		$sid      = sanitize_text_field( (string) $input['sid'] );
-		$s['sid'] = preg_match( '/^AC[a-fA-F0-9]{32}$/', $sid ) || '' === $sid ? $sid : $s['sid'];
+		$sid = sanitize_text_field( (string) $input['sid'] );
+		// AC… = classic account SID; SK… = an API key from the console's
+		// "Create API key" wizard — both are accepted (the owning account is
+		// resolved automatically for SK keys).
+		if ( preg_match( '/^(AC|SK)[a-fA-F0-9]{32}$/', $sid ) || '' === $sid ) {
+			if ( $sid !== $s['sid'] ) {
+				$s['account_sid'] = '';
+			}
+			$s['sid'] = $sid;
+		}
 	}
 	if ( isset( $input['token'] ) && '' !== trim( (string) $input['token'] ) ) {
 		$s['token'] = \DineKit\Integrations\encrypt_secret( sanitize_text_field( (string) $input['token'] ) );
@@ -210,6 +219,45 @@ function mask( $e164 ) {
 }
 
 /**
+ * The account SID to build API URLs with. A classic AC… SID is itself; an
+ * API key (SK…) authenticates fine but the URL still needs the OWNING
+ * account — ask Twilio once (GET /Accounts with the key) and cache it.
+ *
+ * @param array<string,mixed> $s     Settings.
+ * @param string              $token Decrypted token/secret.
+ * @return string|\WP_Error Account SID (AC…).
+ */
+function resolve_account_sid( $s, $token ) {
+	if ( 0 === strpos( (string) $s['sid'], 'AC' ) ) {
+		return (string) $s['sid'];
+	}
+	if ( '' !== (string) $s['account_sid'] ) {
+		return (string) $s['account_sid'];
+	}
+	$response = wp_remote_get(
+		'https://api.twilio.com/2010-04-01/Accounts.json?PageSize=1',
+		array(
+			'timeout' => 15,
+			'headers' => array(
+				'Authorization' => 'Basic ' . base64_encode( $s['sid'] . ':' . $token ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic auth encoding, not obfuscation.
+			),
+		)
+	);
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+	$data    = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+	$account = is_array( $data ) && ! empty( $data['accounts'][0]['sid'] ) ? (string) $data['accounts'][0]['sid'] : '';
+	if ( 0 !== strpos( $account, 'AC' ) ) {
+		return new \WP_Error( 'dinekit_sms_key', __( 'Twilio didn’t accept that API key — check the key SID and secret, or use the account’s Auth token instead.', 'dinekit' ) );
+	}
+	$saved                = namespace\get_settings();
+	$saved['account_sid'] = $account;
+	update_option( OPTION, $saved, false );
+	return $account;
+}
+
+/**
  * Send one SMS through the venue's Twilio account.
  *
  * @param string $to      Destination (any format — normalised here).
@@ -230,8 +278,15 @@ function send( $to, $body, $context = '' ) {
 	$s     = namespace\get_settings();
 	$token = \DineKit\Integrations\decrypt_secret( $s['token'] );
 
+	// The Messages URL needs the ACCOUNT SID even when authenticating with an
+	// API key (SK…) — resolve and cache the owning account on first use.
+	$account = resolve_account_sid( $s, $token );
+	if ( is_wp_error( $account ) ) {
+		return $account;
+	}
+
 	$response = wp_remote_post(
-		'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode( $s['sid'] ) . '/Messages.json',
+		'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode( $account ) . '/Messages.json',
 		array(
 			'timeout' => 15,
 			'headers' => array(

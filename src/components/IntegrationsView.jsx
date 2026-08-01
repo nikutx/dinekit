@@ -543,11 +543,13 @@ function SmsCard() {
 							{ ' ' }(no card needed for the trial).
 						</li>
 						<li>
-							Open{ ' ' }
-							<Link href="https://console.twilio.com/us1/account/keys-credentials/api-keys" target="_blank" rel="noreferrer">API keys &amp; tokens <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
-							{ ' ' }(that link goes straight there — it also lives under the <strong>Admin</strong> menu, top right → <strong>Account settings</strong>).
-							The <strong>“Live credentials”</strong> box holds your <strong>Account SID</strong> (starts with “AC”) and <strong>Auth Token</strong> —
-							press <strong>Show</strong>, copy both here. (Some accounts also show an “Account Info” box on the console homepage — same values.)
+							Your <strong>Account SID</strong> (starts with “AC”) sits right on the console home page, next to an
+							<strong>“API keys and Auth tokens”</strong> link — copy the SID here, then open that link.
+						</li>
+						<li>
+							On that page, <strong>either</strong> copy the existing <strong>Auth token</strong> (press Show — nothing to create),
+							<strong>or</strong> press <strong>Create API key</strong> and paste the key’s <strong>SID (“SK…”)</strong> into the first
+							field and its <strong>secret</strong> here instead — DineKit understands both.
 						</li>
 						<li>
 							Get your sending number: on a trial the homepage shows a <strong>“Get a phone number”</strong> button — one click.
@@ -564,12 +566,12 @@ function SmsCard() {
 			) }
 
 			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
-				{ field( 'Account SID', 'sid', { placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
+				{ field( 'Account SID (AC…) or API key SID (SK…)', 'sid', { placeholder: 'ACxxxxxxxx… or SKxxxxxxxx…', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
 				<Box>
 					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
-						Auth token { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
+						Auth token / API key secret { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
 					</Typography>
-					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste your auth token' }
+					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or secret' }
 						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
 				</Box>
 				{ field( 'Your Twilio number', 'from', { placeholder: '+44 7911 123456', sx: { width: 180 }, onBlur: () => save( { from: cfg.from } ) } ) }
