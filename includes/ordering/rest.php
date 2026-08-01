@@ -341,6 +341,12 @@ function create_order( $request ) {
 		update_post_meta( $post_id, 'dinekit_order_client_ref', $client_ref );
 	}
 	Ordering\log_event( $post_id, __( 'Order created by staff', 'dinekit' ) );
+	if ( $dine_in ) {
+		// Opening a tab seats the table in the diary too (marks a due booking
+		// seated, or books a walk-in) — every screen reads the same floor.
+		// After the name/covers meta above so the diary entry carries them.
+		Ordering\link_booking_for_tab( $post_id );
+	}
 
 	return rest_ensure_response( order_response( $post_id ) );
 }
@@ -746,6 +752,7 @@ function update_order( $request ) {
 		Ordering\log_event( $id, __( 'Tab closed', 'dinekit' ) );
 		// Shared with the settle path in add_tender() so the two can't drift.
 		Ordering\flag_table_for_bussing( $id );
+		Ordering\complete_linked_booking( $id );
 	}
 
 	$status = (string) $request->get_param( 'status' );

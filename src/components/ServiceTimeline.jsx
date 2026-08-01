@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Stack, Typography, Tooltip } from '../ui';
 import { tokens } from '../theme';
+import { statusColor } from '../lib/bookings';
 
 // Full-width service view: tables down the left, the day's clock across the top,
 // each booking a block on its table's row positioned by time + turn length.
@@ -18,14 +19,9 @@ const toMin = ( t ) => {
 	return ( parseInt( p[ 0 ], 10 ) || 0 ) * 60 + ( parseInt( p[ 1 ], 10 ) || 0 );
 };
 
-const STATUS_COLOR = {
-	confirmed: tokens.green,
-	seated: tokens.accent,
-	pending: tokens.amber,
-	provisional: tokens.violet,
-	waitlist: tokens.violet,
-};
-const colorFor = ( s ) => STATUS_COLOR[ s ] || tokens.muted;
+// One palette across the app (src/lib/bookings.js): confirmed = indigo,
+// seated = green, pending = amber, penciled/waitlist = violet.
+const colorFor = statusColor;
 
 const LABEL_W = 150;
 const DRAG_THRESHOLD = 5; // px of movement before a press becomes a drag

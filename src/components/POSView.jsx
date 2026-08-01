@@ -153,7 +153,14 @@ function minsSinceTouched( tab ) {
 	return last ? ( minsSince( last ) || 0 ) : 0;
 }
 
-function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markReady, turnMin, checkMins, money } ) {
+// Minutes from now until an HH:MM later today (negative = already past).
+const minsUntil = ( hm ) => {
+	const d = new Date();
+	const p = String( hm || '' ).split( ':' ).map( Number );
+	return ( ( p[ 0 ] || 0 ) * 60 + ( p[ 1 ] || 0 ) ) - ( d.getHours() * 60 + d.getMinutes() );
+};
+
+function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, nextBooking, openTable, markReady, turnMin, checkMins, money } ) {
 	const zoneTables = ( floor.tables || [] ).filter( ( t ) => ( t.areaId || 0 ) === ( zone || 0 ) );
 	const seated = zoneTables.filter( ( t ) => tabFor( t.id ) ).length;
 	const dirty = zoneTables.filter( ( t ) => t.cleaning && ! tabFor( t.id ) ).length;
@@ -178,6 +185,22 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markRead
 		}
 		if ( needsBussing ) {
 			return { bg: tokens.skySoft, border: tokens.sky, fg: tokens.sky, sub: 'Clear ✓', dashed: true, title: `${ t.name } · needs bussing — tap when ready` };
+		}
+		// The diary speaks here too: a party seated from Bookings lights the
+		// table even before an order is started, and a reservation due within
+		// one turn warns the floor off seating a walk-in on it.
+		const sb = seatedBooking( t.id );
+		if ( sb ) {
+			return { bg: tokens.greenSoft, border: tokens.green, fg: tokens.green, sub: 'Seated · no order', raised: true, title: `${ t.name } · ${ sb.name || 'Guest' } (party of ${ sb.party }) seated from the diary — tap to take their order` };
+		}
+		const nb = nextBooking( t.id );
+		if ( nb ) {
+			const mins = minsUntil( nb.time );
+			if ( mins <= turnMin ) {
+				const late = mins < 0;
+				return { bg: tokens.amberSoft, border: tokens.amber, fg: tokens.amber, dashed: true, sub: late ? `Due · ${ nb.time }` : `${ nb.time } · ${ nb.party }p`, title: `${ t.name } · reserved — ${ nb.name || 'Guest' }, party of ${ nb.party } at ${ nb.time }${ late ? ` (running ${ -mins }m late)` : ` (in ${ mins }m). Not enough time for a full sitting.` }` };
+			}
+			return { bg: tokens.surface, border: tokens.border2, fg: tokens.ink, sub: `${ t.seats } · til ${ nb.time }`, title: `${ t.name } · ${ t.seats } seats · free until ${ nb.time } (${ nb.name || 'Guest' } · party of ${ nb.party })` };
 		}
 		return { bg: tokens.surface, border: tokens.border2, fg: tokens.ink, sub: `${ t.seats }`, title: `${ t.name } · ${ t.seats } seats · free` };
 	};
@@ -218,9 +241,11 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, openTable, markRead
 			<Stack direction="row" spacing={ 2 } alignItems="center" sx={ { mb: 1, flexWrap: 'wrap' } }>
 				<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>{ seated } of { zoneTables.length } seated{ dirty ? ` · ${ dirty } to clear` : '' }</Typography>
 				<Stack direction="row" spacing={ 1.5 } alignItems="center" sx={ { flexWrap: 'wrap' } }>
-					{ [ [ 'Free', tokens.muted2 ], [ 'Seated', tokens.green ], [ 'Turning soon', tokens.amber ], [ 'Over turn', tokens.red ], [ 'Needs bussing', tokens.sky ], ...( checkMins > 0 ? [ [ 'Needs a check', tokens.red ] ] : [] ) ].map( ( [ lab, c ] ) => (
+					{ [ [ 'Free', tokens.muted2 ], [ 'Seated', tokens.green ], [ 'Turning soon', tokens.amber ], [ 'Reserved soon', tokens.amber, true ], [ 'Over turn', tokens.red ], [ 'Needs bussing', tokens.sky ], ...( checkMins > 0 ? [ [ 'Needs a check', tokens.red ] ] : [] ) ].map( ( [ lab, c, ring ] ) => (
 						<Stack key={ lab } direction="row" spacing={ 0.5 } alignItems="center">
-							<Box sx={ { width: 10, height: 10, borderRadius: '50%', background: c } } />
+							<Box sx={ ring
+								? { width: 10, height: 10, borderRadius: '50%', border: `2px dashed ${ c }`, background: 'transparent' }
+								: { width: 10, height: 10, borderRadius: '50%', background: c } } />
 							<Typography sx={ { fontSize: 11, color: tokens.muted } }>{ lab }</Typography>
 						</Stack>
 					) ) }
@@ -339,6 +364,37 @@ export default function POSView() {
 	useEffect( () => {
 		ordersRef.current = orders;
 	}, [ orders ] );
+
+	// Today's diary, for the floor: seated parties light their table even with
+	// no order yet, and upcoming reservations warn the floor before a walk-in
+	// is seated on a table that's about to be needed. Live via the bookings
+	// sync channel (the auto walk-in the till creates bumps it too).
+	const [ dayBookings, setDayBookings ] = useState( [] );
+	const bookingsRev = useSyncRevision( 'bookings' );
+	useEffect( () => {
+		const d = new Date();
+		const p2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		const iso = d.getFullYear() + '-' + p2( d.getMonth() + 1 ) + '-' + p2( d.getDate() );
+		api.listBookings( { from: iso, to: iso } )
+			.then( ( rows ) => setDayBookings( ( rows || [] ).filter( ( b ) => ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) ) ) )
+			.catch( () => {} );
+	}, [ bookingsRev ] );
+	const comboTables = useMemo( () => {
+		const m = {};
+		( floor.combos || [] ).forEach( ( c ) => { m[ c.id ] = c.tables || []; } );
+		return m;
+	}, [ floor.combos ] );
+	const bookingsOn = ( tid ) => dayBookings.filter( ( b ) => b.tableId === tid || ( b.comboId && ( comboTables[ b.comboId ] || [] ).includes( tid ) ) );
+	const seatedBooking = ( tid ) => bookingsOn( tid ).find( ( b ) => 'seated' === b.status );
+	const nextBooking = ( tid ) => {
+		// Include bookings up to 30 min past their slot: a late party still
+		// holds its table (the tile reads "Due · HH:MM") until it's released.
+		const d = new Date( Date.now() - 30 * 60000 );
+		const hm = ( '0' + d.getHours() ).slice( -2 ) + ':' + ( '0' + d.getMinutes() ).slice( -2 );
+		return bookingsOn( tid )
+			.filter( ( b ) => 'seated' !== b.status && ( b.time || '' ) >= hm )
+			.sort( ( a, b ) => ( a.time || '' ).localeCompare( b.time || '' ) )[ 0 ] || null;
+	};
 
 	// The explainer is only true while we're down; drop it the moment we're back.
 	useEffect( () => {
@@ -620,6 +676,8 @@ export default function POSView() {
 						zone={ zone }
 						setZone={ setZone }
 						tabFor={ tabFor }
+						seatedBooking={ seatedBooking }
+						nextBooking={ nextBooking }
 						openTable={ openTable }
 						markReady={ markReady }
 						turnMin={ turnMin }
@@ -638,20 +696,31 @@ export default function POSView() {
 								{ zt.map( ( t ) => {
 									const tab = tabFor( t.id );
 									const off = 'maintenance' === t.status;
+									const sb = ! tab && ! off ? seatedBooking( t.id ) : null;
+									const nb = ! tab && ! off && ! sb ? nextBooking( t.id ) : null;
+									const soon = nb && minsUntil( nb.time ) <= turnMin;
 									return (
 										<Card
 											key={ t.id }
 											hover={ ! off }
 											onClick={ off ? undefined : () => openTable( t ) }
-											sx={ { p: 1.75, opacity: off ? 0.5 : 1, borderColor: tab ? tokens.accent : tokens.border, borderWidth: tab ? 2 : 1, borderStyle: 'solid', cursor: off ? 'not-allowed' : 'pointer' } }
+											sx={ { p: 1.75, opacity: off ? 0.5 : 1, borderColor: tab ? tokens.accent : ( sb ? tokens.green : ( soon ? tokens.amber : tokens.border ) ), borderWidth: tab || sb || soon ? 2 : 1, borderStyle: soon ? 'dashed' : 'solid', cursor: off ? 'not-allowed' : 'pointer' } }
 										>
 											<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mb: 0.5 } }>
-												<TableRestaurantIcon sx={ { fontSize: 18, color: tab ? tokens.accent : tokens.muted2 } } />
+												<TableRestaurantIcon sx={ { fontSize: 18, color: tab ? tokens.accent : ( sb ? tokens.green : tokens.muted2 ) } } />
 												<Typography sx={ { fontWeight: 700, fontSize: 15, color: tokens.ink } }>{ t.name }</Typography>
 											</Stack>
 											{ tab ? (
 												<Typography sx={ { fontSize: 12.5, color: tokens.accentDark, fontWeight: 600 } }>
 													Open · { money( tab.total ) } · { ( tab.items || [] ).length } item{ ( tab.items || [] ).length === 1 ? '' : 's' }
+												</Typography>
+											) : sb ? (
+												<Typography sx={ { fontSize: 12.5, color: tokens.green, fontWeight: 600 } }>
+													Seated · { sb.name || 'Guest' } · { sb.party }p — no order yet
+												</Typography>
+											) : nb ? (
+												<Typography sx={ { fontSize: 12.5, color: soon ? tokens.amber : tokens.muted, fontWeight: soon ? 600 : 400 } }>
+													{ soon ? `Reserved ${ nb.time } · ${ nb.party }p` : `${ t.seats } seats · free until ${ nb.time }` }
 												</Typography>
 											) : (
 												<Typography sx={ { fontSize: 12.5, color: off ? tokens.amber : tokens.muted } }>{ off ? 'Maintenance' : `${ t.seats } seats · free` }</Typography>

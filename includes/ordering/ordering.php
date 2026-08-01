@@ -992,6 +992,7 @@ function add_tender( $order_id, $type, $amount, $via = '', $ref = '' ) {
 			\DineKit\Loyalty\award( $order_id, $member );
 		}
 		flag_table_for_bussing( $order_id );
+		complete_linked_booking( $order_id );
 	}
 }
 
@@ -1015,4 +1016,148 @@ function flag_table_for_bussing( $order_id ) {
 		return;
 	}
 	update_post_meta( $table, 'dinekit_cleaning', current_time( 'mysql' ) );
+}
+
+/**
+ * Tie a new dine-in tab to the booking diary, so every screen reads the same
+ * venue: if a booking is due/seated on this table it is marked seated and
+ * linked; if the table was free, the till books a walk-in into the diary
+ * (same as the host's Walk-in button) — the floor plan, timeline and list all
+ * see the table taken the moment an order is started on it.
+ *
+ * @param int $order_id Order id (dine-in tab).
+ * @return void
+ */
+function link_booking_for_tab( $order_id ) {
+	$channel = (string) get_post_meta( $order_id, 'dinekit_order_channel', true );
+	$table   = (int) get_post_meta( $order_id, 'dinekit_order_table_id', true );
+	if ( 'dine_in' !== $channel || ! $table || 'dinekit_table' !== get_post_type( $table ) ) {
+		return;
+	}
+	require_once DINEKIT_DIR . 'includes/bookings/settings.php';
+	$bs    = \DineKit\Bookings\Settings\get();
+	$turn  = max( 15, (int) ( isset( $bs['turn_time'] ) ? $bs['turn_time'] : 120 ) );
+	$today = current_time( 'Y-m-d' );
+	$now   = current_time( 'H:i' );
+
+	$ids    = get_posts(
+		array(
+			'post_type'   => 'dinekit_booking',
+			'post_status' => 'publish',
+			'numberposts' => -1,
+			'fields'      => 'ids',
+			'meta_query'  => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- small per-day set, POS action.
+				array(
+					'key'   => 'dinekit_date',
+					'value' => $today,
+				),
+				array(
+					'key'   => 'dinekit_table_id',
+					'value' => $table,
+				),
+			),
+		)
+	);
+	$linked = 0;
+	foreach ( $ids as $bid ) {
+		$status = (string) get_post_meta( $bid, 'dinekit_status', true );
+		if ( in_array( $status, array( 'cancelled', 'no_show', 'completed' ), true ) ) {
+			continue;
+		}
+		if ( 'seated' === $status ) {
+			$linked = $bid;
+			break;
+		}
+		// A reservation due about now (arrived up to 30 min early, or within
+		// its turn): starting the tab IS the arrival — mark it seated.
+		$mins_in = ( strtotime( $today . ' ' . $now ) - strtotime( $today . ' ' . (string) get_post_meta( $bid, 'dinekit_time', true ) ) ) / 60;
+		if ( $mins_in >= -30 && $mins_in <= $turn && ! $linked ) {
+			$linked = $bid;
+		}
+	}
+	if ( $linked ) {
+		update_post_meta( $linked, 'dinekit_status', 'seated' );
+		if ( '' === (string) get_post_meta( $linked, 'dinekit_seated_at', true ) ) {
+			update_post_meta( $linked, 'dinekit_seated_at', current_time( 'c' ) );
+		}
+		update_post_meta( $order_id, 'dinekit_order_booking', (int) $linked );
+		return;
+	}
+
+	// No booking → auto-book a seated walk-in on the diary's usual 15-min grid.
+	// Party defaults to the table's seat count when the till didn't say: the
+	// whole table is blocked either way, and that's what availability reads.
+	$covers = (int) get_post_meta( $order_id, 'dinekit_order_covers', true );
+	if ( $covers <= 0 ) {
+		$covers = (int) get_post_meta( $table, 'dinekit_seats', true );
+	}
+	$name = (string) get_post_meta( $order_id, 'dinekit_order_name', true );
+	$slot = gmdate( 'H:i', (int) ( floor( strtotime( $today . ' ' . $now ) / 900 ) * 900 ) );
+	$bid  = wp_insert_post(
+		array(
+			'post_type'   => 'dinekit_booking',
+			'post_status' => 'publish',
+			'post_title'  => sprintf( '%s — %s %s (%dp)', '' !== $name ? $name : __( 'Walk-in', 'dinekit' ), $today, $slot, max( 1, $covers ) ),
+		),
+		true
+	);
+	if ( is_wp_error( $bid ) ) {
+		return;
+	}
+	update_post_meta( $bid, 'dinekit_date', $today );
+	update_post_meta( $bid, 'dinekit_time', $slot );
+	update_post_meta( $bid, 'dinekit_party', max( 1, $covers ) );
+	update_post_meta( $bid, 'dinekit_table_id', $table );
+	update_post_meta( $bid, 'dinekit_combo_id', 0 );
+	update_post_meta( $bid, 'dinekit_name', '' !== $name ? $name : __( 'Walk-in', 'dinekit' ) );
+	update_post_meta( $bid, 'dinekit_status', 'seated' );
+	update_post_meta( $bid, 'dinekit_seated_at', current_time( 'c' ) );
+	update_post_meta( $bid, 'dinekit_source', 'pos' );
+	update_post_meta( $order_id, 'dinekit_order_booking', (int) $bid );
+	log_event( $order_id, __( 'Walk-in booked into the diary from the till', 'dinekit' ) );
+}
+
+/**
+ * Settling the tab ends the sitting: the linked (or seated) booking on the
+ * table completes, freeing it in the diary and on every screen.
+ *
+ * @param int $order_id Order id.
+ * @return void
+ */
+function complete_linked_booking( $order_id ) {
+	$bid = (int) get_post_meta( $order_id, 'dinekit_order_booking', true );
+	if ( ( ! $bid || 'dinekit_booking' !== get_post_type( $bid ) ) ) {
+		// Tabs opened before the diary link existed: fall back to the seated
+		// booking on this table today, if there is exactly one candidate.
+		$table = (int) get_post_meta( $order_id, 'dinekit_order_table_id', true );
+		if ( ! $table ) {
+			return;
+		}
+		$ids = get_posts(
+			array(
+				'post_type'   => 'dinekit_booking',
+				'post_status' => 'publish',
+				'numberposts' => -1,
+				'fields'      => 'ids',
+				'meta_query'  => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- small per-day set, POS action.
+					array(
+						'key'   => 'dinekit_date',
+						'value' => current_time( 'Y-m-d' ),
+					),
+					array(
+						'key'   => 'dinekit_table_id',
+						'value' => $table,
+					),
+					array(
+						'key'   => 'dinekit_status',
+						'value' => 'seated',
+					),
+				),
+			)
+		);
+		$bid = count( $ids ) === 1 ? (int) $ids[0] : 0;
+	}
+	if ( $bid && 'seated' === (string) get_post_meta( $bid, 'dinekit_status', true ) ) {
+		update_post_meta( $bid, 'dinekit_status', 'completed' );
+	}
 }
