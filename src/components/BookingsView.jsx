@@ -12,7 +12,6 @@ import {
 	CircularProgress,
 	Tooltip,
 	Divider,
-	Collapse,
 	Alert,
 	Snackbar,
 	ToggleButton,
@@ -61,8 +60,7 @@ export default function BookingsView() {
 	const [ date, setDate ] = useState( isoDate() );
 	const [ bookings, setBookings ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
-	const [ adding, setAdding ] = useState( false ); // inline add form (list view)
-	const [ popupAdd, setPopupAdd ] = useState( false ); // popup add form (timeline view)
+	const [ popupAdd, setPopupAdd ] = useState( false ); // "New booking" popup (both views)
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
 	const [ view, setView ] = useState( 'list' ); // 'list' (diary) | 'timeline' (full-width service view)
 	const [ listScope, setListScope ] = useState( 'upcoming' ); // 'upcoming' (what's left today) | 'all'
@@ -262,7 +260,6 @@ export default function BookingsView() {
 
 	const [ prefill, setPrefill ] = useState( null ); // { time, tableId } for click-to-book.
 	const onCreated = ( booking ) => {
-		setAdding( false );
 		setPopupAdd( false );
 		setPrefill( null );
 		// Always tell the user which table it landed on. When a specific table was
@@ -424,7 +421,7 @@ export default function BookingsView() {
 						<Button
 							variant="contained"
 							startIcon={ <AddIcon /> }
-							onClick={ () => ( view === 'timeline' ? ( setPrefill( null ), setPopupAdd( true ) ) : setAdding( ( v ) => ! v ) ) }
+							onClick={ () => { setPrefill( null ); setPopupAdd( true ); } }
 						>
 							New booking
 						</Button>
@@ -442,10 +439,6 @@ export default function BookingsView() {
 					'The gear opens booking rules & the public widget; the ★ asks a guest for a review.',
 				] }
 			/>
-
-			<Collapse in={ adding && view === 'list' } unmountOnExit>
-				<NewBooking initialDate={ date } initialTime={ prefill && prefill.time } initialTable={ prefill && prefill.tableId } onCreated={ onCreated } onCancel={ () => { setAdding( false ); setPrefill( null ); } } />
-			</Collapse>
 
 			{ /* Day navigator — one cohesive toolbar: segmented date stepper + jump-to-today */ }
 			<Card sx={ { px: 1.5, py: 1, mb: 2 } }>
@@ -600,7 +593,7 @@ export default function BookingsView() {
 					title="No bookings for this day"
 					description="Take one over the phone or let guests book from your site — either way it lands in this diary."
 					action={
-						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => setAdding( true ) }>
+						<Button variant="contained" startIcon={ <AddIcon /> } onClick={ () => { setPrefill( null ); setPopupAdd( true ); } }>
 							New booking
 						</Button>
 					}
