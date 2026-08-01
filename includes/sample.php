@@ -116,7 +116,12 @@ function seed_menu() {
 			'desc'      => __( 'Freshly made, served with warm sourdough.', 'dinekit' ),
 			'section'   => $starters,
 			'order'     => 0,
-			'prices'    => array( array( 'label' => '', 'amount' => '6.50' ) ),
+			'prices'    => array(
+				array(
+					'label'  => '',
+					'amount' => '6.50',
+				),
+			),
 			'allergens' => array_merge( $gluten, $milk ),
 			'dietary'   => $veg,
 		),
@@ -125,7 +130,12 @@ function seed_menu() {
 			'desc'      => __( 'Lightly fried, lemon & garlic aioli.', 'dinekit' ),
 			'section'   => $starters,
 			'order'     => 1,
-			'prices'    => array( array( 'label' => '', 'amount' => '8.00' ) ),
+			'prices'    => array(
+				array(
+					'label'  => '',
+					'amount' => '8.00',
+				),
+			),
 			'allergens' => array_merge( $fish, $gluten, $eggs ),
 		),
 		array(
@@ -134,8 +144,14 @@ function seed_menu() {
 			'section'   => $mains,
 			'order'     => 0,
 			'prices'    => array(
-				array( 'label' => __( 'Regular', 'dinekit' ), 'amount' => '14.50' ),
-				array( 'label' => __( 'Large', 'dinekit' ), 'amount' => '17.00' ),
+				array(
+					'label'  => __( 'Regular', 'dinekit' ),
+					'amount' => '14.50',
+				),
+				array(
+					'label'  => __( 'Large', 'dinekit' ),
+					'amount' => '17.00',
+				),
 			),
 			'badge'     => __( 'Popular', 'dinekit' ),
 			'allergens' => array_merge( $fish, $gluten ),
@@ -145,7 +161,12 @@ function seed_menu() {
 			'desc'      => __( 'Arborio rice, parmesan, truffle oil.', 'dinekit' ),
 			'section'   => $mains,
 			'order'     => 1,
-			'prices'    => array( array( 'label' => '', 'amount' => '13.00' ) ),
+			'prices'    => array(
+				array(
+					'label'  => '',
+					'amount' => '13.00',
+				),
+			),
 			'allergens' => $milk,
 			'dietary'   => $veg,
 		),
@@ -154,7 +175,12 @@ function seed_menu() {
 			'desc'      => __( 'Butterscotch sauce, clotted cream.', 'dinekit' ),
 			'section'   => $desserts,
 			'order'     => 0,
-			'prices'    => array( array( 'label' => '', 'amount' => '6.00' ) ),
+			'prices'    => array(
+				array(
+					'label'  => '',
+					'amount' => '6.00',
+				),
+			),
 			'badge'     => __( 'Chef’s Special', 'dinekit' ),
 			'allergens' => array_merge( $gluten, $milk, $eggs ),
 			'dietary'   => $veg,
@@ -212,26 +238,38 @@ function find_page( $type = 'menu' ) {
 	}
 	// Drafts count: a customer page is created as a draft so the owner reviews it
 	// and publishes deliberately, rather than a bare page appearing on the site.
-	$pages = get_posts(
+	// Oldest first, published preferred: with several matching pages the CANONICAL
+	// one is the original the owner set up — a newer copy (a test page, a
+	// staging duplicate) must not hijack the "your menu is live at…" link.
+	$pages       = get_posts(
 		array(
 			'post_type'      => 'page',
 			'post_status'    => array( 'publish', 'draft' ),
 			'posts_per_page' => 100,
 			'no_found_rows'  => true,
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
 		)
 	);
+	$draft_match = null;
 	foreach ( $pages as $page ) {
 		if ( has_block( $cfg['block'], $page ) || false !== strpos( $page->post_content, $cfg['shortcode'] ) ) {
-			return array(
+			$found = array(
 				'url'    => (string) get_permalink( $page ),
 				'title'  => get_the_title( $page ),
 				'id'     => (int) $page->ID,
 				'status' => (string) $page->post_status,
 				'edit'   => (string) get_edit_post_link( $page->ID, 'raw' ),
 			);
+			if ( 'publish' === $page->post_status ) {
+				return $found; // Oldest published match wins.
+			}
+			if ( null === $draft_match ) {
+				$draft_match = $found;
+			}
 		}
 	}
-	return null;
+	return $draft_match;
 }
 
 /**
