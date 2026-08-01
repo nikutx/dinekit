@@ -1832,21 +1832,32 @@ function guest_intel( $request ) {
 	$profile  = \DineKit\Guests\get_profile( $email, $name );
 	$settings = \DineKit\Settings\get();
 
+	// The allergen vocabulary (the legal 14 + the venue's custom ones), so the
+	// booking panel can offer clickable chips instead of free-typed notes.
+	$allergen_terms = get_terms(
+		array(
+			'taxonomy'   => 'dinekit_allergen',
+			'hide_empty' => false,
+		)
+	);
+	$allergen_names = is_array( $allergen_terms ) ? array_values( wp_list_pluck( $allergen_terms, 'name' ) ) : array();
+
 	return rest_ensure_response(
 		array(
-			'currency'  => (string) $settings['currency'],
-			'curPos'    => (string) $settings['currencyPosition'],
-			'vip'       => $profile['vip'],
-			'tags'      => $profile['tags'],
-			'notes'     => $profile['notes'],
-			'allergens' => $profile['allergens'],
-			'visits'    => $visits,
-			'lastVisit' => $last,
-			'orders'    => $orders,
-			'spend'     => round( $spend, 2 ),
-			'avgSpend'  => $orders ? round( $spend / $orders, 2 ) : 0,
-			'points'    => $points,
-			'noShows'   => guest_no_show_count( $email, $phone ),
+			'currency'        => (string) $settings['currency'],
+			'curPos'          => (string) $settings['currencyPosition'],
+			'allergenOptions' => $allergen_names,
+			'vip'             => $profile['vip'],
+			'tags'            => $profile['tags'],
+			'notes'           => $profile['notes'],
+			'allergens'       => $profile['allergens'],
+			'visits'          => $visits,
+			'lastVisit'       => $last,
+			'orders'          => $orders,
+			'spend'           => round( $spend, 2 ),
+			'avgSpend'        => $orders ? round( $spend / $orders, 2 ) : 0,
+			'points'          => $points,
+			'noShows'         => guest_no_show_count( $email, $phone ),
 		)
 	);
 }

@@ -242,6 +242,7 @@ export default function POSView() {
 	const [ orders, setOrders ] = useState( [] ); // open dine-in tabs
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
 	const [ active, setActive ] = useState( null ); // { tableId, tableName, order|null, takeaway? }
+	const [ padGuest, setPadGuest ] = useState( null ); // { booking, intel } — who's seated at the open table
 	const [ course, setCourse ] = useState( '' );
 	const [ mod, setMod ] = useState( null ); // item being configured
 	const [ bill, setBill ] = useState( false ); // bill/pay sheet open
@@ -351,6 +352,57 @@ export default function POSView() {
 		return 'after' === cur.position ? `${ v }${ cur.symbol }` : `${ cur.symbol }${ v }`;
 	};
 	const tabFor = ( tableId ) => orders.find( ( o ) => o.tableId === tableId );
+
+	// Who's at this table? The diary knows: today's live booking on the open
+	// pad's table gives the till the guest's name, VIP flag and allergens —
+	// the same record the booking panel edits, so the two screens agree.
+	useEffect( () => {
+		setPadGuest( null );
+		if ( ! active || ! active.tableId || active.takeaway ) {
+			return;
+		}
+		let stale = false;
+		const d = new Date();
+		const p2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		const iso = d.getFullYear() + '-' + p2( d.getMonth() + 1 ) + '-' + p2( d.getDate() );
+		api.listBookings( { from: iso, to: iso } ).then( ( rows ) => {
+			if ( stale ) {
+				return;
+			}
+			const live = ( rows || [] ).filter( ( b ) => b.tableId === active.tableId && ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) );
+			// Prefer the seated party over a later reservation on the same table.
+			const booking = live.find( ( b ) => b.status === 'seated' ) || live[ 0 ];
+			if ( ! booking ) {
+				return;
+			}
+			setPadGuest( { booking, intel: null } );
+			api.getGuestIntel( { email: booking.email || '', phone: booking.phone || '', name: booking.name || '' } )
+				.then( ( intel ) => { if ( ! stale ) { setPadGuest( { booking, intel } ); } } )
+				.catch( () => {} );
+		} ).catch( () => {} );
+		return () => { stale = true; };
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ active && active.tableId, active && active.takeaway ] );
+
+	const toggleVipAtTill = async () => {
+		if ( ! padGuest || ! padGuest.intel ) {
+			return;
+		}
+		const next = { ...padGuest.intel, vip: ! padGuest.intel.vip };
+		setPadGuest( { ...padGuest, intel: next } );
+		try {
+			await api.saveGuestProfile( {
+				email: padGuest.booking.email || '',
+				name: padGuest.booking.name || '',
+				vip: next.vip,
+				tags: next.tags || [],
+				notes: next.notes || '',
+				allergens: next.allergens || '',
+			} );
+		} catch ( e ) {
+			setPadGuest( padGuest );
+		}
+	};
 
 	const openTable = ( t ) => { setActive( { tableId: t.id, tableName: t.name, order: tabFor( t.id ) || null } ); setCourse( '' ); };
 	// Clear a table's "needs bussing" flag once it's cleaned down and ready to seat.
@@ -642,6 +694,34 @@ export default function POSView() {
 							</Box>
 						) }
 					</Typography>
+					{ /* Who's at the table — pulled from today's diary so the till and
+					     the booking panel tell the same story. ⭐ is tappable. */ }
+					{ padGuest && padGuest.booking && (
+						<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 0.5 } }>
+							<Chip
+								label={ `👤 ${ padGuest.booking.name || 'Guest' } · ${ padGuest.booking.party }p · booked ${ padGuest.booking.time }` }
+								size="small"
+								sx={ { height: 22, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.accentSoft, color: tokens.accentDark } }
+							/>
+							{ padGuest.intel && (
+								<Chip
+									label={ padGuest.intel.vip ? '⭐ VIP' : '☆ Mark VIP' }
+									onClick={ toggleVipAtTill }
+									size="small"
+									sx={ { height: 22, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', bgcolor: padGuest.intel.vip ? tokens.amberSoft : tokens.surface, color: padGuest.intel.vip ? tokens.amber : tokens.muted, border: `1px solid ${ padGuest.intel.vip ? tokens.amber : tokens.border2 }` } }
+								/>
+							) }
+							{ padGuest.intel && padGuest.intel.allergens && (
+								<Chip label={ `⚠ ${ padGuest.intel.allergens }` } size="small" sx={ { height: 22, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.redSoft, color: tokens.red } } />
+							) }
+							{ padGuest.intel && padGuest.intel.visits > 1 && (
+								<Chip label={ `${ padGuest.intel.visits } visits` } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.soft, color: tokens.ink2, fontWeight: 600 } } />
+							) }
+							{ padGuest.booking.notes && (
+								<Typography sx={ { fontSize: 11.5, color: tokens.ink2, fontStyle: 'italic' } }>“{ padGuest.booking.notes }”</Typography>
+							) }
+						</Stack>
+					) }
 					{ active.order && ( () => {
 						const tm = tabTiming( active.order );
 						if ( ! tm || ( ! tm.opened && ! tm.rounds.length ) ) {

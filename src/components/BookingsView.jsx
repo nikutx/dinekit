@@ -882,7 +882,8 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 		if ( editing ) {
 			// Editing an existing booking: pull the guest's merged CRM record
 			// (VIP, allergies, visits, spend, points, no-shows) for the floor.
-			if ( editing.email || editing.phone ) {
+			// Profiles key on email-or-name, so a name alone is enough.
+			if ( editing.email || editing.phone || editing.name ) {
 				api.getGuestIntel( { email: editing.email || '', phone: editing.phone || '', name: editing.name || '' } )
 					.then( setIntel )
 					.catch( () => {} );
@@ -900,6 +901,39 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 		const v = Number( n || 0 ).toFixed( 2 );
 		const sym = ( intel && intel.currency ) || '£';
 		return ( intel && intel.curPos ) === 'after' ? `${ v }${ sym }` : `${ sym }${ v }`;
+	};
+
+	// Save a change to the persistent guest profile (VIP / allergens) straight
+	// from the booking — no detour through the Guests screen.
+	const saveProfile = async ( patch ) => {
+		if ( ! intel ) {
+			return;
+		}
+		const next = { ...intel, ...patch };
+		setIntel( next ); // optimistic — the chips answer instantly at the host stand
+		try {
+			await api.saveGuestProfile( {
+				email: ( editing && editing.email ) || '',
+				name: ( editing && editing.name ) || '',
+				vip: next.vip,
+				tags: next.tags || [],
+				notes: next.notes || '',
+				allergens: next.allergens || '',
+			} );
+		} catch ( e ) {
+			setIntel( intel ); // roll back on failure
+		}
+	};
+	const profileAllergens = ( ( intel && intel.allergens ) || '' ).split( ',' ).map( ( s ) => s.trim().toLowerCase() ).filter( Boolean );
+	const toggleAllergen = ( name ) => {
+		const has = profileAllergens.includes( name.toLowerCase() );
+		const list = has
+			? profileAllergens.filter( ( a ) => a !== name.toLowerCase() )
+			: [ ...profileAllergens, name ];
+		// Preserve display casing from the vocabulary where we can.
+		const opts = ( intel && intel.allergenOptions ) || [];
+		const pretty = list.map( ( a ) => opts.find( ( o ) => o.toLowerCase() === a.toLowerCase() ) || a );
+		saveProfile( { allergens: pretty.join( ', ' ) } );
 	};
 
 	const nq = form.name.trim().toLowerCase();
@@ -1017,14 +1051,18 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 				</Typography>
 			) }
 
-			{ /* Guest intel — who's walking in: VIP, allergies, history, spend. */ }
-			{ editing && intel && ( intel.vip || intel.visits > 0 || intel.orders > 0 || intel.points > 0 || intel.noShows > 0 || intel.allergens || ( intel.tags || [] ).length > 0 || intel.notes ) && (
+			{ /* Guest intel + profile controls: see the history AND set VIP /
+			     allergens right here — the profile follows the guest to every
+			     visit and to the Take Order screen. */ }
+			{ editing && intel && (
 				<Box sx={ { mb: 2, p: 1.25, borderRadius: '10px', bgcolor: tokens.soft, border: `1px solid ${ tokens.border }` } }>
 					<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap>
-						{ intel.vip && <Chip label="⭐ VIP" size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.amberSoft, color: tokens.amber } } /> }
-						{ intel.allergens && (
-							<Chip label={ `⚠ ${ intel.allergens }` } size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.redSoft, color: tokens.red } } />
-						) }
+						<Chip
+							label={ intel.vip ? '⭐ VIP' : '☆ Mark VIP' }
+							onClick={ () => saveProfile( { vip: ! intel.vip } ) }
+							size="small"
+							sx={ { height: 22, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', bgcolor: intel.vip ? tokens.amberSoft : tokens.surface, color: intel.vip ? tokens.amber : tokens.muted, border: `1px solid ${ intel.vip ? tokens.amber : tokens.border2 }` } }
+						/>
 						{ ( intel.tags || [] ).map( ( t ) => (
 							<Chip key={ t } label={ t } size="small" sx={ { height: 20, fontSize: 11, bgcolor: tokens.surface, color: tokens.ink2, fontWeight: 600 } } />
 						) ) }
@@ -1040,6 +1078,25 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 						{ intel.noShows > 0 && (
 							<Chip label={ `${ intel.noShows } no-show${ intel.noShows === 1 ? '' : 's' }` } size="small" sx={ { height: 20, fontSize: 11.5, fontWeight: 700, bgcolor: tokens.redSoft, color: tokens.red } } />
 						) }
+					</Stack>
+					{ /* Allergens as one-tap chips from the real vocabulary (the legal
+					     14 + the venue's own) — saved on the guest, not buried in notes. */ }
+					<Typography sx={ { fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: tokens.muted2, mt: 1, mb: 0.5 } }>
+						Guest allergens
+					</Typography>
+					<Stack direction="row" spacing={ 0.5 } flexWrap="wrap" useFlexGap>
+						{ ( intel.allergenOptions || [] ).map( ( name ) => {
+							const on = profileAllergens.includes( name.toLowerCase() );
+							return (
+								<Chip
+									key={ name }
+									label={ on ? `⚠ ${ name }` : name }
+									onClick={ () => toggleAllergen( name ) }
+									size="small"
+									sx={ { height: 20, fontSize: 10.5, fontWeight: on ? 700 : 500, cursor: 'pointer', bgcolor: on ? tokens.redSoft : tokens.surface, color: on ? tokens.red : tokens.muted, border: `1px solid ${ on ? tokens.red : tokens.border }` } }
+								/>
+							);
+						} ) }
 					</Stack>
 					{ intel.notes && (
 						<Typography sx={ { fontSize: 12, color: tokens.ink2, mt: 0.75, fontStyle: 'italic' } }>
