@@ -209,7 +209,49 @@ function PadNotes( { booking, intel } ) {
 	);
 }
 
-function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, nextBooking, openTable, markReady, turnMin, checkMins, money } ) {
+// Tapped a "needs clearing" table: the industry-standard sheet (Toast/Square
+// do the same) — the just-settled tab's summary with a route to amend it,
+// and an explicit "table's clean" button that frees it for the next party.
+function ClearSheet( { table, money, onClean, onHistory, onClose } ) {
+	const [ last, setLast ] = useState( null ); // null = loading, false = none
+	useEffect( () => {
+		let live = true;
+		api.tableHistory( table.id )
+			.then( ( r ) => { if ( live ) { setLast( ( Array.isArray( r ) ? r : [] )[ 0 ] || false ); } } )
+			.catch( () => { if ( live ) { setLast( false ); } } );
+		return () => { live = false; };
+	}, [ table.id ] );
+	const count = last ? ( last.items || [] ).reduce( ( n, l ) => n + ( Number( l.qty ) || 1 ), 0 ) : 0;
+	const paidVia = last ? [ ...new Set( ( last.tenders || [] ).map( ( t ) => t.type ) ) ].join( ', ' ) : '';
+	const settledAt = last && ( last.tenders || [] ).length ? ( last.tenders[ last.tenders.length - 1 ].t || last.placed ) : ( last ? last.placed : '' );
+	return (
+		<Modal open onClose={ onClose } sx={ { maxWidth: 440 } }>
+			<Box sx={ { p: 2.5 } }>
+				<Typography variant="h6" sx={ { fontSize: 17 } }>{ table.name } needs clearing</Typography>
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted, mb: 1.5 } }>
+					The bill is settled — wipe the table down, then free it for the next party.
+				</Typography>
+				{ last === null && <Stack alignItems="center" sx={ { py: 1.5 } }><CircularProgress size={ 18 } /></Stack> }
+				{ !! last && (
+					<Box sx={ { mb: 2, px: 1.5, py: 1.25, borderRadius: '10px', bgcolor: tokens.soft } }>
+						<Typography sx={ { fontSize: 13.5, fontWeight: 700, color: tokens.ink } }>
+							Last tab · #{ last.number } · { money( Number( last.grandTotal ) ) }
+						</Typography>
+						<Typography sx={ { fontSize: 12, color: tokens.muted } }>
+							{ count } item{ count === 1 ? '' : 's' }{ paidVia ? ` · paid by ${ paidVia }` : '' }{ settledAt ? ` · ${ fmtDateTime( settledAt ) }` : '' }
+						</Typography>
+					</Box>
+				) }
+				<Stack spacing={ 1 }>
+					<Button variant="contained" fullWidth onClick={ onClean }>Table’s clean — ready for the next party</Button>
+					<Button variant="outlined" fullWidth onClick={ onHistory }>View / amend the last tab</Button>
+				</Stack>
+			</Box>
+		</Modal>
+	);
+}
+
+function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, nextBooking, openTable, onDirty, turnMin, checkMins, money } ) {
 	const zoneTables = ( floor.tables || [] ).filter( ( t ) => ( t.areaId || 0 ) === ( zone || 0 ) );
 	const seated = zoneTables.filter( ( t ) => tabFor( t.id ) ).length;
 	const dirty = zoneTables.filter( ( t ) => t.cleaning && ! tabFor( t.id ) ).length;
@@ -233,7 +275,7 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, next
 			return { bg: tone.bg, border: tone.br, fg: tone.fg, sub: `${ stage } · ${ mins }m`, raised: true, title: `${ t.name } · ${ stage.toLowerCase() } · open ${ money( tab.total ) }` };
 		}
 		if ( needsBussing ) {
-			return { bg: tokens.skySoft, border: tokens.sky, fg: tokens.sky, sub: 'Clear ✓', dashed: true, title: `${ t.name } · needs bussing — tap when ready` };
+			return { bg: tokens.skySoft, border: tokens.sky, fg: tokens.sky, sub: 'Clear ✓', dashed: true, title: `${ t.name } · needs clearing — tap to free it or check the last tab` };
 		}
 		// The diary speaks here too: a party seated from Bookings lights the
 		// table even before an order is started, and a reservation due within
@@ -258,7 +300,11 @@ function FloorPicker( { floor, zones, zone, setZone, tabFor, seatedBooking, next
 			return;
 		}
 		if ( ! tabFor( t.id ) && t.cleaning ) {
-			markReady( t );
+			// Not an instant clear: a dirty table opens a small sheet — the
+			// last tab is still one tap away (mis-keyed payments get noticed
+			// right after settling) and an accidental tap can't free a table
+			// that hasn't been wiped down.
+			onDirty( t );
 		} else {
 			openTable( t );
 		}
@@ -518,6 +564,22 @@ export default function POSView() {
 		setFloor( ( f ) => ( { ...f, tables: ( f.tables || [] ).map( ( x ) => ( x.id === t.id ? { ...x, cleaning: '' } : x ) ) } ) );
 		api.updateTable( t.id, { cleaning: 0 } ).catch( () => {} );
 	};
+	// Tapping a "needs clearing" table opens the sheet (summary of the last
+	// tab + explicit "clean" button) rather than silently freeing it.
+	const [ clearSheet, setClearSheet ] = useState( null ); // the tapped dirty table
+	const [ clearHist, setClearHist ] = useState( null ); // { id, name } — history opened from that sheet
+	// After an amend reopens a tab, it must land straight back on the floor
+	// AND in the open pad — not wait for the next heartbeat.
+	const refreshTabs = async () => {
+		try {
+			const all = await api.getOrders();
+			const list = ( all || [] ).filter( isOpenTab );
+			setOrders( list );
+			setActive( ( a ) => ( a && ! a.takeaway && ! a.order ? { ...a, order: list.find( ( o ) => o.tableId === a.tableId ) || null } : a ) );
+			// A reopened tab makes its "dirty table" sheet moot.
+			setClearSheet( ( c ) => ( c && list.some( ( o ) => o.tableId === c.id ) ? null : c ) );
+		} catch ( e ) {}
+	};
 	const openTakeaway = () => { setActive( { tableId: 0, tableName: 'Takeaway', order: null, takeaway: true } ); setCourse( '' ); };
 	const back = () => setActive( null );
 
@@ -736,7 +798,7 @@ export default function POSView() {
 						seatedBooking={ seatedBooking }
 						nextBooking={ nextBooking }
 						openTable={ openTable }
-						markReady={ markReady }
+						onDirty={ setClearSheet }
 						turnMin={ turnMin }
 						checkMins={ checkMins }
 						money={ money }
@@ -790,6 +852,25 @@ export default function POSView() {
 					);
 				} ) }
 			</Page>
+			{ /* Tapped "needs clearing" table: last-tab summary + explicit clean/free. */ }
+			{ clearSheet && ! clearHist && (
+				<ClearSheet
+					table={ clearSheet }
+					money={ money }
+					onClean={ () => { markReady( clearSheet ); setClearSheet( null ); } }
+					onHistory={ () => setClearHist( { id: clearSheet.id, name: clearSheet.name } ) }
+					onClose={ () => setClearSheet( null ) }
+				/>
+			) }
+			{ clearHist && (
+				<TableHistorySheet
+					tableId={ clearHist.id }
+					tableName={ clearHist.name }
+					money={ money }
+					onClose={ () => setClearHist( null ) }
+					onChanged={ refreshTabs }
+				/>
+			) }
 			{ /* ---- Order pad — centered popup over the floor (like the app's other dialogs) ---- */ }
 			{ active && (
 			<Modal open onClose={ back } sx={ { maxWidth: 1120, width: '96vw' } }>
@@ -877,16 +958,7 @@ export default function POSView() {
 						tableName={ active.tableName }
 						money={ money }
 						onClose={ () => setHistOpen( false ) }
-						onChanged={ async () => {
-							// A reopened tab must land straight back on the floor AND in
-							// the open pad — not wait for the next heartbeat.
-							try {
-								const all = await api.getOrders();
-								const list = ( all || [] ).filter( isOpenTab );
-								setOrders( list );
-								setActive( ( a ) => ( a && ! a.takeaway && ! a.order ? { ...a, order: list.find( ( o ) => o.tableId === a.tableId ) || null } : a ) );
-							} catch ( e ) {}
-						} }
+						onChanged={ refreshTabs }
 					/>
 				) : null }
 				{ offlineNote ? (
