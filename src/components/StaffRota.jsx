@@ -154,54 +154,115 @@ export default function StaffRota( { staff, roles } ) {
 	const clashCount = workingToday.length - workingCount;
 	const absentCount = todayShifts.length - workingToday.length;
 
-	const openNew = ( m, date ) => { setCopyTargets( [] ); setEditing( { staffId: m.id, staffName: m.name, date, start: '17:00', end: '23:00', role: m.role, note: '', type: 'work' } ); };
+	// The drawer edits the PERSON'S WHOLE DAY: one or more Start–End blocks
+	// (a split shift is just two blocks), added and removed with buttons, all
+	// saved with ONE press — and "copy to other days" copies the whole day,
+	// splits included.
+	const openNew = ( m, date ) => {
+		setCopyTargets( [] );
+		setEditing( { staffId: m.id, staffName: m.name, date, role: m.role, note: '', type: 'work', blocks: [ { id: 0, start: '17:00', end: '23:00' } ], removed: [] } );
+	};
 	const openEdit = ( sh ) => {
 		const m = staff.find( ( x ) => x.id === sh.staffId );
+		const day = cellShifts( sh.staffId, sh.date ).sort( ( a, b ) => ( a.start || '' ).localeCompare( b.start || '' ) );
 		setCopyTargets( [] );
-		setEditing( { ...sh, staffName: m ? m.name : '' } );
+		setEditing( {
+			staffId: sh.staffId,
+			staffName: m ? m.name : '',
+			date: sh.date,
+			role: sh.role,
+			note: sh.note || '',
+			type: sh.type || 'work',
+			blocks: day.map( ( s ) => ( { id: s.id, start: s.start, end: s.end } ) ),
+			removed: [],
+		} );
 	};
-	// Save = save AND copy: ticked days are intent, so one press does the lot
-	// (the button says so). Copies skip a day that already has a shift for the
-	// same person — the + in the cell is the deliberate route to split shifts.
+	// The + under a day's chips: the same day editor with a fresh block ready.
+	const openAddBlock = ( m, date ) => {
+		const day = cellShifts( m.id, date ).sort( ( a, b ) => ( a.start || '' ).localeCompare( b.start || '' ) );
+		const first = day[ 0 ] || {};
+		const lastEnd = day.length ? day[ day.length - 1 ].end : '';
+		const start = /^\d{1,2}:\d{2}$/.test( lastEnd || '' ) && lastEnd < '23:00' ? lastEnd : '17:00';
+		setCopyTargets( [] );
+		setEditing( {
+			staffId: m.id,
+			staffName: m.name,
+			date,
+			role: first.role || m.role,
+			note: first.note || '',
+			type: 'work',
+			blocks: [ ...day.map( ( s ) => ( { id: s.id, start: s.start, end: s.end } ) ), { id: 0, start, end: '23:00' } ],
+			removed: [],
+		} );
+	};
+	const addBlock = () => {
+		const blocks = editing.blocks;
+		const lastEnd = blocks.length ? blocks[ blocks.length - 1 ].end : '';
+		const start = /^\d{1,2}:\d{2}$/.test( lastEnd || '' ) && lastEnd < '23:00' ? lastEnd : '17:00';
+		setEditing( { ...editing, blocks: [ ...blocks, { id: 0, start, end: '23:00' } ] } );
+	};
+	const removeBlock = ( i ) => {
+		const b = editing.blocks[ i ];
+		setEditing( {
+			...editing,
+			blocks: editing.blocks.filter( ( x, xi ) => xi !== i ),
+			removed: b.id ? [ ...editing.removed, b.id ] : editing.removed,
+		} );
+	};
+	const setBlock = ( i, patch ) => {
+		setEditing( { ...editing, blocks: editing.blocks.map( ( b, bi ) => ( bi === i ? { ...b, ...patch } : b ) ) } );
+	};
+	// ONE Save: update/create every block, delete removed ones, then copy the
+	// whole day (all blocks) to any ticked days that are still empty.
 	const saveShift = async () => {
-		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' };
-		if ( editing.id ) {
-			await api.updateShift( editing.id, body );
-		} else {
-			await api.createShift( body );
+		const base = { staffId: editing.staffId, date: editing.date, role: editing.role, note: editing.note, type: editing.type || 'work' };
+		// Day off / sick is a single record for the day.
+		const blocks = 'work' === base.type ? editing.blocks.filter( ( b ) => b.start && b.end ) : editing.blocks.slice( 0, 1 );
+		for ( const id of editing.removed ) {
+			// eslint-disable-next-line no-await-in-loop
+			await api.deleteShift( id );
+		}
+		// Off/sick collapses a multi-block day down to its first record.
+		if ( 'work' !== base.type ) {
+			for ( const extra of editing.blocks.slice( 1 ) ) {
+				if ( extra.id ) {
+					// eslint-disable-next-line no-await-in-loop
+					await api.deleteShift( extra.id );
+				}
+			}
+		}
+		for ( const b of blocks ) {
+			const body = { ...base, start: b.start, end: b.end };
+			if ( b.id ) {
+				// eslint-disable-next-line no-await-in-loop
+				await api.updateShift( b.id, body );
+			} else {
+				// eslint-disable-next-line no-await-in-loop
+				await api.createShift( body );
+			}
 		}
 		for ( const date of copyTargets ) {
 			if ( date === editing.date || cellShifts( editing.staffId, date ).length ) {
 				continue;
 			}
+			for ( const b of blocks ) {
+				// eslint-disable-next-line no-await-in-loop
+				await api.createShift( { ...base, date, start: b.start, end: b.end } );
+			}
+		}
+		setEditing( null );
+		setCopyTargets( [] );
+		load();
+	};
+	// Clears the person's whole day (every block on screen).
+	const deleteDay = async () => {
+		const ids = [ ...editing.blocks.map( ( b ) => b.id ).filter( Boolean ), ...editing.removed ];
+		for ( const id of ids ) {
 			// eslint-disable-next-line no-await-in-loop
-			await api.createShift( { ...body, date } );
-		}
-		setEditing( null );
-		setCopyTargets( [] );
-		load();
-	};
-	const deleteShift = async () => {
-		if ( editing.id ) {
-			await api.deleteShift( editing.id );
+			await api.deleteShift( id );
 		}
 		setEditing( null );
 		load();
-	};
-	// Split shift from inside the drawer: save what's on screen, then flip the
-	// drawer to the NEXT block of hours for the same person/day — starting
-	// where the last one ended. Press it as many times as the day needs.
-	const addSplit = async () => {
-		const body = { staffId: editing.staffId, date: editing.date, start: editing.start, end: editing.end, role: editing.role, note: editing.note, type: editing.type || 'work' };
-		if ( editing.id ) {
-			await api.updateShift( editing.id, body );
-		} else {
-			await api.createShift( body );
-		}
-		load();
-		const start = /^\d{1,2}:\d{2}$/.test( editing.end || '' ) && editing.end < '23:00' ? editing.end : '17:00';
-		setCopyTargets( [] );
-		setEditing( { staffId: editing.staffId, staffName: editing.staffName, date: editing.date, start, end: '23:00', role: editing.role, note: '', type: 'work' } );
 	};
 
 	if ( ! active.length ) {
@@ -293,7 +354,7 @@ export default function StaffRota( { staff, roles } ) {
 						) : (
 							// Split shifts: a second (third…) shift on the same day.
 							<Box
-								onClick={ ( e ) => { e.stopPropagation(); openNew( m, date ); } }
+								onClick={ ( e ) => { e.stopPropagation(); openAddBlock( m, date ); } }
 								title="Add another shift this day (split shift)"
 								sx={ { display: 'flex', alignItems: 'center', justifyContent: 'center', py: 0.1, borderRadius: '6px', color: tokens.border2, cursor: 'pointer', '&:hover': { color: tokens.accent, bgcolor: tokens.soft } } }
 							>
@@ -462,7 +523,7 @@ export default function StaffRota( { staff, roles } ) {
 				{ editing && (
 					<Box sx={ { p: 3 } }>
 						<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
-							<Typography variant="h6" sx={ { fontSize: 18 } }>{ editing.id ? 'Edit shift' : 'Add shift' }</Typography>
+							<Typography variant="h6" sx={ { fontSize: 18 } }>{ editing.blocks.some( ( b ) => b.id ) ? 'Edit shifts' : 'Add shift' }</Typography>
 							<IconButton size="small" onClick={ () => setEditing( null ) }><CloseIcon fontSize="small" /></IconButton>
 						</Stack>
 						<Typography sx={ { fontSize: 13, color: tokens.muted, mb: 2 } }>
@@ -476,10 +537,32 @@ export default function StaffRota( { staff, roles } ) {
 								<ToggleButton value="off">Day off</ToggleButton>
 								<ToggleButton value="sick">Sick</ToggleButton>
 							</ToggleButtonGroup>
+							{ /* One row per block of hours; a split shift is just two rows.
+							     ✕ removes a row, "Add shift" appends the next one starting
+							     where the last ended — all saved together with ONE Save. */ }
 							{ ( editing.type || 'work' ) !== 'off' && (
-								<Stack direction="row" spacing={ 1.5 }>
-									<TextField label="Start" type="time" size="small" value={ editing.start } onChange={ ( e ) => setEditing( { ...editing, start: e.target.value } ) } sx={ { flex: 1 } } />
-									<TextField label="End" type="time" size="small" value={ editing.end } onChange={ ( e ) => setEditing( { ...editing, end: e.target.value } ) } sx={ { flex: 1 } } />
+								<Stack spacing={ 1 }>
+									{ ( 'work' === ( editing.type || 'work' ) ? editing.blocks : editing.blocks.slice( 0, 1 ) ).map( ( b, i ) => (
+										<Stack key={ i } direction="row" spacing={ 1.5 } alignItems="center">
+											<TextField label={ i === 0 ? 'Start' : `Start (${ i + 1 })` } type="time" size="small" value={ b.start } onChange={ ( e ) => setBlock( i, { start: e.target.value } ) } sx={ { flex: 1 } } />
+											<TextField label={ i === 0 ? 'End' : `End (${ i + 1 })` } type="time" size="small" value={ b.end } onChange={ ( e ) => setBlock( i, { end: e.target.value } ) } sx={ { flex: 1 } } />
+											{ editing.blocks.length > 1 && (
+												<IconButton size="small" onClick={ () => removeBlock( i ) } title="Remove this block of hours" sx={ { color: tokens.muted, flexShrink: 0 } }>
+													<CloseIcon fontSize="small" />
+												</IconButton>
+											) }
+										</Stack>
+									) ) }
+									{ 'work' === ( editing.type || 'work' ) && (
+										<Button size="small" startIcon={ <AddIcon /> } onClick={ addBlock } sx={ { alignSelf: 'flex-start' } } title="Add another block of hours the same day (split shift)">
+											Add shift
+										</Button>
+									) }
+									{ editing.blocks.length > 1 && (
+										<Typography sx={ { fontSize: 12, color: tokens.muted } }>
+											Split day — { editing.blocks.length } blocks of hours. Copying to other days copies all of them.
+										</Typography>
+									) }
 								</Stack>
 							) }
 							{ ( editing.type || 'work' ) === 'sick' && (
@@ -521,18 +604,13 @@ export default function StaffRota( { staff, roles } ) {
 							</Box>
 
 							<Stack direction="row" alignItems="center" spacing={ 1 }>
-								{ editing.id && (
-									<Button color="error" size="small" startIcon={ <DeleteOutlineIcon /> } onClick={ () => setConfirmDel( true ) }>Delete</Button>
-								) }
-								{ ( editing.type || 'work' ) === 'work' && (
-									<Button size="small" startIcon={ <AddIcon /> } onClick={ addSplit } title="Save this shift, then add another block of hours the same day">
-										Split shift
-									</Button>
+								{ editing.blocks.some( ( b ) => b.id ) && (
+									<Button color="error" size="small" startIcon={ <DeleteOutlineIcon /> } onClick={ () => setConfirmDel( true ) }>Delete day</Button>
 								) }
 								<Box sx={ { flex: 1 } } />
 								<Button onClick={ () => setEditing( null ) } sx={ { color: tokens.muted } }>Cancel</Button>
 								<Button variant="contained" onClick={ saveShift }>
-									{ copyTargets.length ? `Save + copy to ${ copyTargets.length } day${ copyTargets.length === 1 ? '' : 's' }` : 'Save shift' }
+									{ copyTargets.length ? `Save + copy to ${ copyTargets.length } day${ copyTargets.length === 1 ? '' : 's' }` : ( editing.blocks.length > 1 ? `Save ${ editing.blocks.length } shifts` : 'Save shift' ) }
 								</Button>
 							</Stack>
 						</Stack>
@@ -541,10 +619,10 @@ export default function StaffRota( { staff, roles } ) {
 			</Drawer>
 			<ConfirmDialog
 				open={ confirmDel }
-				title="Delete this shift?"
-				message={ editing ? `${ editing.staffName }'s ${ editing.start }–${ editing.end } shift will be removed from the rota.` : '' }
-				confirmLabel="Delete shift"
-				onConfirm={ () => { setConfirmDel( false ); deleteShift(); } }
+				title="Clear this day?"
+				message={ editing ? `${ editing.staffName }'s ${ editing.blocks.length > 1 ? `${ editing.blocks.length } shifts` : 'shift' } on this day will be removed from the rota.` : '' }
+				confirmLabel="Delete day"
+				onConfirm={ () => { setConfirmDel( false ); deleteDay(); } }
 				onCancel={ () => setConfirmDel( false ) }
 			/>
 		</Box>
