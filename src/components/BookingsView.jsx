@@ -268,7 +268,9 @@ export default function BookingsView() {
 		// Always tell the user which table it landed on. When a specific table was
 		// full, the engine best-fit-assigns another — showing the real table makes
 		// that visible instead of bookings mysteriously "piling onto one table".
-		if ( booking.table ) {
+		if ( booking.assignedNote ) {
+			setReviewMsg( `Booked · ${ booking.table || '' } — ${ booking.assignedNote }` );
+		} else if ( booking.table ) {
 			setReviewMsg( `Booked · ${ booking.table }` );
 		} else if ( [ 'provisional', 'penciled', 'waitlist' ].includes( booking.status ) ) {
 			setReviewMsg( 'Penciled in — no table held yet' );

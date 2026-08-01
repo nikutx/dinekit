@@ -48,11 +48,31 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 		const left = ( ( start - openMin ) / span ) * 100;
 		const width = Math.max( 4, Math.min( 100 - left, ( turnMin / span ) * 100 ) );
 		const soft = 'provisional' === b.status || 'waitlist' === b.status;
+		const tip = `${ b.time } · ${ b.name || 'Guest' } · ${ b.party }p · ${ b.status }`
+			+ ( b.notes ? ` — “${ b.notes }”` : '' )
+			+ ( onMove ? ' — drag to move, click to edit' : '' );
 		return (
-			<Tooltip title={ `${ b.time } · ${ b.name || 'Guest' } · ${ b.party }p · ${ b.status }${ onMove ? ' — drag to move, click to edit' : '' }` }>
+			<Tooltip title={ tip }>
 				<Box
+					// The empty native title stops the row's "click to add a booking"
+					// hover hint appearing on top of a booking (it was covering notes).
+					title=""
 					draggable={ !! onMove }
-					onDragStart={ onMove ? ( e ) => { e.dataTransfer.setData( 'text/dk-booking', String( b.id ) ); e.dataTransfer.effectAllowed = 'move'; } : undefined }
+					onDragStart={ onMove ? ( e ) => {
+						e.dataTransfer.setData( 'text/dk-booking', String( b.id ) );
+						e.dataTransfer.effectAllowed = 'move';
+						// Anchor the drag ghost to where the block was GRABBED, and
+						// remember that grab offset (as minutes into the sitting) so
+						// the drop lands the START where the ghost shows it — the
+						// block no longer snaps its edge to the cursor.
+						const rect = e.currentTarget.getBoundingClientRect();
+						e.dataTransfer.setDragImage( e.currentTarget, e.clientX - rect.left, e.clientY - rect.top );
+						const grabMin = ( ( e.clientX - rect.left ) / Math.max( 1, rect.width ) ) * turnMin;
+						e.dataTransfer.setData( 'text/dk-grab-min', String( Math.round( grabMin ) ) );
+						const node = e.currentTarget;
+						requestAnimationFrame( () => { node.style.opacity = '0.35'; } );
+						node.addEventListener( 'dragend', () => { node.style.opacity = ''; }, { once: true } );
+					} : undefined }
 					onClick={ ( e ) => { e.stopPropagation(); onSelect && onSelect( b ); } }
 					sx={ {
 						position: 'absolute',
@@ -66,6 +86,7 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 						px: 0.75,
 						display: 'flex',
 						alignItems: 'center',
+						gap: 0.4,
 						overflow: 'hidden',
 						fontSize: 11,
 						fontWeight: 700,
@@ -74,6 +95,7 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 						border: soft ? '1px dashed rgba(255,255,255,0.6)' : '1px solid rgba(255,255,255,0.25)',
 					} }
 				>
+					{ !! b.notes && <span aria-hidden="true" style={ { flexShrink: 0, fontSize: 10 } } title={ b.notes }>📝</span> }
 					<span style={ { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }>
 						{ b.time } { b.name || 'Guest' } · { b.party }
 					</span>
@@ -113,7 +135,10 @@ export default function ServiceTimeline( { bookings, tables, areas, combos, even
 							return;
 						}
 						const rect = e.currentTarget.getBoundingClientRect();
-						let min = openMin + ( ( e.clientX - rect.left ) / rect.width ) * span;
+						// Subtract where inside the block it was grabbed, so the START
+						// lands where the ghost visually sits, not at the cursor.
+						const grab = parseInt( e.dataTransfer.getData( 'text/dk-grab-min' ), 10 ) || 0;
+						let min = openMin + ( ( e.clientX - rect.left ) / rect.width ) * span - grab;
 						min = Math.max( openMin, Math.min( closeMin, Math.round( min / 15 ) * 15 ) );
 						onMove( id, tableId, hhmm( min ) );
 					} : undefined }

@@ -1331,7 +1331,8 @@ function create_booking( $request ) {
 	// fall back to a table combination for larger parties.
 	$table_id = (int) $request->get_param( 'tableId' );
 	$combo_id = (int) $request->get_param( 'comboId' );
-	if ( ! $table_id && ! $combo_id ) {
+	$auto     = ! $table_id && ! $combo_id;
+	if ( $auto ) {
 		$free = Availability\available_tables( $date, $time, $party );
 		if ( $free ) {
 			$table_id = (int) $free[0]['id'];
@@ -1374,7 +1375,19 @@ function create_booking( $request ) {
 	require_once DINEKIT_DIR . 'includes/bookings/emails.php';
 	\DineKit\Bookings\Emails\new_booking( $post_id, false );
 
-	return rest_ensure_response( booking_response( $post_id ) );
+	// Auto-assign transparency: say WHICH table the engine chose and why, so a
+	// spread of bookings never reads as them mysteriously piling onto a table.
+	$resp = booking_response( $post_id );
+	if ( $auto ) {
+		if ( $table_id ) {
+			/* translators: 1: table name, 2: party size. */
+			$resp['assignedNote'] = sprintf( __( 'Auto-assigned %1$s — the smallest free table that fits a party of %2$d at this time.', 'dinekit' ), get_the_title( $table_id ), $party );
+		} elseif ( $combo_id ) {
+			/* translators: 1: combination name, 2: party size. */
+			$resp['assignedNote'] = sprintf( __( 'Auto-assigned the %1$s combination — no single free table fits a party of %2$d at this time.', 'dinekit' ), get_the_title( $combo_id ), $party );
+		}
+	}
+	return rest_ensure_response( $resp );
 }
 
 /**
