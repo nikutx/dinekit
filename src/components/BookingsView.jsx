@@ -53,6 +53,7 @@ import EmptyState from './ui/EmptyState';
 import { ListSkeleton } from './ui/Skeletons';
 import BookingSettingsView from './BookingSettingsView';
 import ServiceTimeline from './ServiceTimeline';
+import useHashTab from '../lib/useHashTab';
 import PageTour from './PageTour';
 import { DetailSection, DetailRow } from './ui/Detail';
 
@@ -62,7 +63,7 @@ export default function BookingsView() {
 	const [ loading, setLoading ] = useState( true );
 	const [ popupAdd, setPopupAdd ] = useState( false ); // "New booking" popup (both views)
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
-	const [ view, setView ] = useState( 'list' ); // 'list' (diary) | 'timeline' (full-width service view)
+	const [ view, setView ] = useHashTab( 'bookings', [ 'list', 'timeline' ], 'list' ); // diary | full-width service view — URL-backed so refresh keeps it
 	const [ listScope, setListScope ] = useState( 'upcoming' ); // 'upcoming' (what's left today) | 'all'
 	const [ selectMode, setSelectMode ] = useState( false ); // bulk-manage toggle
 	const [ selected, setSelected ] = useState( () => new Set() ); // selected booking ids
@@ -930,14 +931,43 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 		saveProfile( { allergens: pretty.join( ', ' ) } );
 	};
 
-	const nq = form.name.trim().toLowerCase();
+	// The returning-guest lookup runs from whichever of Name / Phone / Email is
+	// being typed in ("who is this number calling?"). Phone matching compares
+	// digits only, so "07700900780" finds a guest stored as "07700 900780".
+	const [ sugField, setSugField ] = useState( 'name' );
+	const rawQ = ( 'phone' === sugField ? form.phone : ( 'email' === sugField ? form.email : form.name ) ) || '';
+	const nq = rawQ.trim().toLowerCase();
+	const qDigits = nq.replace( /\D/g, '' );
 	const guestMatches = ( ! editing && ! walkIn && nq.length >= 2 && sugOpen )
-		? guests.filter( ( g ) => ( g.name || '' ).toLowerCase().includes( nq ) || ( g.phone || '' ).includes( nq ) || ( g.email || '' ).toLowerCase().includes( nq ) ).slice( 0, 6 )
+		? guests.filter( ( g ) =>
+			( g.name || '' ).toLowerCase().includes( nq ) ||
+			( g.email || '' ).toLowerCase().includes( nq ) ||
+			( qDigits.length >= 3 && String( g.phone || '' ).replace( /\D/g, '' ).includes( qDigits ) )
+		).slice( 0, 6 )
 		: [];
 	const pickGuest = ( g ) => {
 		set( { name: g.name || '', phone: g.phone || '', email: g.email || '' } );
 		setSugOpen( false );
 	};
+	// One dropdown, anchored under whichever field is driving the lookup.
+	const sugProps = ( field ) => ( {
+		onFocus: () => { setSugField( field ); setSugOpen( true ); },
+		onBlur: () => setTimeout( () => setSugOpen( false ), 150 ),
+	} );
+	const sugList = ( field ) => ( sugField === field && guestMatches.length > 0 ) && (
+		<Box sx={ { position: 'absolute', top: '100%', left: 0, minWidth: 280, maxWidth: 420, zIndex: 20, mt: 0.5, bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 2, boxShadow: tokens.shadowSm, overflow: 'hidden' } }>
+			{ guestMatches.map( ( g, i ) => (
+				// pointerdown (not mousedown): fires for mouse/touch/pen alike and
+				// beats the field's onBlur, which closes the list 150ms later.
+				<Box key={ i } onPointerDown={ () => pickGuest( g ) } sx={ { px: 1.5, py: 1, cursor: 'pointer', '&:hover': { bgcolor: tokens.soft } } }>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>{ g.name || 'Guest' }{ g.vip ? ' ⭐' : '' }</Typography>
+					<Typography sx={ { fontSize: 12, color: tokens.muted } }>
+						{ [ g.phone, g.email, g.visits ? `${ g.visits } visit${ g.visits === 1 ? '' : 's' }` : '', ( g.allergens && g.allergens.length ) ? `${ g.allergens.length } allergen${ g.allergens.length === 1 ? '' : 's' }` : '' ].filter( Boolean ).join( ' · ' ) }
+					</Typography>
+				</Box>
+			) ) }
+		</Box>
+	);
 	// Pre-select a table/combo once availability loads: the timeline-clicked table
 	// when creating, or the booking's own table/combo when editing.
 	const prefillTable = useRef( ( editing && editing.tableId ) || initialTable || 0 );
@@ -1172,40 +1202,36 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 					<TextField
 						label="Name"
 						value={ form.name }
-						onChange={ ( e ) => { set( { name: e.target.value } ); setSugOpen( true ); } }
-						onFocus={ () => setSugOpen( true ) }
-						onBlur={ () => setTimeout( () => setSugOpen( false ), 150 ) }
+						onChange={ ( e ) => { set( { name: e.target.value } ); setSugField( 'name' ); setSugOpen( true ); } }
 						fullWidth
+						{ ...sugProps( 'name' ) }
 					/>
-					{ guestMatches.length > 0 && (
-						<Box sx={ { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, mt: 0.5, bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 2, boxShadow: tokens.shadowSm, overflow: 'hidden' } }>
-							{ guestMatches.map( ( g, i ) => (
-								<Box key={ i } onMouseDown={ () => pickGuest( g ) } sx={ { px: 1.5, py: 1, cursor: 'pointer', '&:hover': { bgcolor: tokens.soft } } }>
-									<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>{ g.name || 'Guest' }{ g.vip ? ' ⭐' : '' }</Typography>
-									<Typography sx={ { fontSize: 12, color: tokens.muted } }>
-										{ [ g.phone, g.email, g.visits ? `${ g.visits } visit${ g.visits === 1 ? '' : 's' }` : '', ( g.allergens && g.allergens.length ) ? `${ g.allergens.length } allergen${ g.allergens.length === 1 ? '' : 's' }` : '' ].filter( Boolean ).join( ' · ' ) }
-									</Typography>
-								</Box>
-							) ) }
-						</Box>
-					) }
+					{ sugList( 'name' ) }
 				</Box>
 			</Stack>
 
 			<Stack direction="row" flexWrap="wrap" gap={ 1.5 } sx={ { mt: 1.5 } }>
-				<TextField
-					label="Phone"
-					value={ form.phone }
-					onChange={ ( e ) => set( { phone: e.target.value } ) }
-					sx={ { width: 180 } }
-				/>
-				<TextField
-					label="Email"
-					type="email"
-					value={ form.email }
-					onChange={ ( e ) => set( { email: e.target.value } ) }
-					sx={ { width: 220 } }
-				/>
+				<Box sx={ { position: 'relative', width: 180 } }>
+					<TextField
+						label="Phone"
+						value={ form.phone }
+						onChange={ ( e ) => { set( { phone: e.target.value } ); setSugField( 'phone' ); setSugOpen( true ); } }
+						fullWidth
+						{ ...sugProps( 'phone' ) }
+					/>
+					{ sugList( 'phone' ) }
+				</Box>
+				<Box sx={ { position: 'relative', width: 220 } }>
+					<TextField
+						label="Email"
+						type="email"
+						value={ form.email }
+						onChange={ ( e ) => { set( { email: e.target.value } ); setSugField( 'email' ); setSugOpen( true ); } }
+						fullWidth
+						{ ...sugProps( 'email' ) }
+					/>
+					{ sugList( 'email' ) }
+				</Box>
 				<TextField
 					label="Notes (allergies, occasion…)"
 					value={ form.notes }

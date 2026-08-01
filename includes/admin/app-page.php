@@ -22,6 +22,26 @@ function init() {
 	add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\\load_assets' );
 	add_filter( 'admin_body_class', __NAMESPACE__ . '\\body_class' );
 	add_action( 'current_screen', __NAMESPACE__ . '\\help_tab' );
+	add_action( 'current_screen', __NAMESPACE__ . '\\disable_emoji_swap' );
+}
+
+/**
+ * Keep WP's twemoji swapper off the DineKit screen.
+ *
+ * Core replaces emoji characters (⭐, 📝, ⏰…) with <img> elements INSIDE
+ * React-managed DOM; the next React reconciliation of that node then throws
+ * NotFoundError (removeChild) and white-screens the app. The SPA renders
+ * native emoji fine, so on this one screen the swapper must not run.
+ *
+ * @param \WP_Screen $screen Current screen.
+ * @return void
+ */
+function disable_emoji_swap( $screen ) {
+	if ( ! $screen || 'toplevel_page_dinekit' !== $screen->id ) {
+		return;
+	}
+	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+	remove_action( 'admin_print_styles', 'print_emoji_styles' );
 }
 
 /**

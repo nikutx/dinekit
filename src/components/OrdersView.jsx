@@ -50,6 +50,7 @@ import EmptyState from './ui/EmptyState';
 import Card from './ui/Card';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
+import useHashTab from '../lib/useHashTab';
 
 // Prominent "how customers order online" panel — the link + QR to share, or a
 // one-click create if the ordering page doesn't exist yet. Makes the online
@@ -252,7 +253,7 @@ export default function OrdersView() {
 	const [ orders, setOrders ] = useState( [] );
 	const [ archived, setArchived ] = useState( null ); // Loaded lazily when the tab opens.
 	const [ loading, setLoading ] = useState( true );
-	const [ tab, setTab ] = useState( 'active' );
+	const [ tab, setTab ] = useHashTab( 'orders', [ 'active', 'done', 'all', 'archived' ], 'active' ); // URL-backed so refresh keeps the tab
 	const [ cur, setCur ] = useState( { symbol: '£', position: 'before' } );
 	const [ settingsOpen, setSettingsOpen ] = useState( false );
 	const [ adding, setAdding ] = useState( false );
