@@ -435,6 +435,10 @@ function table_history( $request ) {
 	if ( ! $table_id ) {
 		return rest_ensure_response( array() );
 	}
+	// TODAY only: mid-service the till cares about this service's tabs (fix a
+	// payment, check what the last party had) — the full archive lives on the
+	// Orders screen, not the order pad.
+	$today  = current_time( 'Y-m-d' );
 	$posts  = get_posts(
 		array(
 			'post_type'      => 'dinekit_order',
@@ -443,6 +447,12 @@ function table_history( $request ) {
 			'no_found_rows'  => true,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
+			'date_query'     => array(
+				array(
+					'after'     => $today . ' 00:00:00',
+					'inclusive' => true,
+				),
+			),
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				'relation' => 'AND',
 				array(

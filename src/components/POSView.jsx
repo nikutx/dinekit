@@ -1134,15 +1134,15 @@ function TableHistorySheet( { tableId, tableName, money, onClose, onChanged } ) 
 			<Box sx={ { p: 3, maxHeight: '82vh', overflowY: 'auto' } }>
 				<Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={ { mb: 2 } }>
 					<Box>
-						<Typography variant="h6">Previous orders</Typography>
-						<Typography sx={ { fontSize: 13, color: tokens.muted } }>{ tableName } · settled tabs, most recent first</Typography>
+						<Typography variant="h6">Today’s settled tabs</Typography>
+						<Typography sx={ { fontSize: 13, color: tokens.muted } }>{ tableName } · most recent first — older days live on the Orders screen</Typography>
 					</Box>
 					<IconButton size="small" onClick={ onClose }><CloseIcon fontSize="small" /></IconButton>
 				</Stack>
 				{ orders === null ? (
 					<Stack alignItems="center" sx={ { py: 5 } }><CircularProgress /></Stack>
 				) : orders.length === 0 ? (
-					<Typography sx={ { color: tokens.muted, py: 2 } }>No previous orders for this table yet.</Typography>
+					<Typography sx={ { color: tokens.muted, py: 2 } }>No settled tabs on this table today. Older days are on the Orders screen.</Typography>
 				) : (
 					<Stack spacing={ 1.25 }>
 						{ orders.map( ( o ) => {
