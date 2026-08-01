@@ -1115,6 +1115,7 @@ function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRe
 	const m = O_STATUS.find( ( s ) => s.key === order.status ) || O_STATUS[ 0 ];
 	// Amending money is a manager action (same permission as refunds/voids).
 	const canAmendPay = ! window.DINEKIT || ! window.DINEKIT.caps || !! window.DINEKIT.caps.refunds;
+	const [ retypeIdx, setRetypeIdx ] = useState( -1 ); // payment row showing the swap-method chips
 	const pay = PAYMENT[ order.payment ];
 	const fmt = ( iso ) => { try { return new Date( iso ).toLocaleString(); } catch ( e ) { return iso; } };
 	const hasBar = ( order.items || [] ).some( ( li ) => li.station === 'bar' );
@@ -1227,24 +1228,37 @@ function OrderDetail( { order, money, onClose, onResend, onCancel, onPrint, onRe
 				{ ( order.tenders || [] ).length > 0 && (
 					<Stack spacing={ 0.5 } sx={ { mt: 1 } }>
 						{ order.tenders.map( ( t, i ) => (
-							<Stack key={ i } direction="row" alignItems="center" spacing={ 1 } >
-								<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>{ t.type } · { money( Number( t.amount ) ) }</Typography>
-								<Box sx={ { flex: 1 } } />
-								{ canAmendPay && onAmend && (
-									<Button
-										size="small"
-										color="error"
-										onClick={ () => setConfirm( {
-											title: 'Remove this payment?',
-											message: `The ${ t.type } payment of ${ money( Number( t.amount ) ) } comes off order #${ order.number }. If the bill is no longer covered, a settled tab reopens on its table.`,
-											confirmLabel: 'Remove payment',
-											onConfirm: () => onAmend( { action: 'remove_tender', tenderIndex: i, tenderType: t.type, amount: t.amount } ),
-										} ) }
-									>
-										Remove
-									</Button>
+							<Box key={ i }>
+								<Stack direction="row" alignItems="center" spacing={ 1 } >
+									<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>{ t.type } · { money( Number( t.amount ) ) }</Typography>
+									<Box sx={ { flex: 1 } } />
+									{ canAmendPay && onAmend && (
+										<Button size="small" onClick={ () => setRetypeIdx( retypeIdx === i ? -1 : i ) }>Change</Button>
+									) }
+									{ canAmendPay && onAmend && (
+										<Button
+											size="small"
+											color="error"
+											onClick={ () => setConfirm( {
+												title: 'Remove this payment?',
+												message: `The ${ t.type } payment of ${ money( Number( t.amount ) ) } comes off order #${ order.number }. If the bill is no longer covered, a settled tab reopens on its table.`,
+												confirmLabel: 'Remove payment',
+												onConfirm: () => onAmend( { action: 'remove_tender', tenderIndex: i, tenderType: t.type, amount: t.amount } ),
+											} ) }
+										>
+											Remove
+										</Button>
+									) }
+								</Stack>
+								{ retypeIdx === i && (
+									<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 0.5 } }>
+										<Typography sx={ { fontSize: 12, color: tokens.muted } }>Was actually…</Typography>
+										{ [ 'cash', 'card', 'voucher', 'comp', 'account' ].filter( ( ty ) => ty !== t.type ).map( ( ty ) => (
+											<Chip key={ ty } label={ ty } size="small" onClick={ () => { setRetypeIdx( -1 ); onAmend( { action: 'retype_tender', tenderIndex: i, tenderType: t.type, amount: t.amount, newType: ty } ); } } sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: tokens.soft, color: tokens.ink2, '&:hover': { bgcolor: tokens.accentSoft, color: tokens.accentDark } } } />
+										) ) }
+									</Stack>
 								) }
-							</Stack>
+							</Box>
 						) ) }
 					</Stack>
 				) }

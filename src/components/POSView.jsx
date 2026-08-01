@@ -1091,6 +1091,7 @@ function TableHistorySheet( { tableId, tableName, money, onClose, onChanged } ) 
 	const [ orders, setOrders ] = useState( null );
 	const [ openId, setOpenId ] = useState( 0 );
 	const [ confirmAmend, setConfirmAmend ] = useState( null ); // { o, ti, t } remove tender | { o, reopen } reopen tab
+	const [ retypeFor, setRetypeFor ] = useState( '' ); // "orderId:tenderIndex" showing the swap-method chips
 	const [ amendErr, setAmendErr ] = useState( '' );
 	// Amending money is a manager action (same permission as refunds/voids).
 	const canAmend = ! window.DINEKIT || ! window.DINEKIT.caps || !! window.DINEKIT.caps.refunds;
@@ -1114,6 +1115,18 @@ function TableHistorySheet( { tableId, tableName, money, onClose, onChanged } ) 
 			onChanged && onChanged();
 		} catch ( e ) {
 			setAmendErr( e.message || 'Could not amend that order.' );
+		}
+	};
+	// "Pressed voucher, meant cash": swap the payment's method in place —
+	// the amount and the settle don't move, only the books (logged).
+	const retype = async ( o, ti, t, newType ) => {
+		setAmendErr( '' );
+		setRetypeFor( '' );
+		try {
+			await api.updateOrder( o.id, { action: 'retype_tender', tenderIndex: ti, tenderType: t.type, amount: t.amount, newType } );
+			await refresh();
+		} catch ( e ) {
+			setAmendErr( e.message || 'Could not change the payment method.' );
 		}
 	};
 	return (
@@ -1170,15 +1183,28 @@ function TableHistorySheet( { tableId, tableName, money, onClose, onChanged } ) 
 												<Box sx={ { mt: 1.25, pt: 1, borderTop: `1px dashed ${ tokens.border }` } }>
 													<Typography sx={ { fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: tokens.muted } }>Payments</Typography>
 													{ o.tenders.map( ( t, ti ) => (
-														<Stack key={ ti } direction="row" alignItems="center" spacing={ 1 } sx={ { mt: 0.5 } }>
-															<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>
-																{ t.type } · { money( Number( t.amount ) ) }{ t.t ? ` · ${ fmtDateTime( t.t ) }` : '' }
-															</Typography>
-															<Box sx={ { flex: 1 } } />
-															{ canAmend && (
-																<Button size="small" color="error" onClick={ () => setConfirmAmend( { o, ti, t } ) }>Remove</Button>
+														<Box key={ ti } sx={ { mt: 0.5 } }>
+															<Stack direction="row" alignItems="center" spacing={ 1 }>
+																<Typography sx={ { fontSize: 13, color: tokens.ink2 } }>
+																	{ t.type } · { money( Number( t.amount ) ) }{ t.t ? ` · ${ fmtDateTime( t.t ) }` : '' }
+																</Typography>
+																<Box sx={ { flex: 1 } } />
+																{ canAmend && (
+																	<Button size="small" onClick={ () => setRetypeFor( retypeFor === `${ o.id }:${ ti }` ? '' : `${ o.id }:${ ti }` ) }>Change</Button>
+																) }
+																{ canAmend && (
+																	<Button size="small" color="error" onClick={ () => setConfirmAmend( { o, ti, t } ) }>Remove</Button>
+																) }
+															</Stack>
+															{ retypeFor === `${ o.id }:${ ti }` && (
+																<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mt: 0.5 } }>
+																	<Typography sx={ { fontSize: 12, color: tokens.muted } }>Was actually…</Typography>
+																	{ [ 'cash', 'card', 'voucher', 'comp', 'account' ].filter( ( ty ) => ty !== t.type ).map( ( ty ) => (
+																		<Chip key={ ty } label={ ty } size="small" onClick={ () => retype( o, ti, t, ty ) } sx={ { cursor: 'pointer', fontWeight: 600, bgcolor: tokens.soft, color: tokens.ink2, '&:hover': { bgcolor: tokens.accentSoft, color: tokens.accentDark } } } />
+																	) ) }
+																</Stack>
 															) }
-														</Stack>
+														</Box>
 													) ) }
 												</Box>
 											) }
