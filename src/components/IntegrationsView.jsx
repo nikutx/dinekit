@@ -543,9 +543,11 @@ function SmsCard() {
 							{ ' ' }(no card needed for the trial).
 						</li>
 						<li>
-							On the console <strong>homepage</strong>, scroll down to the <strong>“Account Info”</strong> box —
-							that’s where the <strong>Account SID</strong> (starts with “AC”) and the <strong>Auth Token</strong> live.
-							Click the eye icon to reveal the token, then copy both here.
+							Open{ ' ' }
+							<Link href="https://console.twilio.com/us1/account/keys-credentials/api-keys" target="_blank" rel="noreferrer">API keys &amp; tokens <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }(that link goes straight there — it also lives under the <strong>Admin</strong> menu, top right → <strong>Account settings</strong>).
+							The <strong>“Live credentials”</strong> box holds your <strong>Account SID</strong> (starts with “AC”) and <strong>Auth Token</strong> —
+							press <strong>Show</strong>, copy both here. (Some accounts also show an “Account Info” box on the console homepage — same values.)
 						</li>
 						<li>
 							Get your sending number: on a trial the homepage shows a <strong>“Get a phone number”</strong> button — one click.
