@@ -40,6 +40,8 @@ import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { tokens } from '../theme';
 import { copyToClipboard } from '../lib/clipboard';
 import { api } from '../api/client';
+import { useSyncRevision } from '../lib/useSync';
+import { useToast } from './Toast';
 import { printDoc, esc } from '../lib/print';
 import Page from './ui/Page';
 import PageHeader from './ui/PageHeader';
@@ -255,14 +257,51 @@ export default function OrdersView() {
 	const [ adding, setAdding ] = useState( false );
 	const [ detail, setDetail ] = useState( null ); // Order shown in the detail drawer.
 
+	const toast = useToast();
+	const knownIds = useRef( null ); // ids seen so far — announces genuinely NEW arrivals
+
 	useEffect( () => {
 		Promise.all( [ api.getOrders(), api.getSettings() ] )
 			.then( ( [ list, settings ] ) => {
 				setOrders( list || [] );
+				knownIds.current = new Set( ( list || [] ).map( ( o ) => o.id ) );
 				setCur( { symbol: settings.currency || '£', position: settings.currencyPosition || 'before' } );
 			} )
 			.finally( () => setLoading( false ) );
 	}, [] );
+
+	// LIVE board: the sync heartbeat says "orders changed somewhere" → refetch,
+	// and announce anything genuinely new so the person watching doesn't have
+	// to spot a list getting longer.
+	const ordersRev = useSyncRevision( 'orders' );
+	useEffect( () => {
+		if ( ordersRev === 0 || knownIds.current === null ) {
+			return; // First load handles itself.
+		}
+		api.getOrders().then( ( list ) => {
+			const next = list || [];
+			const fresh = next.filter( ( o ) => ! knownIds.current.has( o.id ) );
+			setOrders( next );
+			knownIds.current = new Set( next.map( ( o ) => o.id ) );
+			fresh.slice( 0, 3 ).forEach( ( o ) => {
+				const cm = channelMeta( orderChannel( o ) );
+				toast.info(
+					`New ${ cm ? cm.chip.toLowerCase() : '' } order #${ o.number }`,
+					o.whenDate ? `Pre-order for ${ fmtWhenDate( o.whenDate ) } · ${ o.when }` : ( o.items || [] ).length + ' item' + ( ( o.items || [] ).length === 1 ? '' : 's' )
+				);
+			} );
+		} ).catch( () => {} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ ordersRev ] );
+
+	// The browser tab itself reports the live workload — a glance at a
+	// background tab answers "anything waiting?".
+	const activeForTitle = orders.filter( ( o ) => [ 'new', 'preparing', 'ready' ].includes( o.status ) ).length;
+	useEffect( () => {
+		const base = document.title.replace( /^\(\d+\)\s*/, '' );
+		document.title = activeForTitle > 0 ? `(${ activeForTitle }) ${ base }` : base;
+		return () => { document.title = document.title.replace( /^\(\d+\)\s*/, '' ); };
+	}, [ activeForTitle ] );
 
 	useEffect( () => {
 		if ( tab === 'archived' && archived === null ) {
@@ -356,6 +395,17 @@ export default function OrdersView() {
 	}, [ orders, archived, tab ] );
 
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
+
+	// Scheduled groups fold away during service — EXCEPT while one still holds
+	// an unaccepted order (hiding a "New" pre-order is how it never gets
+	// accepted). A manual toggle wins either way.
+	const [ schedOpen, setSchedOpen ] = useState( {} ); // label → true/false override
+	const schedExpanded = ( g ) => {
+		if ( schedOpen[ g.label ] !== undefined ) {
+			return schedOpen[ g.label ];
+		}
+		return g.orders.some( ( o ) => o.status === 'new' ); // needs action → open
+	};
 	const activeCount = orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) ).length;
 
 	const markPrinted = ( id, station ) => {
@@ -501,14 +551,23 @@ export default function OrdersView() {
 				<Stack spacing={ 3 }>
 					{ groups.map( ( g ) => (
 						<Box key={ g.label } sx={ g.scheduled ? { p: 1.5, borderRadius: '12px', border: `1px dashed ${ tokens.amber }`, bgcolor: tokens.amberSoft } : {} }>
-							<Typography sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: g.scheduled ? tokens.amber : tokens.muted2, mb: 1 } }>
+							<Typography
+								onClick={ g.scheduled ? () => setSchedOpen( ( s ) => ( { ...s, [ g.label ]: ! schedExpanded( g ) } ) ) : undefined }
+								sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: g.scheduled ? tokens.amber : tokens.muted2, mb: g.scheduled && ! schedExpanded( g ) ? 0 : 1, ...( g.scheduled ? { cursor: 'pointer', userSelect: 'none' } : {} ) } }
+							>
 								{ g.label } · { g.orders.length }
 								{ g.scheduled && (
 									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 600, ml: 1 } }>
 										— pre-orders, not for today’s kitchen
 									</Box>
 								) }
+								{ g.scheduled && (
+									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 700, ml: 1, textDecoration: 'underline' } }>
+										{ schedExpanded( g ) ? 'Hide' : 'Show' }
+									</Box>
+								) }
 							</Typography>
+							{ ( ! g.scheduled || schedExpanded( g ) ) && (
 							<Stack spacing={ 1.5 }>
 								{ g.orders.map( ( o ) => {
 									const m = meta( o.status );
@@ -605,6 +664,7 @@ export default function OrdersView() {
 									);
 								} ) }
 							</Stack>
+							) }
 						</Box>
 					) ) }
 				</Stack>
