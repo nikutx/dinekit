@@ -354,25 +354,13 @@ export default function BookingsView() {
 		}
 	};
 
-	// Walk-in: an on-the-spot guest, seated immediately with no details required.
-	// Booked from "now" rounded to the nearest 15 min, and auto-seated at the
-	// best-fit free table (smallest that fits) if one's open — falling back to
-	// no-table only when the room's full.
-	const addWalkIn = async () => {
-		const time = nowSlot();
-		// Walk-ins previously bypassed all capacity checks — you could seat well
-		// past your room. Respect the covers-per-hour cap the booking form warns
-		// on: if we're over, ask before seating another party (staff can override).
-		let tableId = 0;
-		try {
-			const a = await api.getAvailability( { date, time, party: 2 } );
-			tableId = a && a.tables && a.tables.length ? a.tables[ 0 ].id : 0;
-			if ( a && a.overCap ) {
-				setWalkInConfirm( { time, tableId } );
-				return;
-			}
-		} catch ( e ) { /* availability check is best-effort — never block a walk-in on a network hiccup */ }
-		seatWalkIn( time, tableId );
+	// Walk-in: opens the booking popup pre-filled ("Walk-in", now) with the
+	// best-fit table pre-selected and re-suggested as the party size changes —
+	// the host confirms with one tap on "Seat now". (Was an instant blind
+	// seat; the party of 3 that turns out to be 4 needed the form.)
+	const addWalkIn = () => {
+		setPrefill( { time: nowSlot(), walkIn: true } );
+		setPopupAdd( true );
 	};
 
 	const seatWalkIn = async ( time, tableId = 0 ) => {
@@ -693,6 +681,7 @@ export default function BookingsView() {
 			<Modal open={ popupAdd } onClose={ () => { setPopupAdd( false ); setPrefill( null ); } }>
 				<NewBooking
 					bare
+					walkIn={ !! ( prefill && prefill.walkIn ) }
 					initialDate={ date }
 					initialTime={ prefill && prefill.time }
 					initialTable={ prefill && prefill.tableId }
@@ -861,7 +850,7 @@ function BookingRow( { booking, turnMin, onStatus, onDelete, onRequestReview, on
 
 const BLANK = { name: '', phone: '', email: '', party: 2, time: '19:00', notes: '' };
 
-function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel, bare, editing, onStatus } ) {
+function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel, bare, editing, onStatus, walkIn } ) {
 	const [ confirmCancel, setConfirmCancel ] = useState( false );
 	const [ form, setForm ] = useState( editing
 		? {
@@ -873,7 +862,7 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 			notes: editing.notes || '',
 			date: editing.date || initialDate,
 		}
-		: { ...BLANK, date: initialDate, time: initialTime || BLANK.time } );
+		: { ...BLANK, name: walkIn ? 'Walk-in' : BLANK.name, date: initialDate, time: initialTime || BLANK.time } );
 	const [ avail, setAvail ] = useState( null ); // null | { available, tables, combos }
 	const [ checking, setChecking ] = useState( false );
 	const [ tableId, setTableId ] = useState( 0 ); // 0 = auto
@@ -914,7 +903,7 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 	};
 
 	const nq = form.name.trim().toLowerCase();
-	const guestMatches = ( ! editing && nq.length >= 2 && sugOpen )
+	const guestMatches = ( ! editing && ! walkIn && nq.length >= 2 && sugOpen )
 		? guests.filter( ( g ) => ( g.name || '' ).toLowerCase().includes( nq ) || ( g.phone || '' ).includes( nq ) || ( g.email || '' ).toLowerCase().includes( nq ) ).slice( 0, 6 )
 		: [];
 	const pickGuest = ( g ) => {
@@ -925,6 +914,9 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 	// when creating, or the booking's own table/combo when editing.
 	const prefillTable = useRef( ( editing && editing.tableId ) || initialTable || 0 );
 	const prefillCombo = useRef( ( editing && editing.comboId ) || 0 );
+	// Walk-in mode: the host's explicit table pick — honoured while that table
+	// is still free; otherwise the best fit is re-suggested on every change.
+	const walkPick = useRef( 0 );
 
 	const set = ( patch ) => setForm( ( f ) => ( { ...f, ...patch } ) );
 
@@ -957,6 +949,22 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 			setComboId( prefillCombo.current );
 			prefillCombo.current = 0;
 		}
+		// Walk-in: keep the suggested table visibly SELECTED (not just "auto"),
+		// and re-suggest whenever party size / time changes the availability.
+		if ( walkIn && ! editing && avail ) {
+			const tables = avail.tables || [];
+			if ( walkPick.current && tables.some( ( t ) => t.id === walkPick.current ) ) {
+				setTableId( walkPick.current );
+				setComboId( 0 );
+			} else if ( tables.length ) {
+				setTableId( tables[ 0 ].id ); // best fit — smallest free table that seats the party
+				setComboId( 0 );
+			} else if ( ( avail.combos || [] ).length ) {
+				setComboId( avail.combos[ 0 ].id );
+				setTableId( 0 );
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ avail ] );
 
 	const noTables = avail && ! avail.available;
@@ -1001,8 +1009,13 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 				} }
 		>
 			<Typography variant="subtitle2" sx={ { mb: 2, color: tokens.ink } }>
-				{ editing ? 'Edit booking' : 'New booking' }
+				{ editing ? 'Edit booking' : walkIn ? 'Seat a walk-in' : 'New booking' }
 			</Typography>
+			{ walkIn && (
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted, mt: -1.5, mb: 2 } }>
+					Adjust the party size and the best-fit table updates — or tap a different table, then Seat now.
+				</Typography>
+			) }
 
 			{ /* Guest intel — who's walking in: VIP, allergies, history, spend. */ }
 			{ editing && intel && ( intel.vip || intel.visits > 0 || intel.orders > 0 || intel.points > 0 || intel.noShows > 0 || intel.allergens || ( intel.tags || [] ).length > 0 || intel.notes ) && (
@@ -1167,7 +1180,7 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 						</Typography>
 						<Chip
 							label="Auto-assign"
-							onClick={ () => { setTableId( 0 ); setComboId( 0 ); } }
+							onClick={ () => { walkPick.current = 0; setTableId( 0 ); setComboId( 0 ); } }
 							variant={ tableId === 0 && comboId === 0 ? 'filled' : 'outlined' }
 							size="small"
 							sx={ {
@@ -1180,7 +1193,7 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 							<Chip
 								key={ t.id }
 								label={ `${ t.name } · ${ t.seats }` }
-								onClick={ () => { setTableId( t.id ); setComboId( 0 ); } }
+								onClick={ () => { walkPick.current = t.id; setTableId( t.id ); setComboId( 0 ); } }
 								variant={ tableId === t.id ? 'filled' : 'outlined' }
 								size="small"
 								sx={ {
@@ -1262,6 +1275,15 @@ function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCanc
 						onClick={ () => save( editing.status ) }
 					>
 						{ saving ? 'Saving…' : 'Save changes' }
+					</Button>
+				) : walkIn ? (
+					<Button
+						variant="contained"
+						disabled={ saving || checking }
+						onClick={ () => save( 'seated' ) }
+						sx={ { bgcolor: tokens.green, '&:hover': { bgcolor: tokens.green } } }
+					>
+						{ saving ? 'Seating…' : ( noTables ? 'Seat anyway (no table)' : 'Seat now' ) }
 					</Button>
 				) : noTables ? (
 					<Button
