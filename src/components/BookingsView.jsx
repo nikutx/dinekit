@@ -510,6 +510,7 @@ export default function BookingsView() {
 					openMin={ svc.openMin }
 					closeMin={ svc.closeMin }
 					turnMin={ turnMin }
+					today={ isToday }
 					onSelect={ ( b ) => setEditBooking( b ) }
 					onCreate={ createAt }
 					onMove={ moveBooking }
