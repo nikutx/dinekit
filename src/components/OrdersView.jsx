@@ -169,6 +169,29 @@ const todayIso = () => {
 // "Sat 2 Aug" for a scheduled pre-order's day.
 const fmtWhenDate = ( iso ) => new Date( iso + 'T12:00:00' ).toLocaleDateString( undefined, { weekday: 'short', day: 'numeric', month: 'short' } );
 
+// Where an order came from — one stream, clear provenance. Keys line up with
+// the server's source/channel stamps (online checkout, table QR, till tab,
+// staff-entered phone/counter order).
+const CHANNELS = [
+	{ key: 'online', label: '🌐 Online', chip: 'Online', fg: '#4f46e5', bg: '#eef2ff' },
+	{ key: 'qr', label: '📱 QR table', chip: 'QR table', fg: '#0369a1', bg: '#e0f2fe' },
+	{ key: 'till', label: '🍽 Till tabs', chip: 'Till', fg: '#92400e', bg: '#fef3c7' },
+	{ key: 'phone', label: '📞 Phone / counter', chip: 'Phone', fg: '#065f46', bg: '#d1fae5' },
+];
+const orderChannel = ( o ) => {
+	if ( o.source === 'online' ) {
+		return 'online';
+	}
+	if ( o.source === 'qr' ) {
+		return 'qr';
+	}
+	if ( o.channel === 'dine_in' ) {
+		return 'till';
+	}
+	return 'phone';
+};
+const channelMeta = ( key ) => CHANNELS.find( ( c ) => c.key === key );
+
 const dayLabel = ( iso ) => {
 	if ( ! iso ) {
 		return 'Earlier';
@@ -267,17 +290,47 @@ export default function OrdersView() {
 		api.updateOrder( id, body ).then( ( o ) => o && patchLocal( id, o ) );
 	};
 
+	// Channel focus: one stream stays one stream, but "just the website
+	// orders" is one tap. Remembered per device (a front-desk tablet can live
+	// on Online while the till lives on All).
+	const [ channel, setChannel ] = useState( () => {
+		try {
+			return window.localStorage.getItem( 'dinekit_orders_channel' ) || 'all';
+		} catch ( e ) {
+			return 'all';
+		}
+	} );
+	const pickChannel = ( v ) => {
+		setChannel( v );
+		try {
+			window.localStorage.setItem( 'dinekit_orders_channel', v );
+		} catch ( e ) { /* private mode — fine, just not remembered */ }
+	};
+
 	const filtered = useMemo( () => {
+		let list;
 		if ( tab === 'archived' ) {
-			return archived || [];
+			list = archived || [];
+		} else if ( tab === 'active' ) {
+			list = orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) );
+		} else if ( tab === 'done' ) {
+			list = orders.filter( ( o ) => [ 'completed', 'cancelled', 'delivered' ].includes( o.status ) );
+		} else {
+			list = orders;
 		}
-		if ( tab === 'active' ) {
-			return orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) );
-		}
-		if ( tab === 'done' ) {
-			return orders.filter( ( o ) => [ 'completed', 'cancelled', 'delivered' ].includes( o.status ) );
-		}
-		return orders;
+		return channel === 'all' ? list : list.filter( ( o ) => orderChannel( o ) === channel );
+	}, [ orders, archived, tab, channel ] );
+
+	// Live per-channel counts for the current status tab (pre-channel-filter).
+	const channelCounts = useMemo( () => {
+		const base = tab === 'archived' ? ( archived || [] )
+			: tab === 'active' ? orders.filter( ( o ) => [ 'open', 'sent', 'new', 'preparing', 'ready', 'out_for_delivery' ].includes( o.status ) )
+				: tab === 'done' ? orders.filter( ( o ) => [ 'completed', 'cancelled', 'delivered' ].includes( o.status ) )
+					: orders;
+		const counts = { all: base.length };
+		CHANNELS.forEach( ( c ) => { counts[ c.key ] = 0; } );
+		base.forEach( ( o ) => { counts[ orderChannel( o ) ]++; } );
+		return counts;
 	}, [ orders, archived, tab ] );
 
 	const groups = useMemo( () => groupByDay( filtered ), [ filtered ] );
@@ -390,12 +443,31 @@ export default function OrdersView() {
 				/>
 			</Collapse>
 
-			<ToggleButtonGroup size="small" exclusive value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 2 } }>
+			<ToggleButtonGroup size="small" exclusive value={ tab } onChange={ ( e, v ) => v && setTab( v ) } sx={ { mb: 1.25 } }>
 				<ToggleButton value="active">Active</ToggleButton>
 				<ToggleButton value="done">Completed</ToggleButton>
 				<ToggleButton value="all">All</ToggleButton>
 				<ToggleButton value="archived">Archived</ToggleButton>
 			</ToggleButtonGroup>
+
+			{ /* Where from? One stream, but any channel is one tap away. */ }
+			<Stack direction="row" spacing={ 0.75 } alignItems="center" flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
+				<Chip
+					label={ `All channels · ${ channelCounts.all }` }
+					onClick={ () => pickChannel( 'all' ) }
+					size="small"
+					sx={ { fontWeight: 700, cursor: 'pointer', bgcolor: channel === 'all' ? tokens.ink : tokens.surface, color: channel === 'all' ? '#fff' : tokens.ink2, border: `1px solid ${ channel === 'all' ? tokens.ink : tokens.border2 }` } }
+				/>
+				{ CHANNELS.map( ( c ) => (
+					<Chip
+						key={ c.key }
+						label={ `${ c.label } · ${ channelCounts[ c.key ] || 0 }` }
+						onClick={ () => pickChannel( c.key ) }
+						size="small"
+						sx={ { fontWeight: 700, cursor: 'pointer', bgcolor: channel === c.key ? c.bg : tokens.surface, color: channel === c.key ? c.fg : tokens.muted, border: `1px solid ${ channel === c.key ? c.fg : tokens.border2 }` } }
+					/>
+				) ) }
+			</Stack>
 
 			{ filtered.length === 0 ? (
 				<EmptyState
@@ -422,6 +494,10 @@ export default function OrdersView() {
 												<Typography sx={ { fontSize: 13, color: tokens.muted } } noWrap>
 													{ o.name }{ o.phone ? ` · ${ o.phone }` : '' } · { o.whenDate ? `${ fmtWhenDate( o.whenDate ) } · ${ o.when }` : ( o.when === 'asap' ? 'ASAP' : o.when ) }
 												</Typography>
+												{ ( () => {
+													const cm = channelMeta( orderChannel( o ) );
+													return cm ? <Chip label={ o.table ? `${ cm.chip } · ${ o.table }` : cm.chip } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: cm.fg, bgcolor: cm.bg } } /> : null;
+												} )() }
 												{ !! o.whenDate && (
 													<Chip label={ o.whenDate > todayIso() ? 'Scheduled' : 'Pre-ordered' } size="small" sx={ { height: 20, fontSize: 11, fontWeight: 700, color: tokens.amber, bgcolor: tokens.amberSoft } } />
 												) }
