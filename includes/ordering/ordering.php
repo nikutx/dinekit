@@ -30,6 +30,106 @@ function init() {
 	add_shortcode( 'dinekit_order', __NAMESPACE__ . '\\order_shortcode' );
 	require_once DINEKIT_DIR . 'includes/ordering/rest.php';
 	Rest\init();
+
+	// Nightly self-healing: yesterday's leftovers (a tab nobody settled, a
+	// booking nobody completed, a cleaning flag nobody tapped) must never
+	// light today's floor. Real services forget things — the software tidies.
+	add_action( 'init', __NAMESPACE__ . '\\schedule_sweep' );
+	add_action( 'dinekit_daily_sweep', __NAMESPACE__ . '\\sweep_stale_service' );
+}
+
+/**
+ * Keep the daily sweep scheduled.
+ *
+ * @return void
+ */
+function schedule_sweep() {
+	if ( ! wp_next_scheduled( 'dinekit_daily_sweep' ) ) {
+		wp_schedule_event( time() + 600, 'daily', 'dinekit_daily_sweep' );
+	}
+}
+
+/**
+ * Close out anything left over from previous days: open dine-in tabs become
+ * completed (logged as auto-closed), seated bookings from past days complete,
+ * and cleaning flags older than 12 hours clear. Today's live service is
+ * never touched.
+ *
+ * @return void
+ */
+function sweep_stale_service() {
+	$today = current_time( 'Y-m-d' );
+
+	// Dine-in tabs from previous days still "open" on the floor.
+	$orders = get_posts(
+		array(
+			'post_type'      => 'dinekit_order',
+			'post_status'    => 'publish',
+			'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded nightly sweep.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'date_query'     => array(
+				array(
+					'before' => $today . ' 00:00:00',
+				),
+			),
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- daily cron, bounded set.
+				array(
+					'key'   => 'dinekit_order_channel',
+					'value' => 'dine_in',
+				),
+			),
+		)
+	);
+	foreach ( $orders as $oid ) {
+		$status = (string) get_post_meta( $oid, 'dinekit_order_status', true );
+		if ( ! in_array( $status, array( 'completed', 'cancelled' ), true ) ) {
+			update_post_meta( $oid, 'dinekit_order_status', 'completed' );
+			log_event( $oid, __( 'Auto-closed by the nightly sweep — left open from a previous day', 'dinekit' ) );
+		}
+	}
+
+	// Seated bookings from previous days.
+	$bookings = get_posts(
+		array(
+			'post_type'      => 'dinekit_booking',
+			'post_status'    => 'publish',
+			'posts_per_page' => 500, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded nightly sweep.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- daily cron, bounded set.
+				array(
+					'key'   => 'dinekit_status',
+					'value' => 'seated',
+				),
+				array(
+					'key'     => 'dinekit_date',
+					'value'   => $today,
+					'compare' => '<',
+				),
+			),
+		)
+	);
+	foreach ( $bookings as $bid ) {
+		update_post_meta( $bid, 'dinekit_status', 'completed' );
+	}
+
+	// Cleaning flags nobody tapped (older than 12h).
+	$tables = get_posts(
+		array(
+			'post_type'      => 'dinekit_table',
+			'post_status'    => 'publish',
+			'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded nightly sweep.
+			'no_found_rows'  => true,
+			'fields'         => 'ids',
+		)
+	);
+	foreach ( $tables as $tid ) {
+		$since = (string) get_post_meta( $tid, 'dinekit_cleaning', true );
+		if ( '' !== $since && strtotime( $since ) < strtotime( current_time( 'mysql' ) ) - 12 * HOUR_IN_SECONDS ) {
+			delete_post_meta( $tid, 'dinekit_cleaning' );
+		}
+	}
 }
 
 /**

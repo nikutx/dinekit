@@ -474,13 +474,36 @@ export default function POSView() {
 			.then( ( rows ) => setDayBookings( ( rows || [] ).filter( ( b ) => ! [ 'cancelled', 'no_show', 'completed' ].includes( b.status ) ) ) )
 			.catch( () => {} );
 	}, [ bookingsRev ] );
+	// Floor state (cleaning flags, maintenance, layout) must follow the server:
+	// settling on ANY device flags the table, and this screen has to show it
+	// without a reload. The floor sync channel bumps on any table change.
+	const floorRev = useSyncRevision( 'floor' );
+	useEffect( () => {
+		if ( loading ) {
+			return;
+		}
+		api.getFloor().then( ( f ) => setFloor( f || { tables: [], areas: [], combos: [] } ) ).catch( () => {} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ floorRev ] );
 	const comboTables = useMemo( () => {
 		const m = {};
 		( floor.combos || [] ).forEach( ( c ) => { m[ c.id ] = c.tables || []; } );
 		return m;
 	}, [ floor.combos ] );
 	const bookingsOn = ( tid ) => dayBookings.filter( ( b ) => b.tableId === tid || ( b.comboId && ( comboTables[ b.comboId ] || [] ).includes( tid ) ) );
-	const seatedBooking = ( tid ) => bookingsOn( tid ).find( ( b ) => 'seated' === b.status );
+	// A seated party with NO tab that's been "seated" longer than a whole turn
+	// plus an hour is a forgotten record, not a party — don't light the table
+	// (the diary still lists it for a human to complete). Latest sitting wins.
+	const seatedBooking = ( tid ) => bookingsOn( tid )
+		.filter( ( b ) => {
+			if ( 'seated' !== b.status ) {
+				return false;
+			}
+			const ref = b.seatedAt || `${ new Date().toISOString().slice( 0, 10 ) }T${ b.time || '00:00' }:00`;
+			const mins = minsSince( ref );
+			return null === mins || mins < turnMin + 60;
+		} )
+		.sort( ( a, b ) => ( b.time || '' ).localeCompare( a.time || '' ) )[ 0 ];
 	const nextBooking = ( tid ) => {
 		// Include bookings up to 30 min past their slot: a late party still
 		// holds its table (the tile reads "Due · HH:MM") until it's released.
@@ -590,6 +613,12 @@ export default function POSView() {
 			const without = os.filter( ( o ) => o.id !== order.id );
 			return isOpenTab( order ) ? [ ...without, order ] : without;
 		} );
+		// Settling THIS tab flags its table for clearing server-side — mirror
+		// that locally so the tile flips to "Clear ✓" the moment the bill is
+		// paid, not on the next heartbeat.
+		if ( order && 'dine_in' === order.channel && TAB_CLOSED.includes( order.status ) && order.tableId ) {
+			setFloor( ( f ) => ( { ...f, tables: ( f.tables || [] ).map( ( x ) => ( x.id === order.tableId ? { ...x, cleaning: x.cleaning || new Date().toISOString() } : x ) ) } ) );
+		}
 	};
 
 	const addLine = async ( line ) => {
