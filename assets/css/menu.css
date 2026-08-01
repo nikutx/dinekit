@@ -415,6 +415,9 @@
 	width: 100%;
 	min-width: 640px;
 	margin-top: 0.5rem;
+	/* Equal-width allergen columns (the dish column gets its own width below)
+	   instead of content-sized ones that made the grid look ragged. */
+	table-layout: fixed;
 }
 
 .dinekit-matrix__table th,
@@ -429,7 +432,11 @@
 	writing-mode: vertical-rl;
 	transform: rotate(180deg);
 	white-space: nowrap;
-	height: 120px;
+	/* Auto height: with vertical writing the label's length IS the cell's
+	   height, so the header row grows to fit the longest allergen name —
+	   a fixed height let "Sulphur dioxide / sulphites" leak out of the box. */
+	height: auto;
+	padding-top: 0.6rem;
 	vertical-align: bottom;
 	font-weight: 600;
 }
@@ -440,6 +447,8 @@
 	transform: none;
 	text-align: left;
 	height: auto;
+	width: 20%;
+	min-width: 130px;
 	font-weight: 600;
 }
 
