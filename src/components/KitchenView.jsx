@@ -93,6 +93,7 @@ function buildTickets( orders ) {
 					id: o.id + '|all', orderId: o.id, number: o.number, dineIn: false,
 					firedAt: null, stage: st, lines: o.items || [],
 					table: o.table, fulfilment: o.fulfilment, notes: o.notes, placed: o.placed,
+					forTime: /^\d{1,2}:\d{2}$/.test( o.when || '' ) ? o.when : '',
 				} );
 			}
 		}
@@ -102,6 +103,9 @@ function buildTickets( orders ) {
 
 export default function KitchenView() {
 	const [ orders, setOrders ] = useState( null );
+	// A timed order joins the board this many minutes before its slot (0 = all
+	// day). Keeps a 19:00 collection from squatting on the pass since noon.
+	const kdsLead = useRef( 60 );
 	const [ busy, setBusy ] = useState( {} ); // id → true while advancing
 	const [ isFull, setIsFull ] = useState( false );
 	const [ , setTick ] = useState( 0 ); // forces timers to re-render
@@ -119,7 +123,17 @@ export default function KitchenView() {
 		const today = new Date();
 		const pad2 = ( n ) => ( n < 10 ? '0' : '' ) + n;
 		const iso = today.getFullYear() + '-' + pad2( today.getMonth() + 1 ) + '-' + pad2( today.getDate() );
-		setOrders( ( list || [] ).filter( ( o ) => [ 'new', 'sent', 'preparing', 'ready' ].includes( o.status ) && ! o.archived && ! ( o.whenDate && o.whenDate > iso ) ) );
+		// A concrete-time order (today's 19:00 collection, a graduated
+		// pre-order) stays off the pass until kds_lead_mins before its slot —
+		// the 60s safety poll surfaces it once the window opens.
+		const dueSoon = ( o ) => {
+			if ( kdsLead.current <= 0 || o.channel === 'dine_in' || ! /^\d{1,2}:\d{2}$/.test( o.when || '' ) ) {
+				return true; // ASAP + dine-in rounds always show.
+			}
+			const target = new Date( ( o.whenDate || iso ) + 'T' + ( o.when.length === 4 ? '0' : '' ) + o.when + ':00' ).getTime();
+			return Number.isNaN( target ) || target - Date.now() <= kdsLead.current * 60000;
+		};
+		setOrders( ( list || [] ).filter( ( o ) => [ 'new', 'sent', 'preparing', 'ready' ].includes( o.status ) && ! o.archived && ! ( o.whenDate && o.whenDate > iso ) && dueSoon( o ) ) );
 		} catch ( e ) {
 			// Keep the last board on a transient error rather than blanking the kitchen.
 		}
@@ -134,6 +148,9 @@ export default function KitchenView() {
 	}, [ ordersRev ] );
 
 	useEffect( () => {
+		api.getOrderSettings()
+			.then( ( s ) => { if ( s && s.kds_lead_mins != null ) { kdsLead.current = Number( s.kds_lead_mins ) || 0; load(); } } )
+			.catch( () => {} ); // scoped kitchen logins keep the 60-min default
 		timer.current = window.setInterval( load, POLL_MS );
 		ticker.current = window.setInterval( () => setTick( ( n ) => n + 1 ), 20000 );
 		const onFs = () => setIsFull( !! document.fullscreenElement );
@@ -260,6 +277,11 @@ export default function KitchenView() {
 																{ t.icon }
 																<Typography sx={ { fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 120 } }>{ t.label }</Typography>
 															</Stack>
+															{ tk.forTime && (
+																<Box sx={ { px: 0.7, py: 0.1, borderRadius: 999, bgcolor: '#fef3c7', color: '#92400e', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' } }>
+																	⏰ for { tk.forTime }
+																</Box>
+															) }
 														</Stack>
 														<Box sx={ { px: 0.9, py: 0.2, borderRadius: 999, bgcolor: tone.bg, color: tone.fg, fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' } }>
 															{ mins }m

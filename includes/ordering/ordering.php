@@ -277,6 +277,7 @@ function get_settings() {
 		'slot_mins'        => 15,    // Kitchen time-slot length, minutes (for capacity throttling).
 		'slot_max'         => 0,     // Max orders per slot (0 = unlimited / off).
 		'preorder_days'    => 0,     // Days ahead a diner may schedule an order (0 = today only).
+		'kds_lead_mins'    => 60,    // Show a TIMED order on the kitchen screen N min before its slot (0 = all day).
 		'emails_enabled'   => true,  // Send customer + kitchen order emails.
 		'notify_email'     => '',    // Kitchen recipient (empty = site admin).
 		'printer_email'    => '',    // Email-to-print device address (auto-print tickets).
@@ -559,6 +560,9 @@ function save_settings( $data ) {
 	}
 	if ( isset( $data['preorder_days'] ) ) {
 		$current['preorder_days'] = max( 0, min( 14, absint( $data['preorder_days'] ) ) );
+	}
+	if ( isset( $data['kds_lead_mins'] ) ) {
+		$current['kds_lead_mins'] = max( 0, min( 1440, absint( $data['kds_lead_mins'] ) ) );
 	}
 	if ( isset( $data['service_pct'] ) ) {
 		$current['service_pct'] = max( 0, min( 100, (float) $data['service_pct'] ) );

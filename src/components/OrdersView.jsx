@@ -893,6 +893,13 @@ function OrderSettings() {
 					sx={ { width: 170 } }
 				/>
 				<TextField
+					label="Kitchen sees timed orders (min before)" type="number" size="small"
+					value={ cfg.kds_lead_mins != null ? cfg.kds_lead_mins : 60 }
+					onChange={ ( e ) => patch( { kds_lead_mins: Math.max( 0, Math.min( 1440, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
+					helperText="A 19:00 collection joins the KDS this early · 0 = all day"
+					sx={ { width: 220 } }
+				/>
+				<TextField
 					label="Kitchen email" type="email" size="small"
 					placeholder="Defaults to site admin"
 					value={ cfg.notify_email }
