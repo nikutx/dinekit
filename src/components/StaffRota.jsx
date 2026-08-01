@@ -40,6 +40,17 @@ function addDays( d, n ) {
 	return x;
 }
 const money = ( n ) => '£' + Number( n || 0 ).toFixed( 2 );
+
+// Day grading — the treatment every big rota/calendar tool uses (Deputy,
+// 7shifts, Google Calendar): today's column is tinted in the ONE brand hue,
+// tomorrow gets a fainter hint of the same, the past greys out (still
+// editable), and the rest of the future stays plain. No new rainbow.
+const DAY_BG = {
+	past: '#fafafa',
+	today: '#eef2ff', // tokens.accentSoft
+	tomorrow: '#f7f8ff', // half-strength hint of the same indigo
+	future: 'transparent',
+};
 const fmtDay = ( iso ) => new Date( iso + 'T00:00:00' ).toLocaleDateString( undefined, { day: 'numeric', month: 'short' } );
 
 // Weekly rota grid — staff down the side, the week across the top; each cell
@@ -123,6 +134,16 @@ export default function StaffRota( { staff, roles } ) {
 
 	// "Who's on today?" — a plain names view for the day, not just weekly counts.
 	const todayIso = isoOf( new Date() );
+	const tomorrowIso = isoOf( addDays( new Date(), 1 ) );
+	const dayKind = ( iso ) => {
+		if ( iso === todayIso ) {
+			return 'today';
+		}
+		if ( iso === tomorrowIso ) {
+			return 'tomorrow';
+		}
+		return iso < todayIso ? 'past' : 'future';
+	};
 	const todayInWeek = todayIso >= from && todayIso <= to;
 	const todayShifts = shifts
 		.filter( ( s ) => s.date === todayIso )
@@ -213,6 +234,7 @@ export default function StaffRota( { staff, roles } ) {
 			{ days.map( ( d, i ) => {
 				const date = isoOf( d );
 				const cs = cellShifts( m.id, date );
+				const kind = dayKind( date );
 				return (
 					<Box
 						key={ i }
@@ -222,8 +244,9 @@ export default function StaffRota( { staff, roles } ) {
 							minWidth: 0,
 							p: 0.5,
 							borderLeft: i ? `1px solid ${ tokens.border }` : 'none',
+							bgcolor: DAY_BG[ kind ],
 							cursor: cs.length === 0 ? 'pointer' : 'default',
-							'&:hover': cs.length === 0 ? { bgcolor: tokens.soft } : {},
+							'&:hover': cs.length === 0 ? { bgcolor: kind === 'today' ? '#e0e7ff' : tokens.soft } : {},
 						} }
 					>
 						{ cs.map( ( sh ) => {
@@ -251,6 +274,7 @@ export default function StaffRota( { staff, roles } ) {
 										fontWeight: 700,
 										lineHeight: 1.2,
 										...( sh.onLeave && ! off && ! sick ? { outline: `2px solid ${ tokens.amber }`, outlineOffset: '1px' } : {} ),
+										...( kind === 'past' ? { opacity: 0.55, filter: 'saturate(0.7)' } : {} ),
 									} }
 								>
 									{ off ? 'DAY OFF' : (
@@ -377,12 +401,35 @@ export default function StaffRota( { staff, roles } ) {
 						<Box sx={ { width: NAME_W, flexShrink: 0, px: 1.5, py: 1, borderRight: `1px solid ${ tokens.border }` } }>
 							<Typography sx={ { fontSize: 12, fontWeight: 700, color: tokens.muted } }>Team</Typography>
 						</Box>
-						{ days.map( ( d, i ) => (
-							<Box key={ i } sx={ { flex: 1, px: 1, py: 1, textAlign: 'center', borderLeft: i ? `1px solid ${ tokens.border }` : 'none' } }>
-								<Typography sx={ { fontSize: 11.5, fontWeight: 700, color: tokens.ink } }>{ DAYNAMES[ i ] }</Typography>
-								<Typography sx={ { fontSize: 11, color: tokens.muted } }>{ d.getDate() }</Typography>
-							</Box>
-						) ) }
+						{ days.map( ( d, i ) => {
+							const kind = dayKind( isoOf( d ) );
+							return (
+								<Box
+									key={ i }
+									sx={ {
+										flex: 1,
+										px: 1,
+										py: 0.75,
+										textAlign: 'center',
+										borderLeft: i ? `1px solid ${ tokens.border }` : 'none',
+										bgcolor: DAY_BG[ kind ],
+										...( kind === 'today' ? { boxShadow: `inset 0 -2px 0 ${ tokens.accent }` } : {} ),
+									} }
+								>
+									<Typography sx={ { fontSize: 11.5, fontWeight: 700, color: kind === 'today' ? tokens.accentDark : ( kind === 'past' ? tokens.muted2 : tokens.ink ) } }>{ DAYNAMES[ i ] }</Typography>
+									{ kind === 'today' ? (
+										<Box component="span" sx={ { display: 'inline-block', minWidth: 18, lineHeight: '18px', px: 0.25, borderRadius: '999px', bgcolor: tokens.accent, color: '#fff', fontSize: 11, fontWeight: 700 } }>{ d.getDate() }</Box>
+									) : (
+										<Typography sx={ { fontSize: 11, color: kind === 'past' ? tokens.muted2 : tokens.muted } }>{ d.getDate() }</Typography>
+									) }
+									{ ( kind === 'today' || kind === 'tomorrow' ) && (
+										<Typography sx={ { fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: tokens.accentDark, opacity: kind === 'tomorrow' ? 0.65 : 1 } }>
+											{ kind === 'today' ? 'Today' : 'Tomorrow' }
+										</Typography>
+									) }
+								</Box>
+							);
+						} ) }
 					</Stack>
 
 					{ /* Rows, optionally grouped by role */ }
