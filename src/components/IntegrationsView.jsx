@@ -554,13 +554,17 @@ function SmsCard() {
 							DineKit talks to (it’s about where Twilio processes the request, not where your texts can go).
 						</li>
 						<li>
-							Get your sending number — on a trial, the easy way is the <strong>“Start SMS trial”</strong> button on the
-							console home page (it grants a free number without the paperwork). The full route is{ ' ' }
-							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>,
-							where Twilio may first ask for a one-time <strong>compliance profile</strong> (~5 minutes, pick “Individual” —
-							regulators require it for business texting, on every provider). Numbers you own are under{ ' ' }
+							Before Twilio hands out <em>any</em> number — even the free trial one — it makes you complete a one-time{ ' ' }
+							<strong>compliance profile</strong> (~5 minutes: pick <strong>“Individual”</strong>, name, address, sometimes photo ID).
+							Regulators require this of every SMS provider, so there’s no way around it — do it once and it’s done.
+						</li>
+						<li>
+							Then get your sending number at{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }— country <strong>United States</strong> is the friction-free choice (a +1 number texts UK phones fine),
+							press Search, Buy the first one (your trial credit covers it). Numbers you own are under{ ' ' }
 							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
-							Paste yours here with the country code (+44…, or +1… for a US trial number — both send fine).
+							Paste yours here with the country code.
 						</li>
 						<li>
 							<strong>Trial accounts</strong> can only text numbers you’ve verified — the mobile you signed up with
