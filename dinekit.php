@@ -103,6 +103,11 @@ register_activation_hook(
 			if ( false === get_option( 'dinekit_activated_at' ) ) {
 				update_option( 'dinekit_activated_at', time() );
 			}
+			// Arm the one-shot welcome redirect: straight into DineKit (the
+			// wizard greets first-timers there) instead of leaving the user to
+			// hunt for it in a long plugin menu. Consumed on the next admin
+			// load; short-lived so it can never fire days later.
+			set_transient( 'dinekit_activation_redirect', get_current_user_id(), 5 * MINUTE_IN_SECONDS );
 		} catch ( \Throwable $e ) {
 			// Never fatal on activation. Log for support, carry on.
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -118,6 +123,32 @@ register_deactivation_hook(
 		wp_clear_scheduled_hook( 'dinekit_review_cron' );
 		wp_clear_scheduled_hook( 'dinekit_sms_cron' );
 		flush_rewrite_rules();
+	}
+);
+
+// One-shot post-activation welcome: land the activating user in DineKit.
+// Deliberately NOT on bulk activations (activating ten plugins must never
+// hijack the screen), not on network admin, and only for the same user who
+// activated with access to the app.
+add_action(
+	'admin_init',
+	function () {
+		$user = get_transient( 'dinekit_activation_redirect' );
+		if ( false === $user ) {
+			return;
+		}
+		delete_transient( 'dinekit_activation_redirect' );
+		if (
+			wp_doing_ajax()
+			|| is_network_admin()
+			|| isset( $_GET['activate-multi'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only bulk-activation detection, no action taken on the value.
+			|| (int) $user !== get_current_user_id()
+			|| ! current_user_can( 'manage_options' )
+		) {
+			return;
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=dinekit' ) );
+		exit;
 	}
 );
 
