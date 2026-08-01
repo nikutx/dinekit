@@ -553,17 +553,25 @@ export default function OrdersView() {
 						<Box key={ g.label } sx={ g.scheduled ? { p: 1.5, borderRadius: '12px', border: `1px dashed ${ tokens.amber }`, bgcolor: tokens.amberSoft } : {} }>
 							<Typography
 								onClick={ g.scheduled ? () => setSchedOpen( ( s ) => ( { ...s, [ g.label ]: ! schedExpanded( g ) } ) ) : undefined }
-								sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: g.scheduled ? tokens.amber : tokens.muted2, mb: g.scheduled && ! schedExpanded( g ) ? 0 : 1, ...( g.scheduled ? { cursor: 'pointer', userSelect: 'none' } : {} ) } }
+								title={ g.scheduled ? ( schedExpanded( g ) ? 'Click to collapse' : 'Click to expand' ) : undefined }
+								sx={ { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: g.scheduled ? tokens.amber : tokens.muted2, mb: g.scheduled && ! schedExpanded( g ) ? 0 : 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, ...( g.scheduled ? { cursor: 'pointer', userSelect: 'none', borderRadius: '8px', mx: -0.75, px: 0.75, py: 0.25, transition: 'background .12s ease', '&:hover': { bgcolor: 'rgba(217,119,6,0.12)' } } : {} ) } }
 							>
+								{ g.scheduled && (
+									// The universal "this folds" signal: a chevron that
+									// points down when open, right when closed.
+									<Box component="span" aria-hidden="true" sx={ { display: 'inline-flex', fontSize: 13, lineHeight: 1, transition: 'transform .15s ease', transform: schedExpanded( g ) ? 'rotate(90deg)' : 'none' } }>
+										▶
+									</Box>
+								) }
 								{ g.label } · { g.orders.length }
 								{ g.scheduled && (
-									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 600, ml: 1 } }>
+									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 600 } }>
 										— pre-orders, not for today’s kitchen
 									</Box>
 								) }
 								{ g.scheduled && (
-									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 700, ml: 1, textDecoration: 'underline' } }>
-										{ schedExpanded( g ) ? 'Hide' : 'Show' }
+									<Box component="span" sx={ { textTransform: 'none', letterSpacing: 0, fontWeight: 700, ml: 'auto', border: `1px solid ${ tokens.amber }`, borderRadius: 999, px: 1, py: 0.1, fontSize: 11 } }>
+										{ schedExpanded( g ) ? 'Hide ▲' : `Show ${ g.orders.length } ▼` }
 									</Box>
 								) }
 							</Typography>
