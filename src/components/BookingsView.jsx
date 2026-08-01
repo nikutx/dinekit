@@ -54,6 +54,7 @@ import { ListSkeleton } from './ui/Skeletons';
 import BookingSettingsView from './BookingSettingsView';
 import ServiceTimeline from './ServiceTimeline';
 import useHashTab from '../lib/useHashTab';
+import { useSyncRevision } from '../lib/useSync';
 import PageTour from './PageTour';
 import { DetailSection, DetailRow } from './ui/Detail';
 
@@ -94,6 +95,14 @@ export default function BookingsView() {
 	useEffect( () => {
 		load( date );
 	}, [ date, load ] );
+
+	// Live diary: another tablet (or the global "+ New" popup, or the till's
+	// auto walk-in) changing bookings refreshes this screen via the heartbeat.
+	const bookingsRev = useSyncRevision( 'bookings' );
+	useEffect( () => {
+		load( date );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ bookingsRev ] );
 
 	// Timeline needs the floor (rows), the day's service window (axis) and the
 	// turn time (block width). Fetch lazily when the view is first opened.
@@ -845,7 +854,10 @@ function BookingRow( { booking, turnMin, onStatus, onDelete, onRequestReview, on
 
 const BLANK = { name: '', phone: '', email: '', party: 2, time: '19:00', notes: '' };
 
-function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel, bare, editing, onStatus, walkIn } ) {
+// Exported: the global "+ New" button pops this same form over ANY screen —
+// the phone rings while you're on the floor plan, you take the booking in
+// place and stay where you were.
+export function NewBooking( { initialDate, initialTime, initialTable, onCreated, onCancel, bare, editing, onStatus, walkIn } ) {
 	const [ confirmCancel, setConfirmCancel ] = useState( false );
 	const [ form, setForm ] = useState( editing
 		? {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Box, CircularProgress, Alert } from './ui';
+import { Box, CircularProgress, Alert, Modal, Snackbar } from './ui';
+import { NewBooking } from './components/BookingsView';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import PaletteIcon from '@mui/icons-material/Palette';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
@@ -123,6 +124,22 @@ export default function App() {
 	const { view, itemId, navigate } = useRoute();
 	const store = useDineKit();
 	const [ navCollapsed, setNavCollapsed ] = useState( false );
+	// Global quick-capture from the "+ New" button: pops the booking/walk-in
+	// form over WHATEVER screen is open (phone rings mid-floor-plan), then
+	// drops you back exactly where you were.
+	const [ quickAdd, setQuickAdd ] = useState( null ); // null | 'booking' | 'walkin'
+	const [ quickMsg, setQuickMsg ] = useState( '' );
+	const todayIso = () => {
+		const d = new Date();
+		const p = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		return `${ d.getFullYear() }-${ p( d.getMonth() + 1 ) }-${ p( d.getDate() ) }`;
+	};
+	const nowSlot = () => {
+		const d = new Date();
+		const min = Math.round( ( d.getHours() * 60 + d.getMinutes() ) / 15 ) * 15;
+		const p = ( n ) => ( n < 10 ? '0' : '' ) + n;
+		return p( Math.floor( ( min % 1440 ) / 60 ) ) + ':' + p( min % 60 );
+	};
 
 	// Boot the shared live-sync poller once, so every screen can react to changes
 	// made on other tablets without pounding the server on individual timers.
@@ -161,6 +178,34 @@ export default function App() {
 					title={ ( NAV.find( ( n ) => n.key === activeView ) || {} ).label }
 					navigate={ navigate }
 					businessType={ store.data && store.data.businessType }
+					onQuick={ setQuickAdd }
+				/>
+
+				<Modal open={ !! quickAdd } onClose={ () => setQuickAdd( null ) }>
+					{ !! quickAdd && (
+						<NewBooking
+							bare
+							walkIn={ 'walkin' === quickAdd }
+							initialDate={ todayIso() }
+							initialTime={ 'walkin' === quickAdd ? nowSlot() : undefined }
+							onCreated={ ( b ) => {
+								setQuickAdd( null );
+								setQuickMsg(
+									b && b.assignedNote
+										? `Booked · ${ b.table || '' } — ${ b.assignedNote }`
+										: `Booked${ b && b.table ? ` · ${ b.table }` : '' }${ b && b.time ? ` · ${ b.time }` : '' }`
+								);
+							} }
+							onCancel={ () => setQuickAdd( null ) }
+						/>
+					) }
+				</Modal>
+				<Snackbar
+					open={ !! quickMsg }
+					autoHideDuration={ 3500 }
+					onClose={ () => setQuickMsg( '' ) }
+					message={ quickMsg }
+					anchorOrigin={ { vertical: 'bottom', horizontal: 'center' } }
 				/>
 
 				<OfflineBanner />

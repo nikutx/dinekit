@@ -5,6 +5,7 @@ import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import AddIcon from '@mui/icons-material/Add';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import { tokens } from '../theme';
@@ -17,12 +18,16 @@ const STATES = {
 	error: { icon: <ErrorOutlineIcon sx={ { fontSize: 15 } } />, text: 'Save failed', fg: tokens.red, bg: tokens.redSoft },
 };
 
-export default function Topbar( { saveStatus, title, navigate, businessType } ) {
+export default function Topbar( { saveStatus, title, navigate, businessType, onQuick } ) {
 	const state = STATES[ saveStatus ] || STATES.idle;
 	const [ anchor, setAnchor ] = useState( null );
 
+	// Quick captures (a phone booking, a walk-in) pop up over the CURRENT
+	// screen — no navigation, no lost place. Authoring work (a dish, an
+	// event) still goes to its screen: that's a sit-down job, not a capture.
 	const quick = [
-		businessType !== 'takeaway' && { label: 'New booking', icon: <EventSeatIcon fontSize="small" />, view: 'bookings' },
+		businessType !== 'takeaway' && { label: 'New booking', icon: <EventSeatIcon fontSize="small" />, popup: 'booking' },
+		businessType !== 'takeaway' && { label: 'Seat a walk-in', icon: <PeopleAltIcon fontSize="small" />, popup: 'walkin' },
 		{ label: 'New dish', icon: <RestaurantMenuIcon fontSize="small" />, view: 'builder' },
 		{ label: 'New event', icon: <CelebrationIcon fontSize="small" />, view: 'events' },
 	].filter( Boolean );
@@ -81,10 +86,14 @@ export default function Topbar( { saveStatus, title, navigate, businessType } ) 
 				>
 					{ quick.map( ( q ) => (
 						<MenuItem
-							key={ q.view + q.label }
+							key={ q.label }
 							onClick={ () => {
 								setAnchor( null );
-								navigate && navigate( q.view );
+								if ( q.popup ) {
+									onQuick && onQuick( q.popup );
+								} else {
+									navigate && navigate( q.view );
+								}
 							} }
 							sx={ { fontSize: 13.5, fontWeight: 500, minWidth: 170 } }
 						>
