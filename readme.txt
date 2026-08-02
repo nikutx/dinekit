@@ -17,7 +17,8 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 **Menus & allergens**
 
 * **Menu builder** — menus (Lunch, Dinner, Drinks…), sections and dishes with photos, badges and multiple prices; six templates; drag-and-drop ordering with autosave.
-* **UK-14 allergens built in** — the 14 regulated allergens pre-loaded with icons, tooltips, sub-sources (e.g. "cereals containing gluten → wheat, barley") and a printable matrix (Natasha's Law friendly), plus your own custom allergens and dietary labels.
+* **UK-14 allergens built in** — the 14 regulated allergens pre-loaded with icons, tooltips, sub-sources (e.g. "cereals containing gluten → wheat, barley") and a printable matrix (Natasha's Law friendly), plus your own custom allergens and dietary labels. Declare **"may contain" traces** separately — quieter badges on the menu, ± in the matrix, and diners avoiding an allergen also avoid traces of it.
+* **Bulk-edit in a spreadsheet** — export the whole menu to CSV, tweak prices and dishes in Excel or Google Sheets, re-import to update everything at once (never duplicates).
 * **Costs, margins & calories** — record a dish's cost to make and see its gross-profit margin (kept private), and show calories on the public menu for UK calorie-labelling.
 * **QR table cards** and A4 posters that open your live menu on a phone, and **Menu / MenuItem / LocalBusiness schema.org** output for SEO.
 * **Opening hours** with holiday overrides and a live "open now" status.
@@ -25,6 +26,9 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 **Online ordering**
 
 * **Takeaway, collection and delivery** ordering with a diner-facing menu, dish customizations (removable ingredients, choose-your-options with prices) and an accept / hold / refund workflow that only captures payment when you accept.
+* **A live orders board** — new orders appear by themselves (no refreshing) with a count in the browser tab; every order carries a "where's it from" badge with a channel filter; history is day-scoped and searchable by date; phone orders are keyed in on a fast POS-style pad.
+* **Pre-orders days ahead** — optionally let diners order for later in the week: a Day picker at checkout, only your real opening hours offered, kitchen capacity respected per day, and scheduled orders held in their own group until you accept.
+* **Per-slot capacity** — cap how many online orders each time slot can take so a rush never swamps the pass; full slots grey out in the diner's picker.
 * **Contactless QR "order at the table"** so diners order from their phone — straight onto that table's tab, or pay-upfront.
 * **Kitchen Display (KDS)** — a live New → Preparing → Ready board for the kitchen, with per-ticket timers, item lists and notes, one-tap advance and a full-screen mode for any tablet or kitchen TV.
 * **Kitchen & bar ticket routing** — printable tickets per station, or emailed directly to a kitchen printer on accept.
@@ -34,26 +38,31 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 **Point of sale — Take Order**
 
 * A real **POS for dine-in service**, in any browser on any tablet — no proprietary hardware, nothing to lease.
-* **Live floor plan** — Take Order opens on your real room layout, with every table colour-coded by how long it's been seated (turning green → amber → red against your table-turn time), free tables ready to seat and settled tables flagged for clearing; tap a table to open its tab.
-* **Tabs with coursing** — build each table's order, fire courses to the kitchen in rounds.
+* **Live floor plan that reads your diary** — Take Order opens on your real room layout: every table colour-coded by how long it's been seated (green → amber → red against your turn time) with its stage (Seated → Ordered → Cooking → Served), parties seated from the bookings diary lit before they've even ordered, reserved-soon warnings on free tables ("free until 22:00"), and settled tables flagged for clearing. Starting an order on a free table books the walk-in into the diary automatically — every screen tells the same story.
+* **The till knows the guest** — open a table and see who's sitting there: name, VIP flag, allergies, and their standing notes ("always tops up the wine"), pulled from the same guest record the diary uses.
+* **Tabs with coursing** — build each table's order and fire courses in rounds; firing confirms exactly what's being sent and takes a ticket note ("allergy at seat 2") that shows on the Kitchen Display and prints on station tickets.
 * **Bill splitting** — evenly, by item, or partial payments; service charge and tips.
 * **Every tender** — cash with change calculation, card via a Stripe smart reader, pay-by-QR from the guest's phone, vouchers and comps; manager-gated voids.
+* **Mistakes are fixable** — pressed voucher but meant cash? Wrong amount? A manager can change a payment's method in place, remove a mis-keyed payment (the tab reopens to settle correctly) or reopen a tab settled by accident — every amend logged, so the books always tally.
 * **Keeps working when the internet drops** — carry on opening tables, adding rounds, firing to the kitchen and taking cash through an outage. Everything is held on the tablet and syncs itself the moment you're back, with nothing lost and nothing charged twice.
 * **Cash-up** with opening float and X/Z reports at close.
 * **Loyalty built in** — members earn points on spend and redeem them as a bill discount.
 
 **Bookings & events**
 
-* **Commission-free table reservations** — take bookings on a drag-and-drop floor plan with joinable tables, via a public reservation form (block + `[dinekit_booking]` shortcode) with live availability, waitlist and covers-per-hour pacing, deposits, and a booking diary with email notifications and printable slips.
-* **Full-width service timeline** — the whole service at a glance; drag to move a booking, click to seat or edit.
+* **Commission-free table reservations** — take bookings on a drag-and-drop floor plan with joinable tables, via a public reservation form (block + `[dinekit_booking]` shortcode) with live availability, waitlist and covers-per-hour pacing, deposits, and a booking diary with email notifications and printable slips. Repeat no-shows get a red flag so you can ask for a deposit.
+* **Full-width service timeline** — the whole service at a glance with a live "now" line and the past greyed out; drag a booking exactly where you want it, click to seat or edit. Walk-ins are a one-tap popup with the best-fit table pre-selected.
 * **Set-menu events with per-guest pre-orders** via a share link — guests choose their courses and flag allergens; the kitchen gets a consolidated prep sheet.
 
 **Payments, guests & staff**
 
 * **Card payments with your own Stripe keys** (encrypted at rest) — booking deposits, order payments and at-the-table card-present payments via Stripe smart readers, with Apple Pay and Google Pay. You keep 100%.
-* **Guest CRM** — repeat-visit history with the allergies diners have told you about, carried across every visit.
+* **Unified guest CRM** — one profile per guest across bookings, orders and loyalty: lifetime spend, visits, average order, allergies, VIP flag, service notes and past no-shows — shown on the Guests screen, on every booking, and at the till.
+* **Staff rota & labour** — build the week's rota in colour-coded role bands: split shifts, automatic unpaid-break deduction, day-off and sick markers, holiday requests approved right on the rota, contracted-hours warnings and a live labour-cost total. Today and tomorrow highlight themselves; copying a day copies the whole day.
+* **Text messages via your own Twilio (beta)** — booking confirmations, automatic reminders, "your table is ready" and "order ready for collection"; bring your own Twilio account, pay their raw prices, every switch off by default (see External Services).
 * **Staff logins** with a role-to-permission matrix and an activity/audit log, plus review-request emails to win diners back.
 * **Reports** — covers, revenue, best-selling dishes and no-show rate, with CSV export.
+* **GDPR-ready** — WordPress's Export / Erase Personal Data tools cover everything DineKit stores, with anonymised financial records kept for your accounts.
 * **Direct support from your dashboard** — message the DineKit team without leaving WordPress (optional; see External Services).
 
 **Install it as an app** on any phone or tablet — the staff app runs from its own home-screen icon, **keeps taking orders and cash even when the internet drops** (syncing itself once you're back), and **many tablets stay in sync automatically** (an order or booking made on one appears on the others within seconds).
@@ -132,15 +141,16 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 2. The Menu Builder — sections and dishes with allergens and multiple prices, all autosaved. Bulk-edit the whole menu in a spreadsheet with CSV export and import.
 3. Design & Preview — six templates plus layout and colour controls, with a live preview and a copy-paste shortcode.
 4. Commission-free online ordering for diners — takeaway, collection and delivery, straight from your own site.
-5. The live orders board — takeaway, collection and delivery in one place, with kitchen tickets. You keep 100%.
+5. The live orders board — new orders appear by themselves, every order shows where it came from (online, QR table, till, phone), and tomorrow's pre-orders wait in their own Scheduled group. You keep 100%.
 6. The public table-booking form — live availability, party size and deposits, as a block or shortcode.
 7. Reports — covers, revenue, no-show rate and your best-selling dishes.
 8. Set-menu events with per-guest pre-orders via a share link, and a consolidated kitchen prep sheet.
-9. Take Order opens on your live floor plan — every table colour-coded by how long it's been seated (with a timer on each), free tables ready to seat and settled tables flagged for clearing. Tap a table to open its tab, course and fire to the kitchen, split the bill and take any payment.
+9. Take Order opens on your live floor plan — every table colour-coded with its stage and timer (Ordered, Cooking, Served), parties seated from the bookings diary already lit, reserved-soon warnings on free tables ("19:45 · 4p", "free til 21:45") and settled tables flagged for clearing. The floor and the diary always agree.
 10. The drag-and-drop floor plan — zones, joinable tables and covers, driving live booking availability.
 11. Kitchen Display — a live New → Preparing → Ready board; every fired round is its own ticket with a wait timer, and a full-screen mode for a kitchen TV.
-12. Staff rota — group the week by role in colour-coded bands, see each person's scheduled hours (with over-contract warnings), and approve holiday requests right on the rota.
+12. Staff rota — the week grouped by role in colour-coded bands with today and tomorrow highlighted, split shifts, automatic unpaid breaks, day-off and sick markers, a live "who's on today" panel and a running labour-cost total.
 13. Service carries on when the internet drops — keep opening tables, adding rounds and firing to the kitchen. Anything not yet sent is clearly marked "on this device" and syncs itself the moment you're back online.
+14. The till knows the guest — open a table and see who's sitting there: VIP flag, allergies, the booking's note and their standing service note, right above the order pad.
 
 == Changelog ==
 
