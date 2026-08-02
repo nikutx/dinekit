@@ -223,6 +223,29 @@ function duplicate( $term_id ) {
 		}
 	}
 
+	// Sections are per-menu: clone the source menu's own sections into the new
+	// menu (shared/legacy sections appear everywhere already) and tag the items
+	// with the clones so the copy keeps its grouping independently.
+	require_once DINEKIT_DIR . 'includes/post-types.php';
+	foreach ( \DineKit\PostTypes\ordered_terms( 'dinekit_section' ) as $section ) {
+		if ( \DineKit\PostTypes\section_menu( $section->term_id ) !== (int) $term_id ) {
+			continue;
+		}
+		$clone = wp_insert_term( $section->name, 'dinekit_section', array( 'slug' => $section->slug . '-m' . $new_id ) );
+		if ( is_wp_error( $clone ) ) {
+			continue;
+		}
+		$clone_id = (int) $clone['term_id'];
+		update_term_meta( $clone_id, 'dinekit_section_menu', $new_id );
+		update_term_meta( $clone_id, 'dinekit_order', (int) get_term_meta( $section->term_id, 'dinekit_order', true ) );
+		$members = get_objects_in_term( $section->term_id, 'dinekit_section' );
+		if ( is_array( $members ) ) {
+			foreach ( $members as $member_id ) {
+				wp_add_object_terms( (int) $member_id, $clone_id, 'dinekit_section' );
+			}
+		}
+	}
+
 	$term = get_term( $new_id, 'dinekit_menu' );
 	return array(
 		'id'   => $new_id,

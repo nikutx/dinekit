@@ -136,7 +136,7 @@ export const api = {
 	itemUsage: ( id ) => request( 'GET', `items/${ id }/usage` ),
 	duplicateItem: ( id ) => request( 'POST', `items/${ id }/duplicate` ),
 	duplicateSection: ( id ) => request( 'POST', `sections/${ id }/duplicate` ),
-	createTerm: ( tax, name ) => request( 'POST', `terms/${ tax }`, { name } ),
+	createTerm: ( tax, name, extra = {} ) => request( 'POST', `terms/${ tax }`, { name, ...extra } ),
 	updateTerm: ( tax, id, name ) => request( 'PATCH', `terms/${ tax }/${ id }`, { name } ),
 	deleteTerm: ( tax, id ) => request( 'DELETE', `terms/${ tax }/${ id }` ),
 	saveOrder: ( payload ) => request( 'POST', 'order', payload ),

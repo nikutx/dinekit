@@ -178,6 +178,7 @@ function orderable_menu( $menu_id = 0 ) {
 	$args['meta_query'] = \DineKit\Items\exclude_archived_meta_query();
 	$query              = new \WP_Query( $args );
 
+	require_once DINEKIT_DIR . 'includes/post-types.php';
 	$sections    = array();
 	$unsectioned = array();
 	foreach ( $query->posts as $post ) {
@@ -200,9 +201,19 @@ function orderable_menu( $menu_id = 0 ) {
 			'available' => 'out' !== (string) get_post_meta( $post->ID, 'dinekit_stock', true ),
 		);
 
+		// Sections are per-menu: group under the first section that belongs to
+		// THIS menu (or a shared/legacy one). Other menus' sections don't leak.
 		$terms = get_the_terms( $post, 'dinekit_section' );
+		$sec   = null;
 		if ( is_array( $terms ) && $terms ) {
-			$sec = $terms[0];
+			foreach ( $terms as $t ) {
+				if ( ! $menu_id || \DineKit\PostTypes\section_allowed_in_menu( $t->term_id, $menu_id ) ) {
+					$sec = $t;
+					break;
+				}
+			}
+		}
+		if ( $sec ) {
 			if ( ! isset( $sections[ $sec->term_id ] ) ) {
 				$sections[ $sec->term_id ] = array(
 					'id'    => (int) $sec->term_id,
@@ -227,7 +238,9 @@ function orderable_menu( $menu_id = 0 ) {
 	if ( $unsectioned ) {
 		$list[] = array(
 			'id'    => 0,
-			'name'  => __( 'More', 'dinekit' ),
+			// A fully flat menu (no sections at all) needs no group header;
+			// "More" only makes sense as the tail after real sections.
+			'name'  => $list ? __( 'More', 'dinekit' ) : '',
 			'order' => 9999,
 			'items' => $unsectioned,
 		);

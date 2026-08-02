@@ -911,6 +911,8 @@ function term_response( $term ) {
 		'count' => (int) $term->count,
 		// A legally-required core allergen (seeded) — can't be renamed/deleted.
 		'core'  => (bool) get_term_meta( $term->term_id, 'dinekit_core_allergen', true ),
+		// Sections only: the menu this section belongs to (0 = shared/legacy).
+		'menu'  => (int) get_term_meta( $term->term_id, 'dinekit_section_menu', true ),
 	);
 }
 
@@ -1435,6 +1437,11 @@ function duplicate_section( $request ) {
 
 	$order = get_term_meta( $src_id, 'dinekit_order', true );
 	update_term_meta( $new_section, 'dinekit_order', '' !== $order ? (int) $order + 1 : 0 );
+	// The copy lives in the same menu as the original.
+	$owner_menu = PostTypes\section_menu( $src_id );
+	if ( $owner_menu > 0 ) {
+		update_term_meta( $new_section, 'dinekit_section_menu', $owner_menu );
+	}
 
 	$new_items = array();
 	$members   = get_objects_in_term( $src_id, 'dinekit_section' );
@@ -1521,7 +1528,15 @@ function create_term( $request ) {
 		return new \WP_Error( 'dinekit_term_name', __( 'A name is required.', 'dinekit' ), array( 'status' => 400 ) );
 	}
 
+	// Sections are per-menu: created inside a menu they belong to it, so two
+	// menus can each have their own "Starters" (deleting one never touches the
+	// other's). A duplicate name only needs a unique slug.
+	$section_menu = 'dinekit_section' === $taxonomy ? absint( $request->get_param( 'menu' ) ) : 0;
+
 	$result = wp_insert_term( $name, $taxonomy );
+	if ( is_wp_error( $result ) && 'dinekit_section' === $taxonomy && 'term_exists' === $result->get_error_code() ) {
+		$result = wp_insert_term( $name, $taxonomy, array( 'slug' => sanitize_title( $name ) . '-m' . $section_menu . '-' . wp_rand( 100, 999 ) ) );
+	}
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -1529,6 +1544,9 @@ function create_term( $request ) {
 	// New terms go to the end of the ordered list.
 	$position = count( PostTypes\ordered_terms( $taxonomy ) );
 	update_term_meta( (int) $result['term_id'], 'dinekit_order', $position );
+	if ( $section_menu > 0 ) {
+		update_term_meta( (int) $result['term_id'], 'dinekit_section_menu', $section_menu );
+	}
 
 	$term = get_term( (int) $result['term_id'], $taxonomy );
 	if ( 'dinekit_menu' === $taxonomy ) {

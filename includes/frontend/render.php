@@ -75,21 +75,28 @@ function build_structure( $args ) {
 		)
 	);
 
+	// Sections are per-menu: when rendering a specific menu, only that menu's
+	// own sections (plus shared/legacy ones) group its dishes. A dish whose
+	// only sections belong to OTHER menus shows loose here — that's the
+	// "simple flat menu" case working as intended.
+	$menu_id = (int) $args['menu'];
+
 	$by_section = array();
 	$loose      = array();
 	foreach ( $query->posts as $post ) {
-		$terms = get_the_terms( $post, 'dinekit_section' );
+		$terms  = get_the_terms( $post, 'dinekit_section' );
+		$placed = false;
 		if ( is_array( $terms ) && $terms ) {
-			$placed = false;
 			foreach ( $terms as $term ) {
+				if ( $menu_id && ! PostTypes\section_allowed_in_menu( $term->term_id, $menu_id ) ) {
+					continue;
+				}
 				$by_section[ $term->term_id ][] = $post;
 				$placed                         = true;
-				break; // An item shows once, under its first section.
+				break; // An item shows once, under its first section in this menu.
 			}
-			if ( ! $placed ) {
-				$loose[] = $post;
-			}
-		} else {
+		}
+		if ( ! $placed ) {
 			$loose[] = $post;
 		}
 	}
@@ -97,6 +104,9 @@ function build_structure( $args ) {
 	$want     = array_map( 'intval', (array) $args['sections'] );
 	$sections = array();
 	foreach ( PostTypes\ordered_terms( 'dinekit_section' ) as $term ) {
+		if ( $menu_id && ! PostTypes\section_allowed_in_menu( $term->term_id, $menu_id ) ) {
+			continue;
+		}
 		if ( $want && ! in_array( (int) $term->term_id, $want, true ) ) {
 			continue;
 		}

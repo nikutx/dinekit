@@ -186,7 +186,10 @@
 				if ( ! sec.items.length ) {
 					return;
 				}
-				menuCol.appendChild( el( 'h3', 'dinekit-order__section', sec.name ) );
+				// A flat menu (no sections) has one nameless group — no header.
+				if ( sec.name ) {
+					menuCol.appendChild( el( 'h3', 'dinekit-order__section', sec.name ) );
+				}
 				sec.items.forEach( function ( item ) {
 					var hasImg = !! ( item.image && item.image.thumb );
 					var off = item.available === false;

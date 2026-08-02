@@ -70,11 +70,17 @@ const cid = ( key ) => `container:${ key }`;
 const isContainerId = ( id ) => typeof id === 'string' && id.startsWith( 'container:' );
 const keyFromContainerId = ( id ) => id.slice( 'container:'.length );
 
+// Sections belong to a menu (s.menu; 0 = shared/legacy shown everywhere).
+// Only the selected menu's own sections appear on its board.
+function sectionsForMenu( sections, menuFilter ) {
+	return menuFilter ? sections.filter( ( s ) => ! s.menu || s.menu === menuFilter ) : sections;
+}
+
 // Build the ordered container→item-ids map from store data. Each item lives in
 // the first of its sections that still exists, else the "none" bucket.
 // menuFilter (a dinekit_menu term id, or 0 for all) limits which items are shown.
 function buildBoard( data, menuFilter ) {
-	const secIds = data.sections.map( ( s ) => String( s.id ) );
+	const secIds = sectionsForMenu( data.sections, menuFilter ).map( ( s ) => String( s.id ) );
 	const map = { [ NONE ]: [] };
 	secIds.forEach( ( id ) => ( map[ id ] = [] ) );
 
@@ -215,7 +221,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	// content edits or reorders — those are already reflected in local board.
 	const signature = useMemo(
 		() =>
-			data.sections.map( ( s ) => s.id ).join( ',' ) +
+			data.sections.map( ( s ) => s.id + '@' + ( s.menu || 0 ) ).join( ',' ) +
 			'|' +
 			data.items.map( ( i ) => i.id + ':' + ( i.menus || [] ).join( '.' ) ).join( ',' ),
 		[ data.sections, data.items ]
@@ -345,7 +351,9 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 			return;
 		}
 		setNewSection( '' );
-		await store.createTerm( 'dinekit_section', name );
+		// Created inside a menu → belongs to that menu (deleting it can never
+		// touch another menu's sections).
+		await store.createTerm( 'dinekit_section', name, selectedMenu ? { menu: selectedMenu } : {} );
 	};
 
 	const addItem = async ( sectionKey ) => {
@@ -391,15 +399,18 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 
 			<MenuTabs menus={ data.menus } selected={ selectedMenu } onSelect={ setSelectedMenu } store={ store } />
 
-			<Stack direction="row" alignItems="baseline" spacing={ 1 } flexWrap="wrap" sx={ { mb: 1.5 } }>
+			<Stack direction="row" alignItems="center" spacing={ 1 } flexWrap="wrap" sx={ { mb: 1.5 } }>
 				<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2 } }>
-					Sections
+					Dishes
 				</Typography>
-				<Typography sx={ { fontSize: 13, color: tokens.muted } }>
+				<Typography sx={ { fontSize: 13, color: tokens.muted, flex: 1 } }>
 					{ selectedMenuName
-						? `Dishes in your “${ selectedMenuName }” menu, grouped into sections.`
-						: 'Group your dishes into sections like Starters, Mains and Desserts. Drag dishes between them.' }
+						? `Everything on your “${ selectedMenuName }” menu. Sections are optional — group dishes when it helps.`
+						: 'All your dishes. Sections are optional — group into Starters, Mains… when it helps, and drag dishes between them.' }
 				</Typography>
+				<Button size="small" variant="outlined" startIcon={ <AddIcon /> } onClick={ () => addItem( NONE ) }>
+					Add dish
+				</Button>
 			</Stack>
 
 			{ selectedMenu > 0 && boardItemCount === 0 && (
@@ -476,7 +487,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 								onMoveDown={ () => moveSection( index, 1 ) }
 								onAddItem={ () => addItem( key ) }
 								onRename={ ( name ) => store.renameTerm( 'dinekit_section', Number( key ), name ) }
-								onDelete={ () => setDeletingSection( { id: Number( key ), name: ( sectionsById[ key ] || {} ).name || '', count: ( board.map[ key ] || [] ).length } ) }
+								onDelete={ () => setDeletingSection( { id: Number( key ), name: ( sectionsById[ key ] || {} ).name || '', count: ( board.map[ key ] || [] ).length, shared: ! ( sectionsById[ key ] || {} ).menu && data.menus.length > 1 } ) }
 								onEditItem={ setEditingId }
 								onDuplicateItem={ async ( id ) => {
 									const copy = await store.duplicateItem( id );
@@ -548,13 +559,15 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				</Button>
 			</Stack>
 			<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 0.75 } }>
-				Sections organise dishes <em>within</em> this menu (Starters, Mains…). Running separate
-				menus — Lunch, Dinner, Christmas? Use the menu switcher at the top instead.
+				Sections are optional — a short menu works fine as a simple list of dishes. When you do use
+				them, they group dishes <em>within</em> this menu (Starters, Mains…) and give diners headings
+				to jump between when ordering.{ selectedMenu ? ' Sections you add here belong to this menu only.' : '' } Running
+				separate menus — Lunch, Dinner, Christmas? Use the menu switcher at the top instead.
 			</Typography>
 
-			{ board.order.filter( ( k ) => k !== NONE ).length === 0 && (
+			{ board.order.filter( ( k ) => k !== NONE ).length === 0 && boardItemCount === 0 && (
 				<Typography color="text.secondary" sx={ { textAlign: 'center', mt: 4 } }>
-					Add your first section to start building the menu.
+					Start with “Add dish” above — sections are optional and can come later.
 				</Typography>
 			) }
 
@@ -575,9 +588,12 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				open={ !! deletingSection }
 				title={ `Delete the “${ deletingSection?.name }” section?` }
 				message={
-					deletingSection?.count
+					( deletingSection?.count
 						? `Its ${ deletingSection.count } dish${ deletingSection.count === 1 ? '' : 'es' } stay${ deletingSection.count === 1 ? 's' : '' } on the menu — they just lose their grouping and move to “Unsectioned”.`
-						: 'The section is empty, so nothing else changes.'
+						: 'The section is empty, so nothing else changes.' ) +
+					( deletingSection?.shared
+						? ' ⚠ This is a shared section (created before sections became per-menu), so deleting it removes the grouping from EVERY menu that uses it.'
+						: '' )
 				}
 				confirmLabel="Delete section"
 				busy={ deleteSectionBusy }

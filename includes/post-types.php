@@ -164,6 +164,30 @@ function ordered_terms( $taxonomy, $hide_empty = false ) {
 }
 
 /**
+ * Which menu a section belongs to. Sections created inside a menu are scoped
+ * to it (term meta `dinekit_section_menu`); 0 = a legacy/shared section that
+ * appears in every menu (pre-scoping data keeps working unchanged).
+ *
+ * @param int $term_id Section term id.
+ * @return int Menu term id, or 0 for shared.
+ */
+function section_menu( $term_id ) {
+	return (int) get_term_meta( (int) $term_id, 'dinekit_section_menu', true );
+}
+
+/**
+ * Does a section belong in a given menu's view? (Its own, or shared.)
+ *
+ * @param int $term_id Section term id.
+ * @param int $menu_id Menu term id.
+ * @return bool
+ */
+function section_allowed_in_menu( $term_id, $menu_id ) {
+	$owner = section_menu( $term_id );
+	return 0 === $owner || $owner === (int) $menu_id;
+}
+
+/**
  * The 14 UK regulated allergens.
  *
  * Keys are stable slugs (used for icon filenames); values are display names.

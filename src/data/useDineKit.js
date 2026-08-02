@@ -145,8 +145,8 @@ export function useDineKit() {
 
 	// --- Terms ---------------------------------------------------------------
 	const createTerm = useCallback(
-		async ( tax, name ) => {
-			const term = await track( api.createTerm( tax, name ) );
+		async ( tax, name, extra = {} ) => {
+			const term = await track( api.createTerm( tax, name, extra ) );
 			const key = taxKey( tax );
 			setData( ( prev ) => ( { ...prev, [ key ]: [ ...prev[ key ], term ] } ) );
 			return term;
