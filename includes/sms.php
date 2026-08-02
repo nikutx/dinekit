@@ -108,7 +108,15 @@ function save_settings( $input ) {
 		$s['token'] = \DineKit\Integrations\encrypt_secret( sanitize_text_field( (string) $input['token'] ) );
 	}
 	if ( isset( $input['from'] ) ) {
-		$s['from'] = preg_replace( '/[^0-9+]/', '', (string) $input['from'] );
+		$raw = trim( (string) $input['from'] );
+		if ( preg_match( '/[A-Za-z]/', $raw ) ) {
+			// Alphanumeric sender ID ("CopperOak") — UK and most countries
+			// outside North America, paid Twilio accounts only. Max 11 chars,
+			// letters/digits and Twilio's permitted punctuation.
+			$s['from'] = substr( preg_replace( '/[^A-Za-z0-9 .\-_&]/', '', $raw ), 0, 11 );
+		} else {
+			$s['from'] = preg_replace( '/[^0-9+]/', '', $raw );
+		}
 	}
 	if ( isset( $input['cc'] ) ) {
 		$s['cc'] = preg_replace( '/\D/', '', (string) $input['cc'] );

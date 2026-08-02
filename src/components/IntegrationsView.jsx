@@ -578,6 +578,11 @@ function SmsCard() {
 							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
 							{ ' ' }— paste yours here with the country code. (Numbers shown in Twilio’s demo pages are <em>not</em> yours —
 							only Active numbers count.)
+							<br />
+							<em>Skip the number entirely:</em> on a <strong>paid</strong> account, venues in the UK (and most countries
+							outside North America) can put their <strong>restaurant name</strong> in the sender field instead —
+							texts arrive “from CopperOak”, no number, no number paperwork. Guests can’t reply to a name, which
+							is fine for DineKit’s one-way notifications.
 						</li>
 						<li>
 							<strong>Trial accounts</strong> can only text numbers you’ve verified — the mobile you signed up with
@@ -599,7 +604,8 @@ function SmsCard() {
 					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or client secret' }
 						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
 				</Box>
-				{ field( 'Your Twilio number', 'from', { placeholder: '+44 7911 123456', sx: { width: 180 }, onBlur: () => save( { from: cfg.from } ) } ) }
+				{ field( 'Send from — number or brand name', 'from', { placeholder: '+44 7911 123456 or CopperOak', sx: { width: 220 }, onBlur: () => save( { from: cfg.from } ),
+					helperText: 'Paid accounts in the UK & most countries can skip numbers: your restaurant name, max 11 letters (not US/Canada).' } ) }
 				{ field( 'Country dial code', 'cc', { placeholder: '44', sx: { width: 120 }, onBlur: () => save( { cc: cfg.cc } ),
 					helperText: 'For local numbers (07… → +44…)' } ) }
 			</Stack>
