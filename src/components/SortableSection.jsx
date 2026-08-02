@@ -31,8 +31,13 @@ export default function SortableSection( {
 	collapsed,
 	onToggleCollapse,
 } ) {
-	const [ name, setName ] = useState( section.name );
+	const [ name, setName ] = useState( section ? section.name : '' );
 	const { setNodeRef, isOver } = useDroppable( { id: containerId } );
+
+	// Belt-and-braces: a section deleted mid-render must never crash the builder.
+	if ( ! section ) {
+		return null;
+	}
 
 	// Ids whose item still exists in the store — see the note by SortableContext.
 	const liveItemIds = itemIds.filter( ( id ) => itemsById[ id ] );

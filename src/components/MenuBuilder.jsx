@@ -444,8 +444,11 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				onDragEnd={ handleDragEnd }
 			>
 				<Stack spacing={ 2.5 }>
+					{ /* Same one-render race as the items note below: after deleting a
+					     section, board.order still lists it until the rebuild effect
+					     runs, so resolve each key or the whole builder white-screens. */ }
 					{ board.order
-						.filter( ( k ) => k !== NONE )
+						.filter( ( k ) => k !== NONE && sectionsById[ k ] )
 						.map( ( key, index, arr ) => (
 							<SortableSection
 								key={ key }
