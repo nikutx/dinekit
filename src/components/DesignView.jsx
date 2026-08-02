@@ -36,6 +36,7 @@ const TEXT_SIZES = [
 // Menu templates (flavours). Each has a base palette shown in the colour
 // pickers until the venue overrides it.
 const TEMPLATES = [
+	{ value: 'signature', label: 'Signature', desc: 'The DineKit look — modern editorial' },
 	{ value: 'maison', label: 'Maison', desc: 'Classic fine-dining' },
 	{ value: 'counter', label: 'Counter', desc: 'Modern & clean' },
 	{ value: 'noir', label: 'Noir', desc: 'Upscale, dark' },
@@ -44,6 +45,7 @@ const TEMPLATES = [
 	{ value: 'mono', label: 'Mono', desc: 'Minimalist monochrome' },
 ];
 const TEMPLATE_PALETTE = {
+	signature: { accent: '#b4532f', menu_ink: '#211d18', menu_muted: '#85796b', menu_line: '#eae2d4', menu_bg: '#fbf8f2' },
 	maison: { accent: '#7c2d3a', menu_ink: '#2b2622', menu_muted: '#8a7f73', menu_line: '#e4dccd', menu_bg: '#faf7f1' },
 	counter: { accent: '#4f46e5', menu_ink: '#101319', menu_muted: '#667085', menu_line: '#edeff3', menu_bg: '' },
 	noir: { accent: '#c9a26a', menu_ink: '#ece3d4', menu_muted: '#a2937c', menu_line: '#342f27', menu_bg: '#17130e' },
@@ -73,7 +75,7 @@ export default function DesignView() {
 	useEffect( () => {
 		api.getSettings().then( ( s ) =>
 			setDesign( {
-				template: s.template || 'maison',
+				template: s.template || 'signature',
 				// Empty = "use the template's colour" (an override only when set).
 				accent: s.accent || '',
 				menu_ink: s.menu_ink || '',
@@ -97,7 +99,7 @@ export default function DesignView() {
 		() => ( {
 			layout,
 			columns,
-			template: design ? design.template : 'maison',
+			template: design ? design.template : 'signature',
 			images: images ? '1' : '0',
 			allergens: allergens ? '1' : '0',
 			dietary: dietary ? '1' : '0',

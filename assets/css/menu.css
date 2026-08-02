@@ -671,6 +671,141 @@
  *   .dinekit-diet  .dinekit-allergens  .dinekit-allergen-text  .dinekit-badge
  * ========================================================================= */
 
+/* ---- ✦ · Signature (the DineKit look — default for new installs) ----
+   Modern editorial: oversized Fraunces serif for section titles and dish
+   names, a quiet system sans for descriptions, no dotted leaders, warm
+   paper + terracotta. The Fraunces variable font ships WITH the plugin
+   (OFL licence, assets/fonts/) — no external font service is ever called. */
+@font-face {
+	font-family: "Fraunces";
+	src: url("../fonts/fraunces-latin.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+.dinekit-menu--tpl-signature {
+	--dinekit-accent: #b4532f;
+	--dinekit-ink: #211d18;
+	--dinekit-muted: #85796b;
+	--dinekit-line: #eae2d4;
+	--dinekit-bg: #fbf8f2;
+	--dinekit-radius: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	max-width: 720px;
+	padding: clamp(1.5rem, 5vw, 3.25rem) clamp(1.25rem, 5vw, 3.25rem);
+	border-radius: var(--dinekit-radius);
+	line-height: 1.55;
+}
+.dinekit-menu--tpl-signature .dinekit-section {
+	margin: 0 0 3rem;
+}
+.dinekit-menu--tpl-signature .dinekit-section__title {
+	display: block;
+	border-bottom: 0;
+	padding-bottom: 0;
+	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+	font-weight: 600;
+	font-size: clamp(1.55em, 4vw, 1.9em);
+	letter-spacing: -0.015em;
+	line-height: 1.15;
+	margin: 0 0 0.3rem;
+}
+.dinekit-menu--tpl-signature .dinekit-section__title::before {
+	content: "";
+	display: block;
+	width: 2.2rem;
+	height: 3px;
+	border-radius: 3px;
+	background: var(--dinekit-accent);
+	margin: 0 0 0.9rem;
+}
+.dinekit-menu--tpl-signature .dinekit-section__desc {
+	font-size: 0.95em;
+	margin: 0 0 1.1rem;
+	max-width: 52ch;
+}
+.dinekit-menu--tpl-signature .dinekit-item {
+	padding: 1.05rem 0;
+	border-bottom: 1px solid var(--dinekit-line);
+}
+.dinekit-menu--tpl-signature .dinekit-item__name {
+	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+	font-weight: 600;
+	font-size: 1.18em;
+	letter-spacing: -0.01em;
+}
+.dinekit-menu--tpl-signature .dinekit-item__leader {
+	border-bottom: 0; /* no dotted leaders — the row breathes instead */
+}
+.dinekit-menu--tpl-signature .dinekit-item__prices {
+	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+	font-weight: 600;
+	font-size: 1.06em;
+	font-variant-numeric: lining-nums tabular-nums;
+}
+.dinekit-menu--tpl-signature .dinekit-price__label {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 0.72em;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.dinekit-menu--tpl-signature .dinekit-item__desc {
+	font-size: 0.93em;
+	font-style: normal;
+	line-height: 1.55;
+	margin-top: 0.3rem;
+	max-width: 56ch;
+}
+.dinekit-menu--tpl-signature .dinekit-badge {
+	background: transparent;
+	color: var(--dinekit-accent);
+	border: 1px solid var(--dinekit-accent);
+	font-size: 0.58em;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	padding: 0.14rem 0.55rem;
+	transform: translateY(-0.15em);
+}
+.dinekit-menu--tpl-signature .dinekit-diet {
+	color: #4d6b52;
+	background: transparent;
+	border: 1px solid #cfdcd1;
+	border-radius: 999px;
+	font-weight: 600;
+	padding: 0.1rem 0.55rem;
+}
+.dinekit-menu--tpl-signature .dinekit-allergen-text {
+	border-radius: 999px;
+	padding: 0.08rem 0.5rem;
+}
+.dinekit-menu--tpl-signature .dinekit-allergen-icon {
+	width: 16px;
+	height: 16px;
+	opacity: 0.65;
+}
+.dinekit-menu--tpl-signature .dinekit-filter {
+	border-bottom: 1px solid var(--dinekit-line);
+	padding-bottom: 1.1rem;
+	margin-bottom: 0.5rem;
+}
+.dinekit-menu--tpl-signature .dinekit-filter__chip {
+	border-radius: 999px;
+	border-color: var(--dinekit-line);
+	background: transparent;
+	font-weight: 600;
+}
+.dinekit-menu--tpl-signature .dinekit-filter__chip.is-active {
+	background: var(--dinekit-ink);
+	border-color: var(--dinekit-ink);
+	color: var(--dinekit-bg);
+}
+.dinekit-menu--tpl-signature .dinekit-filter__chip--avoid.is-active {
+	background: var(--dinekit-accent);
+	border-color: var(--dinekit-accent);
+	color: #fff;
+}
+
 /* ---- A · Maison (classic fine-dining, default) ---- */
 .dinekit-menu--tpl-maison {
 	--dinekit-accent: #7c2d3a;
@@ -934,11 +1069,12 @@
 /* ---- Opening hours ---- */
 .dinekit-hours {
 	--dinekit-accent: #b91c1c;
-	--dinekit-ink: #1f2937;
-	--dinekit-muted: #6b7280;
-	--dinekit-line: #e5e7eb;
 	max-width: 420px;
-	color: var(--dinekit-ink);
+	/* Inherit the surrounding theme's text colour — this widget gets dropped
+	   onto light AND dark sections, so fixed inks made the times invisible on
+	   dark backgrounds. Hierarchy comes from weight/opacity, hairlines from
+	   currentColor, so it reads correctly anywhere. */
+	color: inherit;
 	line-height: 1.5;
 	/* This widget's font-sizes are in em too; pin the base so it's independent of
 	   the theme's body size (the menu text-size control doesn't apply here). */
@@ -992,7 +1128,7 @@
 .dinekit-hours__table th,
 .dinekit-hours__table td {
 	padding: 0.4rem 0;
-	border-bottom: 1px solid var(--dinekit-line);
+	border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
 	text-align: left;
 	font-size: 0.95em;
 }
@@ -1003,17 +1139,17 @@
 
 .dinekit-hours__table th {
 	font-weight: 500;
-	color: var(--dinekit-muted);
+	opacity: 0.72;
 }
 
 .dinekit-hours__table tr.is-today th,
 .dinekit-hours__table tr.is-today td {
 	font-weight: 700;
-	color: var(--dinekit-ink);
+	opacity: 1;
 }
 
 .dinekit-hours__closed {
-	color: var(--dinekit-muted);
+	opacity: 0.72;
 }
 
 /* 86%d / currently-unavailable dish — kept visible for SEO, marked not orderable. */
