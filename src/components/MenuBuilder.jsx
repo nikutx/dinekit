@@ -166,6 +166,20 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 		}
 	};
 
+	// Section delete goes through a confirm — a single stray click used to
+	// silently ungroup every dish in the section (found the hard way in QA).
+	const [ deletingSection, setDeletingSection ] = useState( null ); // { id, name, count }
+	const [ deleteSectionBusy, setDeleteSectionBusy ] = useState( false );
+	const doDeleteSection = async () => {
+		setDeleteSectionBusy( true );
+		try {
+			await store.deleteTerm( 'dinekit_section', deletingSection.id );
+			setDeletingSection( null );
+		} finally {
+			setDeleteSectionBusy( false );
+		}
+	};
+
 	// Archive confirmation. `usage` is fetched while the dialog is open so the
 	// owner can see whether the dish is on an order that's being cooked right now.
 	const [ archiving, setArchiving ] = useState( null ); // { id, title }
@@ -462,7 +476,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 								onMoveDown={ () => moveSection( index, 1 ) }
 								onAddItem={ () => addItem( key ) }
 								onRename={ ( name ) => store.renameTerm( 'dinekit_section', Number( key ), name ) }
-								onDelete={ () => store.deleteTerm( 'dinekit_section', Number( key ) ) }
+								onDelete={ () => setDeletingSection( { id: Number( key ), name: ( sectionsById[ key ] || {} ).name || '', count: ( board.map[ key ] || [] ).length } ) }
 								onEditItem={ setEditingId }
 								onDuplicateItem={ async ( id ) => {
 									const copy = await store.duplicateItem( id );
@@ -556,6 +570,20 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					onClose={ () => setEditingId( null ) }
 				/>
 			) }
+
+			<ConfirmDialog
+				open={ !! deletingSection }
+				title={ `Delete the “${ deletingSection?.name }” section?` }
+				message={
+					deletingSection?.count
+						? `Its ${ deletingSection.count } dish${ deletingSection.count === 1 ? '' : 'es' } stay${ deletingSection.count === 1 ? 's' : '' } on the menu — they just lose their grouping and move to “Unsectioned”.`
+						: 'The section is empty, so nothing else changes.'
+				}
+				confirmLabel="Delete section"
+				busy={ deleteSectionBusy }
+				onConfirm={ doDeleteSection }
+				onCancel={ () => setDeletingSection( null ) }
+			/>
 
 			<ConfirmDialog
 				open={ !! archiving }

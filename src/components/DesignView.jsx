@@ -189,34 +189,28 @@ export default function DesignView() {
 
 	// ---- Live iframe plumbing -------------------------------------------------
 
-	const liveVarsCss = ( d ) => {
-		if ( ! d ) {
-			return '';
+	// The preview HTML arrives with the SAVED design baked inline on the menu
+	// root (that's how the front end works) — and inline beats any stylesheet.
+	// So live edits write to the same place: the element's own style.
+	const applyLiveVars = () => {
+		const doc = iframeRef.current && iframeRef.current.contentDocument;
+		const menu = doc && doc.querySelector && doc.querySelector( '.dinekit-menu' );
+		const d = designRef.current;
+		if ( ! menu || ! d ) {
+			return;
 		}
-		let v = `--dinekit-radius:${ d.menu_radius }px;--dinekit-scale:${ d.menu_scale != null ? d.menu_scale : 1 };`;
+		menu.style.setProperty( '--dinekit-radius', `${ d.menu_radius }px` );
+		menu.style.setProperty( '--dinekit-scale', String( d.menu_scale != null ? d.menu_scale : 1 ) );
 		[ [ 'accent', 'accent' ], [ 'menu_ink', 'ink' ], [ 'menu_muted', 'muted' ], [ 'menu_line', 'line' ], [ 'menu_bg', 'bg' ] ].forEach( ( [ k, t ] ) => {
 			if ( d[ k ] ) {
-				v += `--dinekit-${ t }:${ d[ k ] };`;
+				menu.style.setProperty( `--dinekit-${ t }`, d[ k ] );
+			} else {
+				menu.style.removeProperty( `--dinekit-${ t }` );
 			}
 		} );
 		[ [ 'menu_size_title', 'title' ], [ 'menu_size_name', 'name' ], [ 'menu_size_desc', 'desc' ], [ 'menu_size_price', 'price' ] ].forEach( ( [ k, t ] ) => {
-			v += `--dinekit-size-${ t }:${ d[ k ] != null ? d[ k ] : 1 };`;
+			menu.style.setProperty( `--dinekit-size-${ t }`, String( d[ k ] != null ? d[ k ] : 1 ) );
 		} );
-		return `.dinekit-menu{${ v }}`;
-	};
-
-	const applyLiveVars = () => {
-		const doc = iframeRef.current && iframeRef.current.contentDocument;
-		if ( ! doc || ! doc.head ) {
-			return;
-		}
-		let el = doc.getElementById( 'dk-live-vars' );
-		if ( ! el ) {
-			el = doc.createElement( 'style' );
-			el.id = 'dk-live-vars';
-			doc.head.appendChild( el );
-		}
-		el.textContent = liveVarsCss( designRef.current );
 	};
 
 	const markSelection = () => {
