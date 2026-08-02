@@ -68,7 +68,47 @@ function defaults() {
 		'order_ready'  => false, // Text when a collection order is marked ready.
 		'sent_total'   => 0,     // Lifetime send counter.
 		'sent_month'   => '',    // "YYYY-MM|count" — this month's counter (trial budgeting).
+		// Custom message templates ('' = use the standard wording). Placeholders
+		// like {venue} and {time} are swapped in at send time — see default_templates().
+		'tpl_confirm'  => '',
+		'tpl_remind'   => '',
+		'tpl_ready'    => '',
+		'tpl_order'    => '',
 	);
+}
+
+/**
+ * The standard message wordings, with the {placeholder} tokens each supports.
+ * These are what guests receive unless the venue customises the template.
+ *
+ * @return array<string,string>
+ */
+function default_templates() {
+	return array(
+		/* translators: SMS template — {venue} {name} {party} {date} {time} are replaced at send time. */
+		'tpl_confirm' => __( '{venue}: your table for {party} on {date} at {time} is confirmed. See you then!', 'dinekit' ),
+		/* translators: SMS template — {venue} {name} {party} {time} are replaced at send time. */
+		'tpl_remind'  => __( '{venue}: reminder — your table for {party} is at {time} today. See you soon!', 'dinekit' ),
+		/* translators: SMS template — {venue} {name} are replaced at send time. */
+		'tpl_ready'   => __( '{venue}: good news — your table is ready! Please come to the host stand.', 'dinekit' ),
+		/* translators: SMS template — {venue} {name} {order} are replaced at send time. */
+		'tpl_order'   => __( '{venue}: order #{order} is ready for collection.', 'dinekit' ),
+	);
+}
+
+/**
+ * Build the message for a trigger: the venue's custom template if set, else
+ * the standard wording, with {placeholders} swapped for real values.
+ *
+ * @param string               $key  Template key (tpl_confirm|tpl_remind|tpl_ready|tpl_order).
+ * @param array<string,string> $vars Placeholder map ('{venue}' => 'Copper & Oak', …).
+ * @return string
+ */
+function render_template( $key, $vars ) {
+	$s        = namespace\get_settings();
+	$defaults = default_templates();
+	$tpl      = isset( $s[ $key ] ) && '' !== trim( (string) $s[ $key ] ) ? (string) $s[ $key ] : $defaults[ $key ];
+	return strtr( $tpl, $vars );
 }
 
 /**
@@ -128,6 +168,12 @@ function save_settings( $input ) {
 	}
 	if ( isset( $input['remind_hours'] ) ) {
 		$s['remind_hours'] = max( 1, min( 48, absint( $input['remind_hours'] ) ) );
+	}
+	foreach ( array( 'tpl_confirm', 'tpl_remind', 'tpl_ready', 'tpl_order' ) as $tpl_key ) {
+		if ( isset( $input[ $tpl_key ] ) ) {
+			// ~3 SMS segments max — enough for any notification, cheap by design.
+			$s[ $tpl_key ] = mb_substr( sanitize_textarea_field( (string) $input[ $tpl_key ] ), 0, 480 );
+		}
 	}
 	update_option( OPTION, $s, false );
 
@@ -370,13 +416,15 @@ function booking_confirmed( $booking_id ) {
 	}
 	$date = (string) get_post_meta( $booking_id, 'dinekit_date', true );
 	$time = (string) get_post_meta( $booking_id, 'dinekit_time', true );
-	$body = sprintf(
-		/* translators: 1: venue name, 2: party size, 3: date, 4: time. */
-		__( '%1$s: your table for %2$d on %3$s at %4$s is confirmed. See you then!', 'dinekit' ),
-		get_bloginfo( 'name' ),
-		max( 1, (int) get_post_meta( $booking_id, 'dinekit_party', true ) ),
-		date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ),
-		$time
+	$body = render_template(
+		'tpl_confirm',
+		array(
+			'{venue}' => get_bloginfo( 'name' ),
+			'{name}'  => (string) get_post_meta( $booking_id, 'dinekit_name', true ),
+			'{party}' => (string) max( 1, (int) get_post_meta( $booking_id, 'dinekit_party', true ) ),
+			'{date}'  => date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ),
+			'{time}'  => $time,
+		)
 	);
 	if ( true === send( $phone, $body, 'booking confirmation' ) ) {
 		update_post_meta( $booking_id, 'dinekit_sms_confirmed', 1 );
@@ -439,12 +487,15 @@ function run_reminders() {
 		if ( ! $at_ts || $at_ts < $now_ts || $at_ts > $max_ts ) {
 			continue; // Not inside the reminder window yet (or already started).
 		}
-		$body = sprintf(
-			/* translators: 1: venue name, 2: party size, 3: time. */
-			__( '%1$s: reminder — your table for %2$d is at %3$s today. See you soon!', 'dinekit' ),
-			get_bloginfo( 'name' ),
-			max( 1, (int) get_post_meta( $bid, 'dinekit_party', true ) ),
-			$time
+		$body = render_template(
+			'tpl_remind',
+			array(
+				'{venue}' => get_bloginfo( 'name' ),
+				'{name}'  => (string) get_post_meta( $bid, 'dinekit_name', true ),
+				'{party}' => (string) max( 1, (int) get_post_meta( $bid, 'dinekit_party', true ) ),
+				'{date}'  => date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ),
+				'{time}'  => $time,
+			)
 		);
 		if ( true === send( $phone, $body, 'booking reminder' ) ) {
 			update_post_meta( $bid, 'dinekit_sms_reminded', 1 );
@@ -469,10 +520,12 @@ function table_ready( $booking_id ) {
 	if ( '' === trim( $phone ) ) {
 		return new \WP_Error( 'dinekit_sms_phone', __( 'This booking has no phone number.', 'dinekit' ) );
 	}
-	$body = sprintf(
-		/* translators: %s: venue name. */
-		__( '%s: good news — your table is ready! Please come to the host stand.', 'dinekit' ),
-		get_bloginfo( 'name' )
+	$body = render_template(
+		'tpl_ready',
+		array(
+			'{venue}' => get_bloginfo( 'name' ),
+			'{name}'  => (string) get_post_meta( $booking_id, 'dinekit_name', true ),
+		)
 	);
 	$sent = send( $phone, $body, 'table ready' );
 	if ( true === $sent ) {
@@ -502,11 +555,13 @@ function order_ready( $order_id ) {
 	if ( '' === trim( $phone ) ) {
 		return;
 	}
-	$body = sprintf(
-		/* translators: 1: venue name, 2: order number. */
-		__( '%1$s: order #%2$d is ready for collection.', 'dinekit' ),
-		get_bloginfo( 'name' ),
-		(int) get_post_meta( $order_id, 'dinekit_order_number', true )
+	$body = render_template(
+		'tpl_order',
+		array(
+			'{venue}' => get_bloginfo( 'name' ),
+			'{name}'  => (string) get_post_meta( $order_id, 'dinekit_order_name', true ),
+			'{order}' => (string) (int) get_post_meta( $order_id, 'dinekit_order_number', true ),
+		)
 	);
 	if ( true === send( $phone, $body, 'order ready' ) ) {
 		update_post_meta( $order_id, 'dinekit_order_sms_ready', 1 );
@@ -591,6 +646,12 @@ function rest_get() {
 			'order_ready'  => (bool) $s['order_ready'],
 			'sentTotal'    => (int) $s['sent_total'],
 			'sentMonth'    => isset( $parts[0] ) && wp_date( 'Y-m' ) === $parts[0] ? (int) $parts[1] : 0,
+			'tpl_confirm'  => (string) $s['tpl_confirm'],
+			'tpl_remind'   => (string) $s['tpl_remind'],
+			'tpl_ready'    => (string) $s['tpl_ready'],
+			'tpl_order'    => (string) $s['tpl_order'],
+			'tplDefaults'  => default_templates(),
+			'venue'        => get_bloginfo( 'name' ),
 		)
 	);
 }

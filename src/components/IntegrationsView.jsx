@@ -454,6 +454,7 @@ function SmsCard() {
 	const [ testTo, setTestTo ] = useState( '' );
 	const [ msg, setMsg ] = useState( null ); // { ok, text }
 	const [ busy, setBusy ] = useState( false );
+	const [ openTpl, setOpenTpl ] = useState( null ); // which message editor is expanded
 
 	useEffect( () => {
 		api.getSms().then( setCfg ).catch( () => setCfg( null ) );
@@ -510,6 +511,53 @@ function SmsCard() {
 			</Box>
 		</Stack>
 	);
+
+	// Expandable per-trigger message editor: exactly what the guest receives,
+	// with {placeholders} in restaurant terms and a live preview.
+	const SAMPLE = { '{venue}': cfg.venue || 'Your Restaurant', '{name}': 'Alex', '{party}': '4', '{date}': 'Fri 8 Aug', '{time}': '19:00', '{order}': '42' };
+	const tplEditor = ( tplKey, placeholders ) => {
+		const isOpen = openTpl === tplKey;
+		const custom = ( cfg[ tplKey ] || '' ).trim();
+		const effective = custom || ( cfg.tplDefaults ? cfg.tplDefaults[ tplKey ] : '' );
+		const preview = placeholders.reduce( ( t, p ) => t.split( p ).join( SAMPLE[ p ] || p ), effective );
+		const segments = preview.length <= 160 ? 1 : Math.ceil( preview.length / 153 );
+		return (
+			<Box sx={ { ml: 6, mb: 0.75 } }>
+				<Button size="small" onClick={ () => setOpenTpl( isOpen ? null : tplKey ) } sx={ { color: tokens.muted, minWidth: 0, p: 0, fontSize: 12 } }>
+					{ isOpen ? '▾' : '▸' } Customise message{ custom && ! isOpen ? ' · edited' : '' }
+				</Button>
+				{ isOpen && (
+					<Box sx={ { mt: 0.75, p: 1.5, borderRadius: '10px', bgcolor: tokens.soft, border: `1px solid ${ tokens.border }`, maxWidth: 560 } }>
+						<TextField
+							size="small" multiline minRows={ 2 } fullWidth
+							value={ cfg[ tplKey ] || '' }
+							placeholder={ cfg.tplDefaults ? cfg.tplDefaults[ tplKey ] : '' }
+							onChange={ ( e ) => setCfg( { ...cfg, [ tplKey ]: e.target.value } ) }
+							onBlur={ () => save( { [ tplKey ]: cfg[ tplKey ] || '' } ) }
+						/>
+						<Stack direction="row" spacing={ 0.5 } flexWrap="wrap" useFlexGap alignItems="center" sx={ { mt: 0.75 } }>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mr: 0.25 } }>Insert:</Typography>
+							{ placeholders.map( ( p ) => (
+								<Chip key={ p } label={ p } size="small" onClick={ () => setCfg( { ...cfg, [ tplKey ]: ( cfg[ tplKey ] || effective ) + ' ' + p } ) }
+									sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' } } />
+							) ) }
+							{ custom && (
+								<Button size="small" onClick={ () => { setCfg( { ...cfg, [ tplKey ]: '' } ); save( { [ tplKey ]: '' } ); } } sx={ { color: tokens.muted, fontSize: 11.5, ml: 'auto' } }>
+									Reset to standard
+								</Button>
+							) }
+						</Stack>
+						<Typography sx={ { fontSize: 12, color: tokens.ink2, mt: 1, p: 1, bgcolor: tokens.surface, borderRadius: '8px', border: `1px dashed ${ tokens.border2 }` } }>
+							📱 { preview }
+						</Typography>
+						<Typography sx={ { fontSize: 11, color: tokens.muted2, mt: 0.5 } }>
+							≈ { segments } text{ segments === 1 ? '' : 's' } per guest at Twilio’s rate. Keep it under 160 characters to stay at one.
+						</Typography>
+					</Box>
+				) }
+			</Box>
+		);
+	};
 
 	return (
 		<Card sx={ { p: 2.5, mt: 2 } }>
@@ -612,6 +660,7 @@ function SmsCard() {
 
 			{ toggle( 'Enable SMS', 'enabled', 'Master switch — nothing sends while this is off.' ) }
 			{ toggle( 'Booking confirmation text', 'confirm', 'When a booking is confirmed (once per booking).' ) }
+			{ tplEditor( 'tpl_confirm', [ '{venue}', '{name}', '{party}', '{date}', '{time}' ] ) }
 			<Stack direction="row" alignItems="center" spacing={ 1 }>
 				{ toggle( 'Booking reminder text', 'remind', 'Sent automatically before the booking.' ) }
 				<TextField size="small" type="number" value={ cfg.remind_hours } sx={ { width: 84 } }
@@ -619,8 +668,11 @@ function SmsCard() {
 					onBlur={ () => save( { remind_hours: cfg.remind_hours } ) } />
 				<Typography sx={ { fontSize: 12.5, color: tokens.muted } }>hours before</Typography>
 			</Stack>
+			{ tplEditor( 'tpl_remind', [ '{venue}', '{name}', '{party}', '{date}', '{time}' ] ) }
 			{ toggle( '“Your table is ready” button', 'waitlist', 'Shows on waitlisted/pending bookings with a phone number.' ) }
+			{ tplEditor( 'tpl_ready', [ '{venue}', '{name}' ] ) }
 			{ toggle( '“Order ready for collection” text', 'order_ready', 'When the kitchen marks a collection order ready.' ) }
+			{ tplEditor( 'tpl_order', [ '{venue}', '{name}', '{order}' ] ) }
 
 			<Divider sx={ { my: 1.5 } } />
 			<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" useFlexGap>
