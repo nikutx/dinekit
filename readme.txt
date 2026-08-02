@@ -16,7 +16,9 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 
 **Menus & allergens**
 
-* **Menu builder** — menus (Lunch, Dinner, Drinks…), sections and dishes with photos, badges and multiple prices; six templates; drag-and-drop ordering with autosave.
+* **Menu builder** — menus (Lunch, Dinner, Drinks…), sections and dishes with photos, badges and multiple prices; drag-and-drop ordering with autosave.
+* **Seven designer templates, one click apart** — each built for a venue type: Signature (the modern default), Maison for fine dining, Counter for fast-casual, Noir for evening menus and bars, Bistro, Fresh for cafés and brunch, Mono for minimalists. The Fraunces display font ships inside the plugin — no external font services.
+* **Design Studio** — click any part of the live menu preview to style exactly that element: per-element text sizes, colours and corner rounding, updating live as you drag. Your accent colour carries over to the Order Online page automatically, so everything matches your brand.
 * **UK-14 allergens built in** — the 14 regulated allergens pre-loaded with icons, tooltips, sub-sources (e.g. "cereals containing gluten → wheat, barley") and a printable matrix (Natasha's Law friendly), plus your own custom allergens and dietary labels. Declare **"may contain" traces** separately — quieter badges on the menu, ± in the matrix, and diners avoiding an allergen also avoid traces of it.
 * **Bulk-edit in a spreadsheet** — export the whole menu to CSV, tweak prices and dishes in Excel or Google Sheets, re-import to update everything at once (never duplicates).
 * **Costs, margins & calories** — record a dish's cost to make and see its gross-profit margin (kept private), and show calories on the public menu for UK calorie-labelling.
@@ -59,7 +61,7 @@ DineKit turns WordPress into a complete, commission-free restaurant platform —
 * **Card payments with your own Stripe keys** (encrypted at rest) — booking deposits, order payments and at-the-table card-present payments via Stripe smart readers, with Apple Pay and Google Pay. You keep 100%.
 * **Unified guest CRM** — one profile per guest across bookings, orders and loyalty: lifetime spend, visits, average order, allergies, VIP flag, service notes and past no-shows — shown on the Guests screen, on every booking, and at the till.
 * **Staff rota & labour** — build the week's rota in colour-coded role bands: split shifts, automatic unpaid-break deduction, day-off and sick markers, holiday requests approved right on the rota, contracted-hours warnings and a live labour-cost total. Today and tomorrow highlight themselves; copying a day copies the whole day.
-* **Text messages via your own Twilio (beta)** — booking confirmations, automatic reminders, "your table is ready" and "order ready for collection"; bring your own Twilio account, pay their raw prices, every switch off by default (see External Services).
+* **Text messages via your own Twilio (beta)** — booking confirmations, automatic reminders, "your table is ready" and "order ready for collection"; bring your own Twilio account, pay their raw prices, every switch off by default (see External Services). Write your own message wording with placeholders like {name} and {time}, with a live preview; on a paid Twilio account, UK venues can send from their restaurant's name instead of buying a number.
 * **Staff logins** with a role-to-permission matrix and an activity/audit log, plus review-request emails to win diners back.
 * **Reports** — covers, revenue, best-selling dishes and no-show rate, with CSV export.
 * **GDPR-ready** — WordPress's Export / Erase Personal Data tools cover everything DineKit stores, with anonymised financial records kept for your accounts.
@@ -137,9 +139,9 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Screenshots ==
 
-1. Your menu on any website — sections, prices, dietary filters and UK-14 allergen icons.
+1. Your menu on any website — the Signature template out of the box: dietary filters, UK-14 allergen icons and a one-tap Order online button.
 2. The Menu Builder — sections and dishes with allergens and multiple prices, all autosaved. Bulk-edit the whole menu in a spreadsheet with CSV export and import.
-3. Design & Preview — six templates plus layout and colour controls, with a live preview and a copy-paste shortcode.
+3. The Design Studio — click any part of the live preview to style it: seven venue-matched templates, per-element sizes and colours, changes appear instantly, and a copy-paste shortcode.
 4. Commission-free online ordering for diners — takeaway, collection and delivery, straight from your own site.
 5. The live orders board — new orders appear by themselves, every order shows where it came from (online, QR table, till, phone), and tomorrow's pre-orders wait in their own Scheduled group. You keep 100%.
 6. The public table-booking form — live availability, party size and deposits, as a block or shortcode.
@@ -153,6 +155,16 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 14. The till knows the guest — open a table and see who's sitting there: VIP flag, allergies, the booking's note and their standing service note, right above the order pad.
 
 == Changelog ==
+
+= 1.2.16 =
+* New: the Design Studio — Design & Preview became a visual editor: click any part of the live menu preview (a section title, a dish name, a price) and style exactly that element from the panel beside it. Per-element text sizes are new, every matching element lights up so you can see what you're changing, and edits appear instantly without the preview reloading.
+* New: seven menu looks, each a real use case, one click apart — every template got a designer's pass and a clear job: Signature (modern restaurants, the new default for fresh installs), Maison for fine dining and tasting menus, Counter for fast-casual, Noir for evening menus and cocktail bars, Bistro for pub classics, Fresh for cafés and brunch, Mono for minimalists. The Fraunces display font ships inside the plugin. Existing venues keep whatever template they chose.
+* New: the dietary filter grew up — picking filters reads unmistakably (green tick fill for "show only", red cross fill for "avoid"), a live "Showing 8 of 14 dishes" counter answers what filtering did, and the compact dropdown style is now a proper multi-select with allergen icons (avoid milk *and* nuts at once), count badges and one-tap clear.
+* New: Order Online wears your brand — the ordering page picks up your accent colour and corner rounding from the Design Studio automatically (your template's accent if you haven't set one), so the reading menu and ordering page finally match.
+* New: write your own text messages (SMS still beta) — every SMS trigger has a "Customise message" editor showing exactly what guests receive, with placeholders like {name}, {venue} and {time}, a live preview and a counter that warns when you cross one text's worth of characters. On a paid Twilio account, UK venues can send from their restaurant's name — no phone number needed. Twilio's cryptic setup errors now explain themselves in plain English, and the in-app guide was rewritten from a real cold-start run through Twilio's current console.
+* Fixed: deleting a menu section could white-screen the admin — fixed, deleting a section now asks first (its dishes stay, just ungrouped), and any future crash shows a friendly reload card instead of a blank page.
+* Fixed: venues with "&" in their name were sending texts reading "&amp;" — now decoded everywhere.
+* Fixed: the opening-hours widget used to hard-code dark text and vanish on dark backgrounds — it now takes its colour from the surrounding theme.
 
 = 1.2.15 =
 * New: unified guest book — every guest's bookings, orders and loyalty in one place: lifetime spend, visits and average order on the Guests screen, and opening a booking shows floor staff who's walking in (VIP, allergies, visits, spend, past no-shows). The guest follows you to the till too: the order pad shows who's at the table, their allergies and their standing notes ("always tops up the wine").
