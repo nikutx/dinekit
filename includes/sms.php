@@ -305,7 +305,18 @@ function send( $to, $body, $context = '' ) {
 	$code = (int) wp_remote_retrieve_response_code( $response );
 	$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 	if ( $code < 200 || $code >= 300 ) {
-		$msg = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : sprintf( 'Twilio returned HTTP %d.', $code );
+		// Twilio's raw errors are cryptic ("Authenticate") — translate the ones
+		// venues actually hit into instructions they can act on.
+		$tw_code = is_array( $data ) && isset( $data['code'] ) ? (int) $data['code'] : 0;
+		if ( 20003 === $tw_code ) {
+			$msg = __( 'Twilio rejected the sign-in. The two fields must match: an Account SID (AC…) goes with the account’s Auth Token, while an API key SID (SK…) goes with that key’s Client Secret — they can’t be mixed. Both live on Twilio’s “API keys & tokens” page.', 'dinekit' );
+		} elseif ( 21608 === $tw_code ) {
+			$msg = __( 'Sent to Twilio OK, but on a trial account texts only reach numbers you’ve verified: Twilio console → Phone Numbers → Verified Caller IDs.', 'dinekit' );
+		} elseif ( 21606 === $tw_code || 21659 === $tw_code ) {
+			$msg = __( 'Your “from” number isn’t an SMS-capable number on this Twilio account. Check Twilio console → Phone Numbers → Manage → Active numbers and copy it exactly.', 'dinekit' );
+		} else {
+			$msg = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : sprintf( 'Twilio returned HTTP %d.', $code );
+		}
 		return new \WP_Error( 'dinekit_sms_fail', $msg );
 	}
 
