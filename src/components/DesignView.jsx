@@ -9,9 +9,11 @@ import {
 	FormControlLabel,
 	Button,
 	TextField,
+	Slider,
 	CircularProgress,
 } from '../ui';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CloseIcon from '@mui/icons-material/Close';
 import { tokens } from '../theme';
 import { api } from '../api/client';
 import { useToast } from './Toast';
@@ -54,8 +56,25 @@ const TEMPLATE_PALETTE = {
 	mono: { accent: '#111111', menu_ink: '#111111', menu_muted: '#767676', menu_line: '#e5e5e5', menu_bg: '' },
 };
 
-// Design & Preview: pick a style, see an isolated live preview of the real
-// menu, and copy the shortcode that produces exactly what you see.
+// The Design Studio's clickable element roles. Order = hit-test priority
+// (innermost/most specific first; background last as the catch-all).
+// sizeKey → the per-element multiplier setting; colorKey → the shared design
+// token this element's colour comes from.
+const ROLES = [
+	{ key: 'title', selector: '.dinekit-section__title', label: 'Section titles', sizeKey: 'menu_size_title', colorKey: 'menu_ink', colorLabel: 'Text colour', colorNote: 'Shared with dish names.' },
+	{ key: 'name', selector: '.dinekit-item__name', label: 'Dish names', sizeKey: 'menu_size_name', colorKey: 'menu_ink', colorLabel: 'Text colour', colorNote: 'Shared with section titles.' },
+	{ key: 'desc', selector: '.dinekit-item__desc', label: 'Descriptions', sizeKey: 'menu_size_desc', colorKey: 'menu_muted', colorLabel: 'Secondary text colour', colorNote: 'Shared with other quiet text.' },
+	{ key: 'price', selector: '.dinekit-item__prices', label: 'Prices', sizeKey: 'menu_size_price', colorKey: 'accent', colorLabel: 'Accent colour', colorNote: 'Prices use your accent — this also recolours badges and highlights.' },
+	{ key: 'badge', selector: '.dinekit-badge, .dinekit-diet, .dinekit-allergens', label: 'Badges & allergens', sizeKey: null, colorKey: null },
+	{ key: 'filter', selector: '.dinekit-filter', label: 'Diner filter', sizeKey: null, colorKey: null },
+	{ key: 'background', selector: '.dinekit-menu', label: 'Menu background', sizeKey: null, colorKey: 'menu_bg', colorLabel: 'Background colour' },
+];
+const roleByKey = ( key ) => ROLES.find( ( r ) => r.key === key ) || null;
+
+const SIZE_KEYS = [ 'menu_size_title', 'menu_size_name', 'menu_size_desc', 'menu_size_price' ];
+
+// Design Studio: click any element in the live preview, style it from the
+// left rail, watch it change instantly. Saved automatically.
 export default function DesignView() {
 	const [ layout, setLayout ] = useState( 'list' );
 	const [ columns, setColumns ] = useState( '0' );
@@ -69,12 +88,17 @@ export default function DesignView() {
 	const [ preview, setPreview ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ design, setDesign ] = useState( null );
+	const [ selected, setSelected ] = useState( null ); // ROLES key or null
+	const [ hovered, setHovered ] = useState( null );
+	const iframeRef = useRef( null );
+	const designRef = useRef( null );
+	const selectedRef = useRef( null );
 	const dsave = useRef( null );
 	const toast = useToast();
 
 	useEffect( () => {
-		api.getSettings().then( ( s ) =>
-			setDesign( {
+		api.getSettings().then( ( s ) => {
+			const d = {
 				template: s.template || 'signature',
 				// Empty = "use the template's colour" (an override only when set).
 				accent: s.accent || '',
@@ -83,9 +107,11 @@ export default function DesignView() {
 				menu_line: s.menu_line || '',
 				menu_bg: s.menu_bg || '',
 				menu_radius: s.menu_radius != null ? s.menu_radius : 12,
-					menu_scale: s.menu_scale != null ? Number( s.menu_scale ) : 1,
-			} )
-		);
+				menu_scale: s.menu_scale != null ? Number( s.menu_scale ) : 1,
+			};
+			SIZE_KEYS.forEach( ( k ) => ( d[ k ] = s[ k ] != null ? Number( s[ k ] ) : 1 ) );
+			setDesign( d );
+		} );
 	}, [] );
 
 	const patchDesign = ( p ) => {
@@ -95,11 +121,15 @@ export default function DesignView() {
 		dsave.current = setTimeout( () => api.saveSettings( next ), 500 );
 	};
 
+	// Preview HTML only refetches on structural changes — NOT on colour/size
+	// tweaks, which patch into the live iframe without a reload (no flicker,
+	// scroll position kept).
+	const template = design ? design.template : 'signature';
 	const params = useMemo(
 		() => ( {
 			layout,
 			columns,
-			template: design ? design.template : 'signature',
+			template,
 			images: images ? '1' : '0',
 			allergens: allergens ? '1' : '0',
 			dietary: dietary ? '1' : '0',
@@ -108,7 +138,7 @@ export default function DesignView() {
 			filter_style: filterStyle,
 			allergen_display: allergensAs,
 		} ),
-		[ layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs, design ]
+		[ layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs, template ]
 	);
 
 	useEffect( () => {
@@ -157,22 +187,120 @@ export default function DesignView() {
 		return `[${ parts.join( ' ' ) }]`;
 	}, [ layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs ] );
 
-	// Live colour overrides so the preview reflects unsaved picks instantly. Only
-	// emit the ones the venue actually set, so the template's palette shows through.
-	const varStyle = ( () => {
-		if ( ! design ) {
+	// ---- Live iframe plumbing -------------------------------------------------
+
+	const liveVarsCss = ( d ) => {
+		if ( ! d ) {
 			return '';
 		}
-		let v = `--dinekit-radius:${ design.menu_radius }px;--dinekit-scale:${ design.menu_scale != null ? design.menu_scale : 1 };`;
+		let v = `--dinekit-radius:${ d.menu_radius }px;--dinekit-scale:${ d.menu_scale != null ? d.menu_scale : 1 };`;
 		[ [ 'accent', 'accent' ], [ 'menu_ink', 'ink' ], [ 'menu_muted', 'muted' ], [ 'menu_line', 'line' ], [ 'menu_bg', 'bg' ] ].forEach( ( [ k, t ] ) => {
-			if ( design[ k ] ) {
-				v += `--dinekit-${ t }:${ design[ k ] };`;
+			if ( d[ k ] ) {
+				v += `--dinekit-${ t }:${ d[ k ] };`;
 			}
 		} );
+		[ [ 'menu_size_title', 'title' ], [ 'menu_size_name', 'name' ], [ 'menu_size_desc', 'desc' ], [ 'menu_size_price', 'price' ] ].forEach( ( [ k, t ] ) => {
+			v += `--dinekit-size-${ t }:${ d[ k ] != null ? d[ k ] : 1 };`;
+		} );
 		return `.dinekit-menu{${ v }}`;
-	} )();
+	};
+
+	const applyLiveVars = () => {
+		const doc = iframeRef.current && iframeRef.current.contentDocument;
+		if ( ! doc || ! doc.head ) {
+			return;
+		}
+		let el = doc.getElementById( 'dk-live-vars' );
+		if ( ! el ) {
+			el = doc.createElement( 'style' );
+			el.id = 'dk-live-vars';
+			doc.head.appendChild( el );
+		}
+		el.textContent = liveVarsCss( designRef.current );
+	};
+
+	const markSelection = () => {
+		const doc = iframeRef.current && iframeRef.current.contentDocument;
+		if ( ! doc || ! doc.body ) {
+			return;
+		}
+		doc.querySelectorAll( '.dk-studio-selected' ).forEach( ( el ) => el.classList.remove( 'dk-studio-selected' ) );
+		const role = roleByKey( selectedRef.current );
+		if ( role ) {
+			doc.querySelectorAll( role.selector ).forEach( ( el ) => el.classList.add( 'dk-studio-selected' ) );
+		}
+	};
+
+	// Wire hover outlines + click-to-select into the preview document. The
+	// iframe is srcDoc (same-origin) so we can script it directly. All clicks
+	// are captured — the preview never navigates or filters while in the studio.
+	const attachStudio = () => {
+		const doc = iframeRef.current && iframeRef.current.contentDocument;
+		if ( ! doc || ! doc.body || doc.getElementById( 'dk-studio-css' ) ) {
+			applyLiveVars();
+			markSelection();
+			return;
+		}
+		const style = doc.createElement( 'style' );
+		style.id = 'dk-studio-css';
+		style.textContent = `
+			.dk-studio-hover { outline: 2px dashed rgba(79,70,229,0.7) !important; outline-offset: 3px; cursor: pointer !important; }
+			.dk-studio-selected { outline: 2px solid #4f46e5 !important; outline-offset: 3px; }
+			body { cursor: default; }
+		`;
+		doc.head.appendChild( style );
+
+		const roleFor = ( target ) => {
+			for ( const role of ROLES ) {
+				const el = target.closest ? target.closest( role.selector ) : null;
+				if ( el ) {
+					return { role, el };
+				}
+			}
+			return null;
+		};
+
+		let hoverEl = null;
+		doc.body.addEventListener( 'mousemove', ( e ) => {
+			const hit = roleFor( e.target );
+			const el = hit && hit.role.key !== 'background' ? hit.el : null;
+			if ( el !== hoverEl ) {
+				if ( hoverEl ) {
+					hoverEl.classList.remove( 'dk-studio-hover' );
+				}
+				hoverEl = el;
+				if ( hoverEl ) {
+					hoverEl.classList.add( 'dk-studio-hover' );
+				}
+				setHovered( hit && hit.role.key !== 'background' ? hit.role.key : null );
+			}
+		} );
+		doc.body.addEventListener(
+			'click',
+			( e ) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const hit = roleFor( e.target );
+				const key = hit ? hit.role.key : null;
+				setSelected( ( prev ) => ( prev === key ? null : key ) );
+			},
+			true
+		);
+		applyLiveVars();
+		markSelection();
+	};
+
+	useEffect( () => {
+		designRef.current = design;
+		applyLiveVars();
+	}, [ design ] );
+	useEffect( () => {
+		selectedRef.current = selected;
+		markSelection();
+	}, [ selected, preview ] );
+
 	const srcDoc = preview
-		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}${ varStyle }</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
+		? `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${ preview.cssUrl }"><style>body{margin:0;padding:20px;background:#fff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}</style></head><body>${ preview.html }<script src="${ preview.jsUrl }"></script></body></html>`
 		: '';
 
 	const copyShortcode = () => {
@@ -180,232 +308,326 @@ export default function DesignView() {
 		toast.info( 'Shortcode copied', 'Paste it into any page or post to show this menu.' );
 	};
 
-	return (
-		<Page width={ 1320 }>
-			<PageHeader
-				title="Design & Preview"
-				subtitle="Choose how your menu looks, preview it exactly as diners will see it, then copy the shortcode to drop it onto any page."
+	const selectedRole = roleByKey( selected );
+	const palette = design ? TEMPLATE_PALETTE[ design.template ] || {} : {};
+
+	const colorPicker = ( key, fallback ) => (
+		<Stack direction="row" spacing={ 0.75 } alignItems="center">
+			<Box
+				component="input"
+				type="color"
+				value={ ( design && design[ key ] ) || fallback || '#000000' }
+				onChange={ ( e ) => patchDesign( { [ key ]: e.target.value } ) }
+				sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
 			/>
-
-			{ /* Compact toolbar (keeps the preview below full-width so column
-			     counts render truthfully). */ }
-			<Card sx={ { p: 2, mb: 2.5 } }>
-				<Stack direction="row" spacing={ 3 } rowGap={ 2 } alignItems="flex-end" flexWrap="wrap">
-					<Box>
-						<Typography sx={ labelSx }>Layout</Typography>
-						<ToggleButtonGroup exclusive size="small" value={ layout } onChange={ ( e, v ) => v && setLayout( v ) }>
-							{ LAYOUTS.map( ( l ) => (
-								<ToggleButton key={ l.value } value={ l.value } sx={ { px: 1.75, textTransform: 'none' } }>
-									{ l.label }
-								</ToggleButton>
-							) ) }
-						</ToggleButtonGroup>
-					</Box>
-
-					<Box>
-						<Typography sx={ labelSx }>Columns</Typography>
-						<ToggleButtonGroup exclusive size="small" value={ columns } onChange={ ( e, v ) => v && setColumns( v ) }>
-							{ COLS.map( ( c ) => (
-								<ToggleButton key={ c } value={ c } sx={ { px: 1.75 } }>
-									{ c === '0' ? 'Auto' : c }
-								</ToggleButton>
-							) ) }
-						</ToggleButtonGroup>
-					</Box>
-
-					<Box>
-						<Typography sx={ labelSx }>Show</Typography>
-						<Stack direction="row" flexWrap="wrap" sx={ { columnGap: 1 } }>
-							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ images } onChange={ ( e ) => setImages( e.target.checked ) } /> } label="Photos" />
-							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ allergens } onChange={ ( e ) => setAllergens( e.target.checked ) } /> } label="Allergens" />
-							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ dietary } onChange={ ( e ) => setDietary( e.target.checked ) } /> } label="Dietary" />
-							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ matrix } onChange={ ( e ) => setMatrix( e.target.checked ) } /> } label="Matrix" />
-							<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ filter } onChange={ ( e ) => setFilter( e.target.checked ) } /> } label="Filter" />
-						</Stack>
-					</Box>
-
-					<Box>
-						<Typography sx={ labelSx }>Filters</Typography>
-						<ToggleButtonGroup exclusive size="small" value={ filterStyle } onChange={ ( e, v ) => v && setFilterStyle( v ) }>
-							<ToggleButton value="chips" sx={ { px: 1.5, textTransform: 'none' } }>Chips</ToggleButton>
-							<ToggleButton value="dropdown" sx={ { px: 1.5, textTransform: 'none' } }>Dropdown</ToggleButton>
-						</ToggleButtonGroup>
-					</Box>
-
-					<Box>
-						<Typography sx={ labelSx }>Allergens as</Typography>
-						<ToggleButtonGroup exclusive size="small" value={ allergensAs } onChange={ ( e, v ) => v && setAllergensAs( v ) }>
-							<ToggleButton value="icons" sx={ { px: 1.5, textTransform: 'none' } }>Icons</ToggleButton>
-							<ToggleButton value="text" sx={ { px: 1.5, textTransform: 'none' } }>Text</ToggleButton>
-							<ToggleButton value="codes" sx={ { px: 1.5, textTransform: 'none' } }>Codes</ToggleButton>
-						</ToggleButtonGroup>
-					</Box>
-
-					<Box sx={ { flex: 1, minWidth: 240 } }>
-						<Typography sx={ labelSx }>Shortcode</Typography>
-						<Stack direction="row" spacing={ 1 } alignItems="center">
-							<Box sx={ { flex: 1, fontFamily: 'monospace', fontSize: 12.5, color: tokens.ink2, bgcolor: tokens.soft, border: `1px solid ${ tokens.border }`, borderRadius: 1.5, px: 1, py: 0.75, wordBreak: 'break-all' } }>
-								{ shortcode }
-							</Box>
-							<Button size="small" variant="outlined" startIcon={ <ContentCopyIcon /> } onClick={ copyShortcode } sx={ { flexShrink: 0 } }>
-								Copy
-							</Button>
-						</Stack>
-					</Box>
-				</Stack>
-			</Card>
-
-			{ /* Template — the menu's visual flavour. */ }
-			{ design && (
-				<Card sx={ { p: 2, mb: 2.5 } }>
-					<Typography sx={ { ...labelSx, mb: 1.5 } }>Template</Typography>
-					<ToggleButtonGroup
-						exclusive
-						size="small"
-						value={ design.template }
-						onChange={ ( e, v ) => v && patchDesign( { template: v } ) }
-					>
-						{ TEMPLATES.map( ( t ) => (
-							<ToggleButton key={ t.value } value={ t.value } sx={ { flexDirection: 'column', alignItems: 'flex-start', textTransform: 'none', px: 1.75, py: 0.75 } }>
-								<Box sx={ { fontWeight: 700, fontSize: 13.5 } }>{ t.label }</Box>
-								<Box sx={ { fontSize: 11, color: tokens.muted } }>{ t.desc }</Box>
-							</ToggleButton>
-						) ) }
-					</ToggleButtonGroup>
-					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.25 } }>
-						Sets the base look. The colours below are optional tweaks on top — leave them and the template’s own palette is used. Your accent colour and corner rounding also carry over to the Order Online page, so both pages match your brand.
-					</Typography>
-				</Card>
+			{ design && design[ key ] && (
+				<Button size="small" onClick={ () => patchDesign( { [ key ]: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
+					Clear
+				</Button>
 			) }
+		</Stack>
+	);
 
-			{ /* Colours — every menu token, saved and applied to the live front end. */ }
-			{ design && (
-				<Card sx={ { p: 2, mb: 2.5 } }>
-					<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 1.5 } }>
-						<Typography sx={ labelSx }>Colours <span style={ { fontWeight: 400, textTransform: 'none', letterSpacing: 0 } }>— overrides (optional)</span></Typography>
-						<Button size="small" onClick={ () => patchDesign( { accent: '', menu_ink: '', menu_muted: '', menu_line: '', menu_bg: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
-							Reset to template
+	const sizeSlider = ( sizeKey, label ) => (
+		<Box key={ sizeKey } sx={ { width: '100%' } }>
+			<Stack direction="row" justifyContent="space-between" alignItems="baseline">
+				<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.ink2 } }>{ label }</Typography>
+				<Typography sx={ { fontSize: 12, color: tokens.muted, fontVariantNumeric: 'tabular-nums' } }>
+					{ Math.round( ( design ? design[ sizeKey ] : 1 ) * 100 ) }%
+					{ design && Math.abs( design[ sizeKey ] - 1 ) > 0.001 && (
+						<Button size="small" onClick={ () => patchDesign( { [ sizeKey ]: 1 } ) } sx={ { color: tokens.muted, minWidth: 0, ml: 0.5, p: 0 } }>
+							reset
 						</Button>
-					</Stack>
-					<Stack direction="row" spacing={ 3 } rowGap={ 2 } flexWrap="wrap" alignItems="flex-end">
-						{ [
-							[ 'accent', 'Accent' ],
-							[ 'menu_ink', 'Text' ],
-							[ 'menu_muted', 'Secondary text' ],
-							[ 'menu_line', 'Lines' ],
-						].map( ( [ key, label ] ) => (
-							<Box key={ key }>
-								<Typography sx={ labelSx }>{ label }</Typography>
-								<Stack direction="row" spacing={ 0.75 } alignItems="center">
-									<Box
-										component="input"
-										type="color"
-										value={ design[ key ] || TEMPLATE_PALETTE[ design.template ][ key ] || '#000000' }
-										onChange={ ( e ) => patchDesign( { [ key ]: e.target.value } ) }
-										sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
-									/>
-									{ design[ key ] && (
-										<Button size="small" onClick={ () => patchDesign( { [ key ]: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
-											Clear
-										</Button>
-									) }
-								</Stack>
-							</Box>
-						) ) }
+					) }
+				</Typography>
+			</Stack>
+			<Slider
+				value={ Math.round( ( design ? design[ sizeKey ] : 1 ) * 100 ) }
+				min={ 70 }
+				max={ 160 }
+				step={ 5 }
+				onChange={ ( e, v ) => patchDesign( { [ sizeKey ]: v / 100 } ) }
+			/>
+		</Box>
+	);
+
+	// Contextual controls for the element clicked in the preview.
+	const selectedPanel = selectedRole && design && (
+		<Card sx={ { p: 2, mb: 2, border: `2px solid ${ tokens.accent }` } }>
+			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 1 } }>
+				<Typography sx={ { fontSize: 14, fontWeight: 800, color: tokens.ink } }>{ selectedRole.label }</Typography>
+				<Button size="small" startIcon={ <CloseIcon sx={ { fontSize: 15 } } /> } onClick={ () => setSelected( null ) } sx={ { color: tokens.muted, minWidth: 0 } }>
+					Done
+				</Button>
+			</Stack>
+			<Stack spacing={ 1.5 }>
+				{ selectedRole.sizeKey && sizeSlider( selectedRole.sizeKey, 'Size' ) }
+				{ selectedRole.colorKey && (
+					<Box>
+						<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.ink2, mb: 0.5 } }>{ selectedRole.colorLabel }</Typography>
+						{ colorPicker( selectedRole.colorKey, palette[ selectedRole.colorKey ] ) }
+						{ selectedRole.colorNote && (
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 0.5 } }>{ selectedRole.colorNote }</Typography>
+						) }
+					</Box>
+				) }
+				{ selectedRole.key === 'badge' && (
+					<Stack spacing={ 0.5 }>
+						<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ dietary } onChange={ ( e ) => setDietary( e.target.checked ) } /> } label="Show dietary badges" />
+						<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ allergens } onChange={ ( e ) => setAllergens( e.target.checked ) } /> } label="Show allergens" />
 						<Box>
-							<Typography sx={ labelSx }>Background</Typography>
-							<Stack direction="row" spacing={ 0.75 } alignItems="center">
-								<Box
-									component="input"
-									type="color"
-									value={ design.menu_bg || TEMPLATE_PALETTE[ design.template ].menu_bg || '#ffffff' }
-									onChange={ ( e ) => patchDesign( { menu_bg: e.target.value } ) }
-									sx={ { width: 46, height: 34, p: 0, border: `1px solid ${ tokens.border2 }`, borderRadius: 1, bgcolor: 'transparent', cursor: 'pointer' } }
-								/>
-								<Button size="small" onClick={ () => patchDesign( { menu_bg: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
-									Clear
-								</Button>
-							</Stack>
+							<Typography sx={ { ...labelSx, mb: 0.5 } }>Allergens as</Typography>
+							<ToggleButtonGroup exclusive size="small" value={ allergensAs } onChange={ ( e, v ) => v && setAllergensAs( v ) }>
+								<ToggleButton value="icons" sx={ { px: 1.5, textTransform: 'none' } }>Icons</ToggleButton>
+								<ToggleButton value="text" sx={ { px: 1.5, textTransform: 'none' } }>Text</ToggleButton>
+								<ToggleButton value="codes" sx={ { px: 1.5, textTransform: 'none' } }>Codes</ToggleButton>
+							</ToggleButtonGroup>
 						</Box>
+					</Stack>
+				) }
+				{ selectedRole.key === 'filter' && (
+					<Stack spacing={ 0.75 }>
+						<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ filter } onChange={ ( e ) => setFilter( e.target.checked ) } /> } label="Show the diner filter" />
+						<Box>
+							<Typography sx={ { ...labelSx, mb: 0.5 } }>Style</Typography>
+							<ToggleButtonGroup exclusive size="small" value={ filterStyle } onChange={ ( e, v ) => v && setFilterStyle( v ) }>
+								<ToggleButton value="chips" sx={ { px: 1.5, textTransform: 'none' } }>Chips</ToggleButton>
+								<ToggleButton value="dropdown" sx={ { px: 1.5, textTransform: 'none' } }>Dropdown</ToggleButton>
+							</ToggleButtonGroup>
+						</Box>
+					</Stack>
+				) }
+				{ selectedRole.key === 'background' && (
+					<Box>
+						<Typography sx={ { fontSize: 12.5, fontWeight: 600, color: tokens.ink2, mb: 0.5 } }>Corner rounding</Typography>
 						<TextField
-							label="Radius (px)"
 							type="number"
 							size="small"
 							value={ design.menu_radius }
 							onChange={ ( e ) => patchDesign( { menu_radius: Math.max( 0, Math.min( 40, parseInt( e.target.value, 10 ) || 0 ) ) } ) }
-							sx={ { width: 110 } }
+							sx={ { width: 100 } }
 						/>
-						<Box>
-							<Typography sx={ labelSx }>Text size</Typography>
-							<ToggleButtonGroup exclusive size="small" value={ Number( design.menu_scale ) } onChange={ ( e, v ) => v != null && patchDesign( { menu_scale: v } ) }>
-								{ TEXT_SIZES.map( ( s ) => (
-									<ToggleButton key={ s.value } value={ s.value } sx={ { px: 1.5, textTransform: 'none' } }>{ s.label }</ToggleButton>
-								) ) }
-							</ToggleButtonGroup>
-						</Box>
-					</Stack>
-					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.5 } }>
-						Saved automatically and applied to your live menu. Colours are scoped to <code>.dinekit-menu</code> as CSS custom properties — a theme can’t easily override them, and developers can via the <code>dinekit_menu_style_vars</code> filter.
-					</Typography>
-				</Card>
-			) }
+					</Box>
+				) }
+			</Stack>
+		</Card>
+	);
 
-			{ /* Full-width preview, framed as a little browser window */ }
-			<Typography sx={ labelSx }>Live preview</Typography>
-			<Box
-				sx={ {
-					border: `1px solid ${ tokens.border }`,
-					borderRadius: '12px',
-					overflow: 'hidden',
-					bgcolor: '#fff',
-				} }
-			>
-				{ /* Browser chrome bar */ }
-				<Box
-					sx={ {
-						height: 36,
-						bgcolor: tokens.soft,
-						borderBottom: `1px solid ${ tokens.border }`,
-						display: 'flex',
-						alignItems: 'center',
-						px: 1.5,
-						position: 'relative',
-					} }
-				>
-					<Stack direction="row" spacing={ 0.75 }>
-						{ [ '#f87171', '#fbbf24', '#34d399' ].map( ( c ) => (
-							<Box key={ c } sx={ { width: 8, height: 8, borderRadius: '50%', bgcolor: c } } />
-						) ) }
-					</Stack>
+	return (
+		<Page width={ 1600 }>
+			<PageHeader
+				title="Design Studio"
+				subtitle="Click any part of the menu preview to style it — sizes and colours update live and save automatically. Copy the shortcode to put this exact menu on any page."
+			/>
+
+			<Stack direction="row" spacing={ 2.5 } alignItems="stretch">
+				{ /* ---- Left rail: contextual panel + global controls ---- */ }
+				<Box sx={ { width: 340, flexShrink: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', minHeight: 560, pr: 0.5 } }>
+					{ selectedPanel }
+
+					{ ! selectedRole && (
+						<Card sx={ { p: 1.5, mb: 2, bgcolor: tokens.accentSoft, border: 0 } }>
+							<Typography sx={ { fontSize: 12.5, color: tokens.accentDark } }>
+								💡 <strong>Click anything in the preview</strong> — a section title, dish name, price — to style just that element.
+							</Typography>
+						</Card>
+					) }
+
+					{ design && (
+						<Card sx={ { p: 2, mb: 2 } }>
+							<Typography sx={ { ...labelSx, mb: 1.25 } }>Template</Typography>
+							<Stack spacing={ 0.75 }>
+								{ TEMPLATES.map( ( t ) => (
+									<Box
+										key={ t.value }
+										onClick={ () => patchDesign( { template: t.value } ) }
+										sx={ {
+											px: 1.5,
+											py: 1,
+											borderRadius: 2,
+											cursor: 'pointer',
+											border: `1px solid ${ design.template === t.value ? tokens.accent : tokens.border }`,
+											bgcolor: design.template === t.value ? tokens.accentSoft : 'transparent',
+											'&:hover': { borderColor: tokens.accent },
+										} }
+									>
+										<Stack direction="row" alignItems="center" spacing={ 1 }>
+											<Box sx={ { width: 14, height: 14, borderRadius: '50%', bgcolor: TEMPLATE_PALETTE[ t.value ].accent, flexShrink: 0 } } />
+											<Box>
+												<Box sx={ { fontWeight: 700, fontSize: 13 } }>{ t.label }</Box>
+												<Box sx={ { fontSize: 11, color: tokens.muted } }>{ t.desc }</Box>
+											</Box>
+										</Stack>
+									</Box>
+								) ) }
+							</Stack>
+						</Card>
+					) }
+
+					{ design && (
+						<Card sx={ { p: 2, mb: 2 } }>
+							<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 1.25 } }>
+								<Typography sx={ labelSx }>Colours</Typography>
+								<Button size="small" onClick={ () => patchDesign( { accent: '', menu_ink: '', menu_muted: '', menu_line: '', menu_bg: '' } ) } sx={ { color: tokens.muted, minWidth: 0 } }>
+									Reset to template
+								</Button>
+							</Stack>
+							<Stack direction="row" spacing={ 2 } rowGap={ 1.5 } flexWrap="wrap">
+								{ [
+									[ 'accent', 'Accent' ],
+									[ 'menu_ink', 'Text' ],
+									[ 'menu_muted', 'Secondary' ],
+									[ 'menu_line', 'Lines' ],
+									[ 'menu_bg', 'Background' ],
+								].map( ( [ key, label ] ) => (
+									<Box key={ key }>
+										<Typography sx={ { ...labelSx, mb: 0.5 } }>{ label }</Typography>
+										{ colorPicker( key, palette[ key ] || ( key === 'menu_bg' ? '#ffffff' : '#000000' ) ) }
+									</Box>
+								) ) }
+							</Stack>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 1.25 } }>
+								Leave a colour cleared to use the template’s own. Accent + corner rounding also style your Order Online page.
+							</Typography>
+						</Card>
+					) }
+
+					{ design && (
+						<Card sx={ { p: 2, mb: 2 } }>
+							<Typography sx={ { ...labelSx, mb: 1.25 } }>Text sizes</Typography>
+							<Stack spacing={ 1.25 }>
+								<Box>
+									<Typography sx={ { ...labelSx, mb: 0.5 } }>Everything</Typography>
+									<ToggleButtonGroup exclusive size="small" value={ Number( design.menu_scale ) } onChange={ ( e, v ) => v != null && patchDesign( { menu_scale: v } ) }>
+										{ TEXT_SIZES.map( ( s ) => (
+											<ToggleButton key={ s.value } value={ s.value } sx={ { px: 1.25, textTransform: 'none' } }>{ s.label }</ToggleButton>
+										) ) }
+									</ToggleButtonGroup>
+								</Box>
+								{ sizeSlider( 'menu_size_title', 'Section titles' ) }
+								{ sizeSlider( 'menu_size_name', 'Dish names' ) }
+								{ sizeSlider( 'menu_size_desc', 'Descriptions' ) }
+								{ sizeSlider( 'menu_size_price', 'Prices' ) }
+							</Stack>
+						</Card>
+					) }
+
+					<Card sx={ { p: 2, mb: 2 } }>
+						<Typography sx={ { ...labelSx, mb: 1.25 } }>Layout & display</Typography>
+						<Stack spacing={ 1.5 }>
+							<Box>
+								<Typography sx={ { ...labelSx, mb: 0.5 } }>Layout</Typography>
+								<ToggleButtonGroup exclusive size="small" value={ layout } onChange={ ( e, v ) => v && setLayout( v ) }>
+									{ LAYOUTS.map( ( l ) => (
+										<ToggleButton key={ l.value } value={ l.value } sx={ { px: 1.25, textTransform: 'none' } }>
+											{ l.label }
+										</ToggleButton>
+									) ) }
+								</ToggleButtonGroup>
+							</Box>
+							<Box>
+								<Typography sx={ { ...labelSx, mb: 0.5 } }>Columns</Typography>
+								<ToggleButtonGroup exclusive size="small" value={ columns } onChange={ ( e, v ) => v && setColumns( v ) }>
+									{ COLS.map( ( c ) => (
+										<ToggleButton key={ c } value={ c } sx={ { px: 1.5 } }>
+											{ c === '0' ? 'Auto' : c }
+										</ToggleButton>
+									) ) }
+								</ToggleButtonGroup>
+							</Box>
+							<Stack spacing={ 0.25 }>
+								<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ images } onChange={ ( e ) => setImages( e.target.checked ) } /> } label="Photos" />
+								<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ allergens } onChange={ ( e ) => setAllergens( e.target.checked ) } /> } label="Allergens" />
+								<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ dietary } onChange={ ( e ) => setDietary( e.target.checked ) } /> } label="Dietary badges" />
+								<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ matrix } onChange={ ( e ) => setMatrix( e.target.checked ) } /> } label="Allergen matrix" />
+								<FormControlLabel sx={ compactSwitch } control={ <Switch size="small" checked={ filter } onChange={ ( e ) => setFilter( e.target.checked ) } /> } label="Diner filter" />
+							</Stack>
+						</Stack>
+					</Card>
+
+					<Card sx={ { p: 2, mb: 2 } }>
+						<Typography sx={ { ...labelSx, mb: 0.75 } }>Shortcode</Typography>
+						<Box sx={ { fontFamily: 'monospace', fontSize: 12, color: tokens.ink2, bgcolor: tokens.soft, border: `1px solid ${ tokens.border }`, borderRadius: 1.5, px: 1, py: 0.75, wordBreak: 'break-all', mb: 1 } }>
+							{ shortcode }
+						</Box>
+						<Button size="small" variant="outlined" startIcon={ <ContentCopyIcon /> } onClick={ copyShortcode }>
+							Copy shortcode
+						</Button>
+					</Card>
+				</Box>
+
+				{ /* ---- Preview, framed as a little browser window ---- */ }
+				<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>
 					<Box
 						sx={ {
-							position: 'absolute',
-							left: '50%',
-							transform: 'translateX(-50%)',
-							bgcolor: tokens.surface,
 							border: `1px solid ${ tokens.border }`,
-							borderRadius: 999,
-							px: 1.5,
-							py: 0.25,
-							fontSize: 11.5,
-							color: tokens.muted,
-							whiteSpace: 'nowrap',
-							userSelect: 'none',
+							borderRadius: '12px',
+							overflow: 'hidden',
+							bgcolor: '#fff',
+							display: 'flex',
+							flexDirection: 'column',
+							height: 'calc(100vh - 200px)',
+							minHeight: 560,
 						} }
 					>
-						yoursite.com/menu
+						<Box
+							sx={ {
+								height: 36,
+								flexShrink: 0,
+								bgcolor: tokens.soft,
+								borderBottom: `1px solid ${ tokens.border }`,
+								display: 'flex',
+								alignItems: 'center',
+								px: 1.5,
+								position: 'relative',
+							} }
+						>
+							<Stack direction="row" spacing={ 0.75 }>
+								{ [ '#f87171', '#fbbf24', '#34d399' ].map( ( c ) => (
+									<Box key={ c } sx={ { width: 8, height: 8, borderRadius: '50%', bgcolor: c } } />
+								) ) }
+							</Stack>
+							<Box
+								sx={ {
+									position: 'absolute',
+									left: '50%',
+									transform: 'translateX(-50%)',
+									bgcolor: tokens.surface,
+									border: `1px solid ${ tokens.border }`,
+									borderRadius: 999,
+									px: 1.5,
+									py: 0.25,
+									fontSize: 11.5,
+									color: tokens.muted,
+									whiteSpace: 'nowrap',
+									userSelect: 'none',
+								} }
+							>
+								yoursite.com/menu
+							</Box>
+							<Box sx={ { ml: 'auto', fontSize: 11.5, color: hovered ? tokens.accent : tokens.muted2, fontWeight: 600, whiteSpace: 'nowrap' } }>
+								{ hovered ? `Click to style: ${ ( roleByKey( hovered ) || {} ).label }` : 'Click any element to style it' }
+							</Box>
+						</Box>
+
+						<Box sx={ { position: 'relative', flex: 1, minHeight: 0 } }>
+							{ loading && (
+								<Box sx={ { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.6)', zIndex: 1 } }>
+									<CircularProgress size={ 28 } />
+								</Box>
+							) }
+							<Box
+								component="iframe"
+								ref={ iframeRef }
+								title="Menu preview"
+								srcDoc={ srcDoc }
+								onLoad={ attachStudio }
+								sx={ { width: '100%', height: '100%', border: 0, display: 'block' } }
+							/>
+						</Box>
 					</Box>
 				</Box>
-
-				<Box sx={ { position: 'relative' } }>
-					{ loading && (
-						<Box sx={ { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.6)', zIndex: 1 } }>
-							<CircularProgress size={ 28 } />
-						</Box>
-					) }
-					<Box component="iframe" title="Menu preview" srcDoc={ srcDoc } sx={ { width: '100%', height: 720, border: 0, display: 'block' } } />
-				</Box>
-			</Box>
+			</Stack>
 		</Page>
 	);
 }

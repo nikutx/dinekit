@@ -43,6 +43,12 @@ function defaults() {
 		'menu_bg'          => '',       // Menu background.
 		'menu_radius'      => 12,       // Corner radius, px.
 		'menu_scale'       => 1.0,      // Text-size multiplier (0.85–1.3); scales the whole menu.
+		// Per-element size multipliers (0.7–1.6) — set from the Design Studio by
+		// clicking an element in the preview. 1 = the template's own size.
+		'menu_size_title'  => 1.0,      // Section titles.
+		'menu_size_name'   => 1.0,      // Dish names.
+		'menu_size_desc'   => 1.0,      // Dish descriptions.
+		'menu_size_price'  => 1.0,      // Prices.
 	);
 }
 
@@ -112,6 +118,13 @@ function menu_style_vars( $accent_override = '' ) {
 	foreach ( $optional as $name => $value ) {
 		if ( '' !== $value ) {
 			$vars[ $name ] = $value;
+		}
+	}
+	// Per-element size multipliers — only when the venue moved them off 1.
+	foreach ( array( 'title', 'name', 'desc', 'price' ) as $role ) {
+		$mult = (float) $s[ 'menu_size_' . $role ];
+		if ( abs( $mult - 1.0 ) > 0.001 ) {
+			$vars[ '--dinekit-size-' . $role ] = rtrim( rtrim( number_format( $mult, 3, '.', '' ), '0' ), '.' );
 		}
 	}
 	/**
@@ -245,6 +258,11 @@ function save( $input ) {
 	}
 	if ( isset( $input['menu_scale'] ) ) {
 		$clean['menu_scale'] = max( 0.85, min( 1.3, (float) $input['menu_scale'] ) );
+	}
+	foreach ( array( 'menu_size_title', 'menu_size_name', 'menu_size_desc', 'menu_size_price' ) as $size_key ) {
+		if ( isset( $input[ $size_key ] ) ) {
+			$clean[ $size_key ] = max( 0.7, min( 1.6, (float) $input[ $size_key ] ) );
+		}
 	}
 
 	update_option( OPTION, $clean );
