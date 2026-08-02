@@ -550,24 +550,34 @@ function SmsCard() {
 							<strong>“API keys and Auth tokens”</strong> link — copy the SID here, then open that link.
 						</li>
 						<li>
-							On that page, <strong>either</strong> copy the existing <strong>Auth Token</strong> (Auth Tokens tab, press Show — nothing to create),
-							<strong>or</strong> press <strong>Create API key</strong> and paste the key’s <strong>SID (“SK…”)</strong> into the first
-							field and its <strong>Client Secret</strong> here instead — DineKit understands both.
-							If it asks for a <strong>region</strong>, keep <strong>United States (US1)</strong> — that’s Twilio’s default and the one
-							DineKit talks to (it’s about where Twilio processes the request, not where your texts can go).
+							On that page open the <strong>Auth Tokens</strong> tab and copy the <strong>Primary auth token</strong> (press
+							Show — nothing to create). That’s it: Account SID + Auth Token, both from the same page.
+							<br />
+							<em>Careful:</em> Twilio has <strong>two separate credential pairs</strong> and they can’t be mixed —
+							an <strong>Account SID (AC…)</strong> only works with the <strong>Auth Token</strong>, and an
+							<strong> API key (SK…)</strong> only works with its own <strong>Client Secret</strong>. DineKit accepts
+							either pair; mixing them is the #1 cause of a red “Authenticate” error.
+							If Twilio asks for a <strong>region</strong> anywhere, keep <strong>United States (US1)</strong> — it’s where
+							Twilio processes requests, not where your texts can go.
 						</li>
 						<li>
 							Before Twilio hands out <em>any</em> number — even the free trial one — it makes you complete a one-time{ ' ' }
 							<strong>compliance profile</strong> (~5 minutes: pick <strong>“Individual”</strong>, name, address, sometimes photo ID).
-							Regulators require this of every SMS provider, so there’s no way around it — do it once and it’s done.
+							Regulators require this of every SMS provider, so there’s no way around it. Twilio then reviews it
+							(up to 2–3 days) and emails you <em>“Business Profile Approved”</em> — nothing number-related works until
+							that email arrives.
 						</li>
 						<li>
-							Then get your sending number at{ ' ' }
-							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">buy / get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
-							{ ' ' }— country <strong>United States</strong> is the friction-free choice (a +1 number texts UK phones fine),
-							press Search, Buy the first one (your trial credit covers it). Numbers you own are under{ ' ' }
-							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>.
-							Paste yours here with the country code.
+							Once approved, claim your <strong>one free trial number</strong>: on the console home press{ ' ' }
+							<strong>“Start SMS trial” / “Try out SMS”</strong>, or go to{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer">get a number <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }(Twilio shows different doors to the same room, and trial accounts get exactly one number).
+							If every path still demands an upgrade, that’s Twilio’s trial policy for your country — the ~£20/$20
+							top-up isn’t a fee, it becomes SMS credit (a number is ~£1–2/month and texts are fractions of a penny).
+							Numbers you own are listed under{ ' ' }
+							<Link href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank" rel="noreferrer">active numbers <OpenInNewIcon sx={ { fontSize: 12 } } /></Link>
+							{ ' ' }— paste yours here with the country code. (Numbers shown in Twilio’s demo pages are <em>not</em> yours —
+							only Active numbers count.)
 						</li>
 						<li>
 							<strong>Trial accounts</strong> can only text numbers you’ve verified — the mobile you signed up with
@@ -584,7 +594,7 @@ function SmsCard() {
 				{ field( 'Account SID (AC…) or API key SID (SK…)', 'sid', { placeholder: 'ACxxxxxxxx… or SKxxxxxxxx…', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
 				<Box>
 					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
-						Auth Token / Client Secret { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
+						Auth Token (for AC…) / Client Secret (for SK…) { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
 					</Typography>
 					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or client secret' }
 						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
