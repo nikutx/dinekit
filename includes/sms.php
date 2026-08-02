@@ -97,6 +97,16 @@ function default_templates() {
 }
 
 /**
+ * The venue name as humans read it. get_bloginfo() returns entity-encoded
+ * text ("Copper &amp; Oak") — fine for HTML, wrong inside an SMS body.
+ *
+ * @return string
+ */
+function venue_name() {
+	return wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+}
+
+/**
  * Build the message for a trigger: the venue's custom template if set, else
  * the standard wording, with {placeholders} swapped for real values.
  *
@@ -419,7 +429,7 @@ function booking_confirmed( $booking_id ) {
 	$body = render_template(
 		'tpl_confirm',
 		array(
-			'{venue}' => get_bloginfo( 'name' ),
+			'{venue}' => venue_name(),
 			'{name}'  => (string) get_post_meta( $booking_id, 'dinekit_name', true ),
 			'{party}' => (string) max( 1, (int) get_post_meta( $booking_id, 'dinekit_party', true ) ),
 			'{date}'  => date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ),
@@ -490,7 +500,7 @@ function run_reminders() {
 		$body = render_template(
 			'tpl_remind',
 			array(
-				'{venue}' => get_bloginfo( 'name' ),
+				'{venue}' => venue_name(),
 				'{name}'  => (string) get_post_meta( $bid, 'dinekit_name', true ),
 				'{party}' => (string) max( 1, (int) get_post_meta( $bid, 'dinekit_party', true ) ),
 				'{date}'  => date_i18n( 'D j M', strtotime( $date . ' 12:00:00' ) ),
@@ -523,7 +533,7 @@ function table_ready( $booking_id ) {
 	$body = render_template(
 		'tpl_ready',
 		array(
-			'{venue}' => get_bloginfo( 'name' ),
+			'{venue}' => venue_name(),
 			'{name}'  => (string) get_post_meta( $booking_id, 'dinekit_name', true ),
 		)
 	);
@@ -558,7 +568,7 @@ function order_ready( $order_id ) {
 	$body = render_template(
 		'tpl_order',
 		array(
-			'{venue}' => get_bloginfo( 'name' ),
+			'{venue}' => venue_name(),
 			'{name}'  => (string) get_post_meta( $order_id, 'dinekit_order_name', true ),
 			'{order}' => (string) (int) get_post_meta( $order_id, 'dinekit_order_number', true ),
 		)
@@ -651,7 +661,7 @@ function rest_get() {
 			'tpl_ready'    => (string) $s['tpl_ready'],
 			'tpl_order'    => (string) $s['tpl_order'],
 			'tplDefaults'  => default_templates(),
-			'venue'        => get_bloginfo( 'name' ),
+			'venue'        => venue_name(),
 		)
 	);
 }
@@ -680,7 +690,7 @@ function rest_test( $request ) {
 		sprintf(
 			/* translators: %s: venue name. */
 			__( '%s: test message from DineKit — your SMS setup works. 🎉', 'dinekit' ),
-			get_bloginfo( 'name' )
+			venue_name()
 		),
 		'test'
 	);
