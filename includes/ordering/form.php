@@ -32,8 +32,11 @@ function render( $menu_id = 0, $heading = '' ) {
 	wp_enqueue_style( 'dinekit-order' );
 	wp_enqueue_script( 'dinekit-order' );
 
+	$brand      = \DineKit\Settings\order_style_vars();
+	$brand_attr = $brand ? ' style="' . esc_attr( $brand ) . '"' : '';
+
 	if ( empty( $settings['enabled'] ) ) {
-		return '<div class="dinekit-order dinekit-order--off"><p>' .
+		return '<div class="dinekit-order dinekit-order--off"' . $brand_attr . '><p>' .
 			esc_html__( 'Online ordering is currently closed.', 'dinekit' ) . '</p></div>';
 	}
 
@@ -142,7 +145,7 @@ function render( $menu_id = 0, $heading = '' ) {
 		$heading = __( 'Order online', 'dinekit' );
 	}
 
-	return '<div class="dinekit-order" data-dinekit-order="' . esc_attr( $config ) . '">' .
+	return '<div class="dinekit-order" data-dinekit-order="' . esc_attr( $config ) . '"' . $brand_attr . '>' .
 		'<h2 class="dinekit-order__heading">' . esc_html( $heading ) . '</h2>' .
 		'<div class="dinekit-order__app"><p class="dinekit-order__loading">' . esc_html__( 'Loading menu…', 'dinekit' ) . '</p></div>' .
 		'</div>';

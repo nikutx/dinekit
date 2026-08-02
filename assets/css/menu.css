@@ -615,7 +615,6 @@
 }
 
 .dinekit-filter__chip:focus-visible,
-.dinekit-filter__select:focus-visible,
 .dinekit-filter__clear:focus-visible {
 	outline: 2px solid var(--dinekit-accent);
 	outline-offset: 2px;
@@ -669,31 +668,127 @@
 	text-align: center;
 }
 
-/* ---- Filter: dropdown variant ---- */
+/* ---- Filter: dropdown variant (multi-select popovers) ---- */
 .dinekit-filter--dropdown {
-	gap: 0.75rem 1.5rem;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.6rem;
 }
 
-.dinekit-filter__select {
+.dinekit-filter__dd {
+	position: relative;
+}
+
+.dinekit-filter__ddbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
 	font: inherit;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	font-size: 0.85em;
 	font-weight: 600;
+	line-height: 1;
 	color: var(--dinekit-ink);
-	background: #fff;
+	background: transparent;
 	border: 1px solid var(--dinekit-line);
-	border-radius: 8px;
-	padding: 0.4rem 1.75rem 0.4rem 0.7rem;
+	border-radius: 999px;
+	padding: 0.55rem 1rem;
+	min-height: 2.3rem;
 	cursor: pointer;
-	appearance: none;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 0.6rem center;
+	transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
-.dinekit-filter__select:hover,
-.dinekit-filter__select:focus {
-	border-color: var(--dinekit-accent);
-	outline: none;
+.dinekit-filter__ddbtn:hover {
+	border-color: var(--dinekit-muted);
+}
+
+.dinekit-filter__ddbtn:focus-visible {
+	outline: 2px solid var(--dinekit-accent);
+	outline-offset: 2px;
+}
+
+.dinekit-filter__ddbtn.is-active {
+	color: #fff;
+	background: #1f7a5c;
+	border-color: #1f7a5c;
+}
+
+.dinekit-filter__ddbtn--avoid.is-active {
+	background: #b3403b;
+	border-color: #b3403b;
+}
+
+.dinekit-filter__ddcount {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.3em;
+	height: 1.3em;
+	padding: 0 0.3em;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.28);
+	font-size: 0.85em;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.dinekit-filter__ddcaret {
+	font-size: 0.75em;
+	opacity: 0.55;
+}
+
+.dinekit-filter__panel {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	z-index: 40;
+	min-width: 15rem;
+	max-height: 19rem;
+	overflow-y: auto;
+	background: #fff;
+	color: #1f2328;
+	border: 1px solid var(--dinekit-line);
+	border-radius: 12px;
+	box-shadow: 0 12px 32px rgba(15, 18, 20, 0.14);
+	padding: 0.4rem;
+}
+
+.dinekit-filter__option {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 0.85em;
+	font-weight: 500;
+	line-height: 1.2;
+	padding: 0.5rem 0.6rem;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.dinekit-filter__option:hover {
+	background: rgba(15, 18, 20, 0.05);
+}
+
+.dinekit-filter__option input {
+	appearance: auto;
+	width: 1rem;
+	height: 1rem;
+	margin: 0;
+	accent-color: #1f7a5c;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.dinekit-filter__ddbtn--avoid + .dinekit-filter__panel input {
+	accent-color: #b3403b;
+}
+
+.dinekit-filter__opticon {
+	width: 1.05em;
+	height: 1.05em;
+	flex-shrink: 0;
 }
 
 /* ---- Allergen "codes" display mode ---- */

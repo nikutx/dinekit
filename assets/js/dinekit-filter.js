@@ -73,25 +73,60 @@
 			}
 		}
 
-		// Dropdown variant: a single "show only" diet and a single "avoid" allergen.
+		// Dropdown variant: popover panels of checkboxes — proper multi-choice
+		// (avoid milk AND nuts), with allergen icons alongside the names.
+		function syncDd( dd ) {
+			var btn = dd.querySelector( '.dinekit-filter__ddbtn' );
+			var n = dd.querySelectorAll( 'input:checked' ).length;
+			var count = btn.querySelector( '.dinekit-filter__ddcount' );
+			if ( count ) {
+				count.hidden = ! n;
+				count.textContent = n ? String( n ) : '';
+			}
+			btn.classList.toggle( 'is-active', n > 0 );
+		}
+		function closeDds( except ) {
+			bar.querySelectorAll( '[data-dd]' ).forEach( function ( dd ) {
+				if ( dd === except ) {
+					return;
+				}
+				dd.querySelector( '.dinekit-filter__panel' ).hidden = true;
+				dd.querySelector( '.dinekit-filter__ddbtn' ).setAttribute( 'aria-expanded', 'false' );
+			} );
+		}
 		bar.addEventListener( 'change', function ( e ) {
-			var sel = e.target;
-			if ( sel.hasAttribute( 'data-diet-select' ) ) {
-				diets = {};
-				if ( sel.value ) {
-					diets[ sel.value ] = true;
-				}
-				apply();
-			} else if ( sel.hasAttribute( 'data-allergen-select' ) ) {
-				avoids = {};
-				if ( sel.value ) {
-					avoids[ sel.value ] = true;
-				}
-				apply();
+			var box = e.target;
+			if ( box.hasAttribute( 'data-diet-check' ) ) {
+				diets[ box.value ] = box.checked;
+			} else if ( box.hasAttribute( 'data-allergen-check' ) ) {
+				avoids[ box.value ] = box.checked;
+			} else {
+				return;
+			}
+			syncDd( box.closest( '[data-dd]' ) );
+			apply();
+		} );
+		document.addEventListener( 'click', function ( e ) {
+			if ( ! e.target.closest( '[data-dd]' ) ) {
+				closeDds( null );
+			}
+		} );
+		document.addEventListener( 'keydown', function ( e ) {
+			if ( 'Escape' === e.key ) {
+				closeDds( null );
 			}
 		} );
 
 		bar.addEventListener( 'click', function ( e ) {
+			var ddbtn = e.target.closest( '.dinekit-filter__ddbtn' );
+			if ( ddbtn ) {
+				var dd = ddbtn.closest( '[data-dd]' );
+				var panel = dd.querySelector( '.dinekit-filter__panel' );
+				closeDds( dd );
+				panel.hidden = ! panel.hidden;
+				ddbtn.setAttribute( 'aria-expanded', panel.hidden ? 'false' : 'true' );
+				return;
+			}
 			var chip = e.target.closest( '.dinekit-filter__chip' );
 			if ( chip ) {
 				var on = chip.classList.toggle( 'is-active' );
@@ -110,10 +145,15 @@
 			if ( e.target.closest( '.dinekit-filter__clear' ) ) {
 				diets = {};
 				avoids = {};
-				bar.querySelectorAll( '.is-active' ).forEach( function ( c ) {
+				bar.querySelectorAll( '.dinekit-filter__chip.is-active' ).forEach( function ( c ) {
 					c.classList.remove( 'is-active' );
 					c.setAttribute( 'aria-pressed', 'false' );
 				} );
+				bar.querySelectorAll( '[data-dd] input:checked' ).forEach( function ( box ) {
+					box.checked = false;
+				} );
+				bar.querySelectorAll( '[data-dd]' ).forEach( syncDd );
+				closeDds( null );
 				apply();
 			}
 		} );

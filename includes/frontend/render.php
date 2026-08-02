@@ -428,28 +428,51 @@ function render_filter_bar( $groups, $allergen_map, $style = 'chips' ) {
 	<div class="dinekit-filter<?php echo $dropdown ? ' dinekit-filter--dropdown' : ''; ?>" data-dinekit-filter
 		data-count-tpl="<?php /* translators: 1: dishes shown, 2: total dishes. */ echo esc_attr( __( 'Showing %1$s of %2$s dishes', 'dinekit' ) ); ?>">
 		<?php if ( $dropdown ) : ?>
+			<?php
+			// Icon lookup by slug for the allergen rows.
+			$icon_by_slug = array();
+			foreach ( $allergen_map as $data ) {
+				if ( ! empty( $data['icon'] ) ) {
+					$icon_by_slug[ $data['slug'] ] = $data['icon'];
+				}
+			}
+			?>
 			<?php if ( $diet_used ) : ?>
-				<label class="dinekit-filter__group">
-					<span class="dinekit-filter__label"><?php esc_html_e( 'Show only', 'dinekit' ); ?></span>
-					<select class="dinekit-filter__select" data-diet-select>
-						<option value=""><?php esc_html_e( 'All dishes', 'dinekit' ); ?></option>
+				<div class="dinekit-filter__dd" data-dd>
+					<button type="button" class="dinekit-filter__ddbtn" aria-haspopup="true" aria-expanded="false"
+						data-dd-label="<?php echo esc_attr( __( 'Show only', 'dinekit' ) ); ?>">
+						<?php esc_html_e( 'Show only', 'dinekit' ); ?><span class="dinekit-filter__ddcount" hidden></span><span class="dinekit-filter__ddcaret" aria-hidden="true">▾</span>
+					</button>
+					<div class="dinekit-filter__panel" hidden>
 						<?php foreach ( $diet_used as $slug => $name ) : ?>
-							<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $name ); ?></option>
+							<label class="dinekit-filter__option">
+								<input type="checkbox" value="<?php echo esc_attr( $slug ); ?>" data-diet-check />
+								<span><?php echo esc_html( $name ); ?></span>
+							</label>
 						<?php endforeach; ?>
-					</select>
-				</label>
+					</div>
+				</div>
 			<?php endif; ?>
 			<?php if ( $allergen_used ) : ?>
-				<label class="dinekit-filter__group">
-					<span class="dinekit-filter__label"><?php esc_html_e( 'Avoid', 'dinekit' ); ?></span>
-					<select class="dinekit-filter__select" data-allergen-select>
-						<option value=""><?php esc_html_e( 'Nothing', 'dinekit' ); ?></option>
+				<div class="dinekit-filter__dd" data-dd>
+					<button type="button" class="dinekit-filter__ddbtn dinekit-filter__ddbtn--avoid" aria-haspopup="true" aria-expanded="false"
+						data-dd-label="<?php echo esc_attr( __( 'Avoid allergens', 'dinekit' ) ); ?>">
+						<?php esc_html_e( 'Avoid allergens', 'dinekit' ); ?><span class="dinekit-filter__ddcount" hidden></span><span class="dinekit-filter__ddcaret" aria-hidden="true">▾</span>
+					</button>
+					<div class="dinekit-filter__panel" hidden>
 						<?php foreach ( $allergen_used as $slug => $name ) : ?>
-							<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $name ); ?></option>
+							<label class="dinekit-filter__option">
+								<input type="checkbox" value="<?php echo esc_attr( $slug ); ?>" data-allergen-check />
+								<?php if ( isset( $icon_by_slug[ $slug ] ) ) : ?>
+									<img class="dinekit-filter__opticon" src="<?php echo esc_url( $icon_by_slug[ $slug ] ); ?>" alt="" width="16" height="16" loading="lazy" />
+								<?php endif; ?>
+								<span><?php echo esc_html( $name ); ?></span>
+							</label>
 						<?php endforeach; ?>
-					</select>
-				</label>
+					</div>
+				</div>
 			<?php endif; ?>
+			<button type="button" class="dinekit-filter__clear" hidden><?php esc_html_e( 'Clear filters', 'dinekit' ); ?></button>
 		<?php else : ?>
 			<?php if ( $diet_used ) : ?>
 				<div class="dinekit-filter__group">

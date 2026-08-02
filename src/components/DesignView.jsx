@@ -273,7 +273,7 @@ export default function DesignView() {
 						) ) }
 					</ToggleButtonGroup>
 					<Typography sx={ { fontSize: 12, color: tokens.muted2, mt: 1.25 } }>
-						Sets the base look. The colours below are optional tweaks on top — leave them and the template’s own palette is used.
+						Sets the base look. The colours below are optional tweaks on top — leave them and the template’s own palette is used. Your accent colour and corner rounding also carry over to the Order Online page, so both pages match your brand.
 					</Typography>
 				</Card>
 			) }

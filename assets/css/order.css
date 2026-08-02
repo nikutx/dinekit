@@ -2,9 +2,15 @@
  * DineKit online ordering — scoped, self-contained. Premium, mobile-first.
  */
 .dinekit-order {
+	/* --dko-accent + --dko-radius are overridden inline from Design & Preview
+	   (venue accent, or the menu template's accent) so the ordering page
+	   matches the reading menu's brand. Shades derive from the accent; the
+	   literal values above each color-mix are fallbacks for old browsers. */
 	--dko-accent: #4f46e5;
 	--dko-accent-dark: #4338ca;
+	--dko-accent-dark: color-mix(in srgb, var(--dko-accent) 82%, #000);
 	--dko-accent-soft: #eef2ff;
+	--dko-accent-soft: color-mix(in srgb, var(--dko-accent) 8%, #fff);
 	--dko-ink: #0f172a;
 	--dko-ink2: #334155;
 	--dko-muted: #64748b;

@@ -129,6 +129,52 @@ function menu_style_vars( $accent_override = '' ) {
 }
 
 /**
+ * Design tokens for the online-ordering page, so it carries the venue's brand
+ * (accent + corner radius) from Design & Preview. The page keeps its own
+ * neutral chrome for readability; hover/tint shades derive in CSS.
+ * Filterable: add_filter( 'dinekit_order_style_vars', … ).
+ *
+ * @return string style attribute value (no quotes), may be ''.
+ */
+function order_style_vars() {
+	$s      = get();
+	$accent = (string) $s['accent'];
+	if ( '' === $accent ) {
+		// No explicit brand colour set — fall back to the chosen menu
+		// template's accent so both pages always match out of the box.
+		$template_accents = array(
+			'signature' => '#c14f24',
+			'maison'    => '#7c2d3a',
+			'counter'   => '#4f46e5',
+			'noir'      => '#c9a26a',
+			'bistro'    => '#2f5d4c',
+			'fresh'     => '#0d9488',
+			'mono'      => '#111111',
+		);
+		$template         = (string) $s['template'];
+		$accent           = isset( $template_accents[ $template ] ) ? $template_accents[ $template ] : '';
+	}
+	$vars = array(
+		'--dko-radius' => min( 20, (int) $s['menu_radius'] ) . 'px',
+	);
+	if ( '' !== $accent ) {
+		$vars['--dko-accent'] = $accent;
+	}
+	/**
+	 * Filter the ordering page's CSS custom properties (design tokens).
+	 *
+	 * @param array<string,string> $vars Map of custom property => value.
+	 */
+	$vars = (array) apply_filters( 'dinekit_order_style_vars', $vars );
+
+	$css = '';
+	foreach ( $vars as $name => $value ) {
+		$css .= sanitize_key( ltrim( $name, '-' ) ) ? $name . ':' . $value . ';' : '';
+	}
+	return $css;
+}
+
+/**
  * Get settings (merged over defaults).
  *
  * @return array<string,mixed>
