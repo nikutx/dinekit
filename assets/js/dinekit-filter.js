@@ -15,6 +15,8 @@
 		var sections = Array.prototype.slice.call( menu.querySelectorAll( '.dinekit-section' ) );
 		var emptyMsg = menu.querySelector( '.dinekit-filter__empty' );
 		var clearBtn = bar.querySelector( '.dinekit-filter__clear' );
+		var countEl = bar.querySelector( '[data-filter-count]' );
+		var countTpl = bar.getAttribute( 'data-count-tpl' ) || '%1$s / %2$s';
 		var diets = {};
 		var avoids = {};
 
@@ -56,8 +58,18 @@
 			if ( emptyMsg ) {
 				emptyMsg.hidden = visible > 0;
 			}
+			var filtering = !! ( activeDiets.length || activeAvoids.length );
 			if ( clearBtn ) {
-				clearBtn.hidden = ! ( activeDiets.length || activeAvoids.length );
+				clearBtn.hidden = ! filtering;
+			}
+			// Live feedback: "Showing 8 of 14 dishes" while any filter is on.
+			if ( countEl ) {
+				countEl.hidden = ! filtering;
+				if ( filtering ) {
+					countEl.textContent = countTpl
+						.replace( '%1$s', String( visible ) )
+						.replace( '%2$s', String( items.length ) );
+				}
 			}
 		}
 

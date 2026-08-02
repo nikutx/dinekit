@@ -330,6 +330,12 @@ function render_item( $post, $args, $allergen_map ) {
 							$src_sel = array();
 						}
 						echo '<span class="dinekit-allergens">';
+						// Icons alone are ambiguous to a first-time diner — a tiny
+						// "Allergens" prefix gives the row meaning at a glance (the
+						// text/codes modes carry their own words already).
+						if ( 'icons' === $args['allergen_display'] ) {
+							echo '<span class="dinekit-allergens__label">' . esc_html__( 'Allergens', 'dinekit' ) . '</span>';
+						}
 						foreach ( $allergens as $a ) {
 							$data = isset( $allergen_map[ $a->term_id ] ) ? $allergen_map[ $a->term_id ] : null;
 							if ( ! $data ) {
@@ -419,7 +425,8 @@ function render_filter_bar( $groups, $allergen_map, $style = 'chips' ) {
 	$dropdown = ( 'dropdown' === $style );
 	ob_start();
 	?>
-	<div class="dinekit-filter<?php echo $dropdown ? ' dinekit-filter--dropdown' : ''; ?>" data-dinekit-filter>
+	<div class="dinekit-filter<?php echo $dropdown ? ' dinekit-filter--dropdown' : ''; ?>" data-dinekit-filter
+		data-count-tpl="<?php /* translators: 1: dishes shown, 2: total dishes. */ echo esc_attr( __( 'Showing %1$s of %2$s dishes', 'dinekit' ) ); ?>">
 		<?php if ( $dropdown ) : ?>
 			<?php if ( $diet_used ) : ?>
 				<label class="dinekit-filter__group">
@@ -466,8 +473,9 @@ function render_filter_bar( $groups, $allergen_map, $style = 'chips' ) {
 				</div>
 			<?php endif; ?>
 
-			<button type="button" class="dinekit-filter__clear" hidden><?php esc_html_e( 'Clear', 'dinekit' ); ?></button>
+			<button type="button" class="dinekit-filter__clear" hidden><?php esc_html_e( 'Clear filters', 'dinekit' ); ?></button>
 		<?php endif; ?>
+		<span class="dinekit-filter__count" data-filter-count aria-live="polite" hidden></span>
 	</div>
 	<?php
 	return (string) ob_get_clean();

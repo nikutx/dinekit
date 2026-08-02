@@ -36,13 +36,13 @@ const TEXT_SIZES = [
 // Menu templates (flavours). Each has a base palette shown in the colour
 // pickers until the venue overrides it.
 const TEMPLATES = [
-	{ value: 'signature', label: 'Signature', desc: 'The DineKit look — modern editorial' },
-	{ value: 'maison', label: 'Maison', desc: 'Classic fine-dining' },
-	{ value: 'counter', label: 'Counter', desc: 'Modern & clean' },
-	{ value: 'noir', label: 'Noir', desc: 'Upscale, dark' },
-	{ value: 'bistro', label: 'Bistro', desc: 'Warm, dotted leaders' },
-	{ value: 'fresh', label: 'Fresh', desc: 'Bright & friendly café' },
-	{ value: 'mono', label: 'Mono', desc: 'Minimalist monochrome' },
+	{ value: 'signature', label: 'Signature', desc: 'The DineKit look — modern restaurants' },
+	{ value: 'maison', label: 'Maison', desc: 'Fine dining & tasting menus' },
+	{ value: 'counter', label: 'Counter', desc: 'Fast-casual & takeaway' },
+	{ value: 'noir', label: 'Noir', desc: 'Evening menus & cocktail bars' },
+	{ value: 'bistro', label: 'Bistro', desc: 'Neighbourhood bistro & pub classics' },
+	{ value: 'fresh', label: 'Fresh', desc: 'Cafés, brunch & juice bars' },
+	{ value: 'mono', label: 'Mono', desc: 'Minimalist & monochrome' },
 ];
 const TEMPLATE_PALETTE = {
 	signature: { accent: '#b4532f', menu_ink: '#211d18', menu_muted: '#85796b', menu_line: '#eae2d4', menu_bg: '#fbf8f2' },
