@@ -735,55 +735,76 @@
 }
 
 .dinekit-menu--tpl-signature {
-	--dinekit-accent: #b4532f;
-	--dinekit-ink: #211d18;
-	--dinekit-muted: #85796b;
-	--dinekit-line: #eae2d4;
-	--dinekit-bg: #fbf8f2;
-	--dinekit-radius: 20px;
+	--dinekit-accent: #c14f24;
+	--dinekit-ink: #191613;
+	--dinekit-muted: #8b8175;
+	--dinekit-line: #efe9df;
+	--dinekit-bg: #fffdfa;
+	--dinekit-radius: 24px;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 	max-width: 720px;
-	padding: clamp(1.5rem, 5vw, 3.25rem) clamp(1.25rem, 5vw, 3.25rem);
+	padding: clamp(1.75rem, 6vw, 4rem) clamp(1.25rem, 6vw, 4rem);
 	border-radius: var(--dinekit-radius);
 	line-height: 1.55;
+	counter-reset: dk-section;
 }
 .dinekit-menu--tpl-signature .dinekit-section {
-	margin: 0 0 3rem;
+	counter-increment: dk-section;
+	margin: 0 0 4rem;
 }
 .dinekit-menu--tpl-signature .dinekit-section__title {
 	display: block;
 	border-bottom: 0;
 	padding-bottom: 0;
 	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
-	font-weight: 600;
-	font-size: clamp(1.55em, 4vw, 1.9em);
-	letter-spacing: -0.015em;
-	line-height: 1.15;
-	margin: 0 0 0.3rem;
+	font-weight: 550;
+	font-size: clamp(2em, 6vw, 2.7em);
+	letter-spacing: -0.025em;
+	line-height: 1.05;
+	margin: 0 0 0.35rem;
 }
+/* Editorial section index — "01 ——" above each oversized title. */
 .dinekit-menu--tpl-signature .dinekit-section__title::before {
+	content: counter(dk-section, decimal-leading-zero);
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 0.32em;
+	font-weight: 700;
+	letter-spacing: 0.32em;
+	color: var(--dinekit-accent);
+	margin: 0 0 1.1rem;
+}
+.dinekit-menu--tpl-signature .dinekit-section__title::after {
 	content: "";
 	display: block;
-	width: 2.2rem;
-	height: 3px;
-	border-radius: 3px;
+	width: 3rem;
+	height: 2px;
 	background: var(--dinekit-accent);
-	margin: 0 0 0.9rem;
+	margin: 1.1rem 0 0;
 }
 .dinekit-menu--tpl-signature .dinekit-section__desc {
 	font-size: 0.95em;
-	margin: 0 0 1.1rem;
+	margin: 1rem 0 0.4rem;
 	max-width: 52ch;
 }
+.dinekit-menu--tpl-signature .dinekit-items {
+	margin-top: 1.4rem;
+}
 .dinekit-menu--tpl-signature .dinekit-item {
-	padding: 1.05rem 0;
+	padding: 1.25rem 0;
 	border-bottom: 1px solid var(--dinekit-line);
+}
+.dinekit-menu--tpl-signature .dinekit-item__head {
+	gap: 1rem;
 }
 .dinekit-menu--tpl-signature .dinekit-item__name {
 	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
 	font-weight: 600;
-	font-size: 1.18em;
-	letter-spacing: -0.01em;
+	font-size: 1.32em;
+	letter-spacing: -0.015em;
+	line-height: 1.2;
 }
 .dinekit-menu--tpl-signature .dinekit-item__leader {
 	border-bottom: 0; /* no dotted leaders — the row breathes instead */
@@ -791,7 +812,8 @@
 .dinekit-menu--tpl-signature .dinekit-item__prices {
 	font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
 	font-weight: 600;
-	font-size: 1.06em;
+	font-size: 1.12em;
+	color: var(--dinekit-accent);
 	font-variant-numeric: lining-nums tabular-nums;
 }
 .dinekit-menu--tpl-signature .dinekit-price__label {

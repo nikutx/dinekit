@@ -45,7 +45,7 @@ const TEMPLATES = [
 	{ value: 'mono', label: 'Mono', desc: 'Minimalist & monochrome' },
 ];
 const TEMPLATE_PALETTE = {
-	signature: { accent: '#b4532f', menu_ink: '#211d18', menu_muted: '#85796b', menu_line: '#eae2d4', menu_bg: '#fbf8f2' },
+	signature: { accent: '#c14f24', menu_ink: '#191613', menu_muted: '#8b8175', menu_line: '#efe9df', menu_bg: '#fffdfa' },
 	maison: { accent: '#7c2d3a', menu_ink: '#2b2622', menu_muted: '#8a7f73', menu_line: '#e4dccd', menu_bg: '#faf7f1' },
 	counter: { accent: '#4f46e5', menu_ink: '#101319', menu_muted: '#667085', menu_line: '#edeff3', menu_bg: '' },
 	noir: { accent: '#c9a26a', menu_ink: '#ece3d4', menu_muted: '#a2937c', menu_line: '#342f27', menu_bg: '#17130e' },
