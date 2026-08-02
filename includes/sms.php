@@ -380,6 +380,9 @@ function send( $to, $body, $context = '' ) {
 			$msg = __( 'Your “from” number isn’t an SMS-capable number on this Twilio account. Check Twilio console → Phone Numbers → Manage → Active numbers and copy it exactly.', 'dinekit' );
 		} else {
 			$msg = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : sprintf( 'Twilio returned HTTP %d.', $code );
+			if ( false !== stripos( $msg, 'trial phone number' ) ) {
+				$msg = __( 'Your Twilio trial doesn’t have its own phone number yet, so nothing can send. Claim the free trial number first (steps in the guide above), paste it into “Send from”, and make sure the destination is listed under Verified Caller IDs.', 'dinekit' );
+			}
 		}
 		return new \WP_Error( 'dinekit_sms_fail', $msg );
 	}

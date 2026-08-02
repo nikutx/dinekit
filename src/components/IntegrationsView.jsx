@@ -455,6 +455,7 @@ function SmsCard() {
 	const [ msg, setMsg ] = useState( null ); // { ok, text }
 	const [ busy, setBusy ] = useState( false );
 	const [ openTpl, setOpenTpl ] = useState( null ); // which message editor is expanded
+	const [ showGuide, setShowGuide ] = useState( false ); // reopen the setup guide after setup
 
 	useEffect( () => {
 		api.getSms().then( setCfg ).catch( () => setCfg( null ) );
@@ -496,12 +497,6 @@ function SmsCard() {
 			setBusy( false );
 		}
 	};
-	const field = ( label, key, props = {} ) => (
-		<Box>
-			<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>{ label }</Typography>
-			<TextField size="small" value={ cfg[ key ] || '' } onChange={ ( e ) => setCfg( { ...cfg, [ key ]: e.target.value } ) } { ...props } />
-		</Box>
-	);
 	const toggle = ( label, key, hint ) => (
 		<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { py: 0.25 } }>
 			<Switch checked={ !! cfg[ key ] } onChange={ ( e ) => { const v = e.target.checked; setCfg( { ...cfg, [ key ]: v } ); save( { [ key ]: v } ); } } />
@@ -581,10 +576,15 @@ function SmsCard() {
 				switch it on, and the test button below tells you straight away whether your setup works.
 			</Typography>
 
-			{ /* Until it's connected, walk the owner to the exact spots in the
-			     Twilio console — "get your keys" is not enough for someone who
-			     has never seen it. */ }
-			{ ! ( cfg.sid && cfg.tokenSet && cfg.from ) && (
+			{ /* Walk the owner to the exact spots in the Twilio console — "get
+			     your keys" is not enough for someone who has never seen it.
+			     Auto-shown until connected, reopenable afterwards. */ }
+			{ cfg.sid && cfg.tokenSet && cfg.from && (
+				<Button size="small" onClick={ () => setShowGuide( ! showGuide ) } sx={ { color: tokens.muted, mb: 1, p: 0, fontSize: 12 } }>
+					{ showGuide ? '▾' : '▸' } Twilio setup guide
+				</Button>
+			) }
+			{ ( showGuide || ! ( cfg.sid && cfg.tokenSet && cfg.from ) ) && (
 				<Box sx={ { mb: 2, px: 1.75, py: 1.5, borderRadius: '10px', bgcolor: tokens.accentSoft, border: `1px solid ${ tokens.border }` } }>
 					<Typography sx={ { fontSize: 12.5, fontWeight: 700, color: tokens.accentDark, mb: 0.75 } }>Where to find these (5 minutes, free):</Typography>
 					<Box component="ol" sx={ { m: 0, pl: 2.5, fontSize: 12.5, color: tokens.ink2, '& li': { mb: 0.5, lineHeight: 1.5 } } }>
@@ -643,19 +643,43 @@ function SmsCard() {
 				</Box>
 			) }
 
-			<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap sx={ { mb: 1.5 } }>
-				{ field( 'Account SID (AC…) or API key SID (SK…)', 'sid', { placeholder: 'ACxxxxxxxx… or SKxxxxxxxx…', sx: { width: 330 }, onBlur: () => save( { sid: cfg.sid } ) } ) }
+			{ /* One credential per row, each saying what it is and where it lives —
+			     same self-explaining pattern as the toggles below. */ }
+			<Stack spacing={ 1.5 } sx={ { mb: 2 } }>
 				<Box>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>Account SID</Typography>
 					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
-						Auth Token (for AC…) / Client Secret (for SK…) { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700 } }>· saved ✓</Box> }
+						Your Twilio account’s ID — starts “AC” (or “SK” if you made an API key). It sits on the Twilio console home page, next to the “API keys and Auth tokens” link.
 					</Typography>
-					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the token or client secret' }
-						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 260 } } />
+					<TextField size="small" value={ cfg.sid || '' } placeholder="ACxxxxxxxx… or SKxxxxxxxx…" sx={ { width: 360 } }
+						onChange={ ( e ) => setCfg( { ...cfg, sid: e.target.value } ) } onBlur={ () => save( { sid: cfg.sid } ) } />
 				</Box>
-				{ field( 'Send from — number or brand name', 'from', { placeholder: '+44 7911 123456 or CopperOak', sx: { width: 220 }, onBlur: () => save( { from: cfg.from } ),
-					helperText: 'Paid accounts in the UK & most countries can skip numbers: your restaurant name, max 11 letters (not US/Canada).' } ) }
-				{ field( 'Country dial code', 'cc', { placeholder: '44', sx: { width: 120 }, onBlur: () => save( { cc: cfg.cc } ),
-					helperText: 'For local numbers (07… → +44…)' } ) }
+				<Box>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>
+						Auth Token { cfg.tokenSet && <Box component="span" sx={ { color: tokens.green, fontWeight: 700, fontSize: 12.5 } }>· saved ✓</Box> }
+					</Typography>
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
+						The password that pairs with the ID above: an AC… SID takes the <strong>Auth Token</strong> (Auth Tokens tab, press Show), an SK… key takes its <strong>Client Secret</strong>. The pairs can’t be mixed.
+					</Typography>
+					<TextField size="small" type="password" value={ token } placeholder={ cfg.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the Auth Token or Client Secret' }
+						onChange={ ( e ) => setToken( e.target.value ) } onBlur={ () => token.trim() && save( {} ) } sx={ { width: 360 } } />
+				</Box>
+				<Box>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>Send from</Typography>
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
+						The Twilio number texts come from — copy it exactly from Phone Numbers → Active numbers, with country code (+44…). On a <strong>paid</strong> account in the UK &amp; most countries you can use your restaurant’s name instead (max 11 letters, guests can’t reply — not US/Canada).
+					</Typography>
+					<TextField size="small" value={ cfg.from || '' } placeholder="+44 7911 123456 or CopperOak" sx={ { width: 280 } }
+						onChange={ ( e ) => setCfg( { ...cfg, from: e.target.value } ) } onBlur={ () => save( { from: cfg.from } ) } />
+				</Box>
+				<Box>
+					<Typography sx={ { fontSize: 13.5, fontWeight: 600, color: tokens.ink } }>Country dial code</Typography>
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 0.5 } }>
+						Turns guests’ local numbers into international ones before sending (07700 900123 → +447700900123). Set once — “44” for the UK.
+					</Typography>
+					<TextField size="small" value={ cfg.cc || '' } placeholder="44" sx={ { width: 100 } }
+						onChange={ ( e ) => setCfg( { ...cfg, cc: e.target.value } ) } onBlur={ () => save( { cc: cfg.cc } ) } />
+				</Box>
 			</Stack>
 
 			{ toggle( 'Enable SMS', 'enabled', 'Master switch — nothing sends while this is off.' ) }
