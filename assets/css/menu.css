@@ -375,6 +375,39 @@ video.dinekit-section__video {
 	flex-wrap: wrap;
 }
 
+/* Explicit column counts must beat the card grid's auto-fill (these sit after
+   it in the file AND carry higher specificity — media overrides below match). */
+.dinekit-menu--grid.dinekit-menu--cols-1 .dinekit-items {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.dinekit-menu--grid.dinekit-menu--cols-2 .dinekit-items {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dinekit-menu--grid.dinekit-menu--cols-3 .dinekit-items {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dinekit-menu--grid.dinekit-menu--cols-4 .dinekit-items {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+	.dinekit-menu--grid.dinekit-menu--cols-3 .dinekit-items,
+	.dinekit-menu--grid.dinekit-menu--cols-4 .dinekit-items {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 560px) {
+	.dinekit-menu--grid.dinekit-menu--cols-2 .dinekit-items,
+	.dinekit-menu--grid.dinekit-menu--cols-3 .dinekit-items,
+	.dinekit-menu--grid.dinekit-menu--cols-4 .dinekit-items {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
 /* ---- Layout: Classic list (with optional thumbnail) ---- */
 .dinekit-menu--list .dinekit-item {
 	display: flex;
