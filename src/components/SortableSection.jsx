@@ -24,6 +24,7 @@ export default function SortableSection( {
 	onMoveDown,
 	onAddItem,
 	onRename,
+	onConvert,
 	onEditMedia,
 	onDelete,
 	onEditItem,
@@ -77,7 +78,27 @@ export default function SortableSection( {
 					</Stack>
 				) }
 
-				{ muted ? (
+				{ muted && onConvert ? (
+					// "Unsectioned" is nameable: type a real name and it becomes a
+					// proper section with these dishes moved in.
+					<Tooltip title="Type a name (e.g. Starters) to turn these dishes into a real section">
+						<InputBase
+							value={ name }
+							onChange={ ( e ) => setName( e.target.value ) }
+							onFocus={ ( e ) => e.target.select() }
+							onBlur={ () => {
+								const n = name.trim();
+								if ( n && n !== section.name ) {
+									onConvert( n );
+								} else {
+									setName( section.name );
+								}
+							} }
+							onKeyDown={ ( e ) => e.key === 'Enter' && e.target.blur() }
+							sx={ { flex: 1, fontWeight: 650, fontSize: 14, color: tokens.muted } }
+						/>
+					</Tooltip>
+				) : muted ? (
 					<Typography sx={ { flex: 1, fontWeight: 650, color: tokens.muted, fontSize: 14 } }>
 						{ section.name }
 					</Typography>

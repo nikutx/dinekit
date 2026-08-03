@@ -373,6 +373,24 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 		await store.createTerm( 'dinekit_section', name, selectedMenu ? { menu: selectedMenu } : {} );
 	};
 
+	// Naming the "Unsectioned" bucket turns it into a real section: create the
+	// section (owned by the current menu) and move every unsectioned dish in.
+	const convertUnsectioned = async ( rawName ) => {
+		const name = rawName.trim();
+		const ids = ( board.map[ NONE ] || [] ).slice();
+		if ( ! name || ! ids.length ) {
+			return;
+		}
+		try {
+			const term = await store.createTerm( 'dinekit_section', name, selectedMenu ? { menu: selectedMenu } : {} );
+			await Promise.all( ids.map( ( id ) => store.updateItem( id, { sections: [ term.id ] } ) ) );
+			await store.reload();
+			toast.success( `“${ name }” created`, `${ ids.length } dish${ ids.length === 1 ? '' : 'es' } moved into the new section.` );
+		} catch ( e ) {
+			toast.error( 'Couldn’t create the section', e.message );
+		}
+	};
+
 	const addItem = async ( sectionKey ) => {
 		const order = board.map[ sectionKey ] ? board.map[ sectionKey ].length : 0;
 		const created = await store.createItem( {
@@ -528,6 +546,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 							itemsById={ itemsById }
 							muted
 							onAddItem={ () => addItem( NONE ) }
+							onConvert={ convertUnsectioned }
 							onEditItem={ setEditingId }
 							onDeleteItem={ askArchive }
 						/>

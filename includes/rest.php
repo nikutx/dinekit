@@ -1298,6 +1298,29 @@ function apply_item_fields( $post_id, $request ) {
 		}
 	}
 
+	// A dish placed in a menu-owned section is on that menu. Without this,
+	// dragging a dish into "Starters" of the Lunch menu leaves it filtered out
+	// of Lunch (board and public page both empty) unless someone separately
+	// ticks the menu — the section assignment IS the intent.
+	$sections_param = $request->get_param( 'sections' );
+	if ( null !== $sections_param && is_array( $sections_param ) ) {
+		$need = array();
+		foreach ( $sections_param as $sid ) {
+			$owner = (int) get_term_meta( (int) $sid, 'dinekit_section_menu', true );
+			if ( $owner > 0 ) {
+				$need[] = $owner;
+			}
+		}
+		if ( $need ) {
+			$have    = wp_get_object_terms( $post_id, 'dinekit_menu', array( 'fields' => 'ids' ) );
+			$have    = is_wp_error( $have ) ? array() : array_map( 'intval', $have );
+			$missing = array_diff( array_unique( $need ), $have );
+			if ( $missing ) {
+				wp_set_object_terms( $post_id, array_values( array_merge( $have, array_values( $missing ) ) ), 'dinekit_menu', false );
+			}
+		}
+	}
+
 	$image = $request->get_param( 'image' );
 	if ( null !== $image ) {
 		$image = (int) $image;
