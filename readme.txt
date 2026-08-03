@@ -156,6 +156,15 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Changelog ==
 
+= 1.2.17 =
+* New: sections can carry a photo and a video — a new photo/video button on each section in the Menu Builder puts a banner image, a short video (YouTube, Vimeo or an uploaded file), or both under that section's heading on your public menu. Suggested by a real venue running their menu on DineKit.
+* New: one-click looks in the Design Studio — a preset applies a whole style in one tap (template, layout and photos together). Launching with Gallery (photo-first cards for BBQ, burgers and brunch), Classic list, and Chalk wall; more get added as real venues suggest them.
+* New: the menu spreadsheet round-trip is now lossless — the CSV export gains ID, Published and Image URL columns and includes hidden seasonal dishes; the import matches dishes by ID (renames work), updates hidden dishes in place instead of duplicating them, can show/hide dishes in bulk via the Published column, and sets dish photos from image links. Importing never deletes anything.
+* New: naming the "Unsectioned" group turns it into a real section — click its name in the Menu Builder, type "Starters", and it becomes a proper section with those dishes moved in.
+* Fixed: dropping a dish into a section that belongs to a menu now also puts the dish on that menu — previously the menu (and its public page) could look empty until you separately ticked the menu inside the dish editor.
+* Fixed: choosing 1, 2 or 3 columns did nothing on the photo-card grid — explicit column counts now apply (and still collapse politely on phones).
+* Fixed: menu cards hardened against page-builder styling — on sites using Bricks, Elementor and similar builders, the card grid could lose its row spacing and the dish photo could drift from the card's top edge.
+
 = 1.2.16 =
 * New: the Design Studio — Design & Preview became a visual editor: click any part of the live menu preview (a section title, a dish name, a price) and style exactly that element from the panel beside it. Per-element text sizes are new, every matching element lights up so you can see what you're changing, and edits appear instantly without the preview reloading.
 * New: seven menu looks, each a real use case, one click apart — every template got a designer's pass and a clear job: Signature (modern restaurants, the new default for fresh installs), Maison for fine dining and tasting menus, Counter for fast-casual, Noir for evening menus and cocktail bars, Bistro for pub classics, Fresh for cafés and brunch, Mono for minimalists. The Fraunces display font ships inside the plugin. Existing venues keep whatever template they chose.
