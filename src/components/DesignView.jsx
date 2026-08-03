@@ -504,6 +504,12 @@ export default function DesignView() {
 									</Box>
 								) ) }
 							</Stack>
+							{ ! activePreset && (
+								<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 1 } }>
+									You’re on your own mix — a look is a starting point (template + layout together), and
+									changing either afterwards makes it yours. Tap a look any time to jump back.
+								</Typography>
+							) }
 						</Card>
 					) }
 
