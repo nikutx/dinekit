@@ -2,11 +2,16 @@
 /**
  * Menu CSV import / export — switcher-friendly bulk editing.
  *
- * Export gives one row per dish (Section, Dish, Description, Price, Dietary,
- * Allergens, Calories, Cost, Available). Import upserts dishes by (Dish within
- * Section): existing dishes are updated, new ones created; missing sections and
- * dietary tags are created; allergens are matched to existing terms only (the
- * 14 legal ones are seeded — we never invent an allergen from a spreadsheet).
+ * Export gives one row per dish (ID, Section, Dish, Description, Price, Dietary,
+ * Allergens, Calories, Cost, Available, Published, Image URL) — hidden/unpublished
+ * dishes included, so a round-trip never loses the seasonal part of a menu.
+ * Import upserts dishes by ID when the CSV has one (exact, survives renames),
+ * falling back to (Dish within Section) across ALL statuses: existing dishes are
+ * updated in place — their published/hidden state is kept unless the Published
+ * column says otherwise — and new ones created; missing sections and dietary tags
+ * are created; allergens are matched to existing terms only (the 14 legal ones are
+ * seeded — we never invent an allergen from a spreadsheet). Nothing is ever
+ * deleted by an import.
  *
  * @package DineKit
  */
@@ -63,7 +68,7 @@ function register_routes() {
  * @return string[]
  */
 function columns() {
-	return array( 'Section', 'Dish', 'Description', 'Price', 'Dietary', 'Allergens', 'Calories', 'Cost', 'Available' );
+	return array( 'ID', 'Section', 'Dish', 'Description', 'Price', 'Dietary', 'Allergens', 'Calories', 'Cost', 'Available', 'Published', 'Image URL' );
 }
 
 /**
@@ -158,7 +163,7 @@ function export_menu() {
 	$query = new \WP_Query(
 		array(
 			'post_type'      => 'dinekit_menu_item',
-			'post_status'    => 'publish',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
 			'posts_per_page' => 2000, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- full menu export.
 			'orderby'        => array(
 				'menu_order' => 'ASC',
@@ -174,8 +179,10 @@ function export_menu() {
 		$secs    = term_names( $post, 'dinekit_section' );
 		$stock   = (string) get_post_meta( $post->ID, 'dinekit_stock', true );
 		$cal     = (int) get_post_meta( $post->ID, 'dinekit_calories', true );
+		$image   = (string) get_the_post_thumbnail_url( $post->ID, 'full' );
 		$lines[] = csv_row(
 			array(
+				(string) $post->ID,
 				$secs ? $secs[0] : '',
 				$post->post_title,
 				(string) $post->post_content,
@@ -185,6 +192,8 @@ function export_menu() {
 				$cal ? (string) $cal : '',
 				(string) get_post_meta( $post->ID, 'dinekit_cost', true ),
 				'out' === $stock ? 'no' : 'yes',
+				'publish' === $post->post_status ? 'yes' : 'no',
+				$image,
 			)
 		);
 	}
@@ -237,7 +246,7 @@ function term_id_by_name( $taxonomy, $name, $create, &$created = false ) {
 function find_dish( $title, $section_id ) {
 	$args = array(
 		'post_type'        => 'dinekit_menu_item',
-		'post_status'      => 'publish',
+		'post_status'      => array( 'publish', 'draft', 'pending', 'private' ),
 		'posts_per_page'   => 1,
 		'no_found_rows'    => true,
 		'fields'           => 'ids',
@@ -254,6 +263,38 @@ function find_dish( $title, $section_id ) {
 	}
 	$q = new \WP_Query( $args );
 	return $q->posts ? (int) $q->posts[0] : 0;
+}
+
+/**
+ * Set a dish's photo from a URL: reuse the media-library attachment when the
+ * URL is already ours, otherwise sideload the remote image once (cached per
+ * request so repeated rows don't refetch).
+ *
+ * @param int    $post_id Dish post id.
+ * @param string $url     Image URL.
+ * @return void
+ */
+function set_dish_image( $post_id, $url ) {
+	static $cache = array();
+
+	$url = esc_url_raw( trim( $url ) );
+	if ( '' === $url ) {
+		return;
+	}
+	if ( ! isset( $cache[ $url ] ) ) {
+		$att_id = attachment_url_to_postid( $url );
+		if ( ! $att_id && wp_http_validate_url( $url ) ) {
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+			$side   = media_sideload_image( $url, $post_id, null, 'id' );
+			$att_id = is_wp_error( $side ) ? 0 : (int) $side;
+		}
+		$cache[ $url ] = (int) $att_id;
+	}
+	if ( $cache[ $url ] && (int) get_post_thumbnail_id( $post_id ) !== $cache[ $url ] ) {
+		set_post_thumbnail( $post_id, $cache[ $url ] );
+	}
 }
 
 /**
@@ -324,21 +365,41 @@ function import_menu( $request ) {
 			}
 		}
 
-		$existing = find_dish( $dish, $section_id );
+		// Published column ("yes"/"no") — optional; blank keeps things as they are.
+		$pub_status = '';
+		if ( isset( $col['published'] ) && '' !== $get( 'published' ) ) {
+			$pub_status = in_array( strtolower( $get( 'published' ) ), array( 'no', 'n', '0', 'false', 'draft', 'hidden' ), true ) ? 'draft' : 'publish';
+		}
+
+		// Match by ID first (exact, survives renames), then by title within section.
+		$existing = 0;
+		if ( isset( $col['id'] ) && (int) $get( 'id' ) > 0 ) {
+			$maybe = get_post( (int) $get( 'id' ) );
+			if ( $maybe && 'dinekit_menu_item' === $maybe->post_type ) {
+				$existing = (int) $maybe->ID;
+			}
+		}
+		if ( ! $existing ) {
+			$existing = find_dish( $dish, $section_id );
+		}
+
 		if ( $existing ) {
 			$post_id = $existing;
-			wp_update_post(
-				array(
-					'ID'           => $post_id,
-					'post_content' => wp_kses_post( $get( 'description' ) ),
-				)
+			$update  = array(
+				'ID'           => $post_id,
+				'post_title'   => sanitize_text_field( $dish ),
+				'post_content' => wp_kses_post( $get( 'description' ) ),
 			);
+			if ( '' !== $pub_status ) {
+				$update['post_status'] = $pub_status;
+			}
+			wp_update_post( $update );
 			++$updated;
 		} else {
 			$post_id = wp_insert_post(
 				array(
 					'post_type'    => 'dinekit_menu_item',
-					'post_status'  => 'publish',
+					'post_status'  => '' !== $pub_status ? $pub_status : 'publish',
 					'post_title'   => sanitize_text_field( $dish ),
 					'post_content' => wp_kses_post( $get( 'description' ) ),
 				),
@@ -393,6 +454,10 @@ function import_menu( $request ) {
 				}
 			}
 			wp_set_object_terms( $post_id, $ids, 'dinekit_allergen' );
+		}
+		// Image URL — blank leaves the current photo alone.
+		if ( isset( $col['image url'] ) && '' !== $get( 'image url' ) ) {
+			set_dish_image( $post_id, $get( 'image url' ) );
 		}
 	}
 
