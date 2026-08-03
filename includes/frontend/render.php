@@ -202,6 +202,7 @@ function menu( $args = array() ) {
 						?>
 						<p class="dinekit-section__desc"><?php echo esc_html( wp_strip_all_tags( $desc ) ); ?></p>
 					<?php endif; ?>
+					<?php echo render_section_media( $group['term']->term_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts. ?>
 				<?php endif; ?>
 
 				<ul class="dinekit-items">
@@ -229,6 +230,56 @@ function menu( $args = array() ) {
 	echo schema_jsonld( $groups, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 	return (string) ob_get_clean();
+}
+
+/**
+ * Render a section's optional banner image and/or video (term meta set in the
+ * menu builder). YouTube/Vimeo URLs become plain iframes built from the URL —
+ * no oEmbed fetch, so rendering a menu never makes a server-side request.
+ *
+ * @param int $term_id Section term id.
+ * @return string HTML ('' when the section has no media).
+ */
+function render_section_media( $term_id ) {
+	$img_id = (int) get_term_meta( $term_id, 'dinekit_section_image', true );
+	$video  = (string) get_term_meta( $term_id, 'dinekit_section_video', true );
+	$html   = '';
+	if ( $img_id ) {
+		$html .= wp_get_attachment_image(
+			$img_id,
+			'large',
+			false,
+			array(
+				'class'   => 'dinekit-section__image',
+				'loading' => 'lazy',
+			)
+		);
+	}
+	if ( '' !== $video ) {
+		$html .= video_embed( $video );
+	}
+	return '' !== $html ? '<div class="dinekit-section__media">' . $html . '</div>' : '';
+}
+
+/**
+ * Turn a video URL into an embed: YouTube/Vimeo → iframe (privacy-enhanced
+ * youtube-nocookie host), direct file URLs (.mp4/.webm/.ogv/.mov) → <video>.
+ * Anything else renders nothing rather than something broken.
+ *
+ * @param string $url Video URL.
+ * @return string HTML ('' when the URL isn't recognised).
+ */
+function video_embed( $url ) {
+	if ( preg_match( '~(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)([\w-]{6,20})~i', $url, $m ) ) {
+		return '<div class="dinekit-section__video dinekit-section__video--embed"><iframe src="https://www.youtube-nocookie.com/embed/' . esc_attr( $m[1] ) . '" title="' . esc_attr__( 'Section video', 'dinekit' ) . '" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+	}
+	if ( preg_match( '~vimeo\.com/(?:video/)?(\d+)~i', $url, $m ) ) {
+		return '<div class="dinekit-section__video dinekit-section__video--embed"><iframe src="https://player.vimeo.com/video/' . esc_attr( $m[1] ) . '" title="' . esc_attr__( 'Section video', 'dinekit' ) . '" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
+	}
+	if ( preg_match( '~\.(mp4|webm|ogv|mov)(\?.*)?$~i', $url ) ) {
+		return '<video class="dinekit-section__video" controls playsinline preload="metadata" src="' . esc_url( $url ) . '"></video>';
+	}
+	return '';
 }
 
 /**

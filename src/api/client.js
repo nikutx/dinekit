@@ -137,7 +137,7 @@ export const api = {
 	duplicateItem: ( id ) => request( 'POST', `items/${ id }/duplicate` ),
 	duplicateSection: ( id ) => request( 'POST', `sections/${ id }/duplicate` ),
 	createTerm: ( tax, name, extra = {} ) => request( 'POST', `terms/${ tax }`, { name, ...extra } ),
-	updateTerm: ( tax, id, name ) => request( 'PATCH', `terms/${ tax }/${ id }`, { name } ),
+	updateTerm: ( tax, id, name, extra = {} ) => request( 'PATCH', `terms/${ tax }/${ id }`, { name, ...extra } ),
 	deleteTerm: ( tax, id ) => request( 'DELETE', `terms/${ tax }/${ id }` ),
 	saveOrder: ( payload ) => request( 'POST', 'order', payload ),
 	exportMenu: () => request( 'GET', 'menu/export' ),

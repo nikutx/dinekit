@@ -5,6 +5,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
@@ -23,6 +24,7 @@ export default function SortableSection( {
 	onMoveDown,
 	onAddItem,
 	onRename,
+	onEditMedia,
 	onDelete,
 	onEditItem,
 	onDuplicateItem,
@@ -96,6 +98,18 @@ export default function SortableSection( {
 					<Tooltip title={ collapsed ? 'Expand section' : 'Collapse section' }>
 						<IconButton size="small" onClick={ onToggleCollapse } sx={ { color: tokens.muted } }>
 							<ExpandMoreIcon fontSize="small" sx={ { transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' } } />
+						</IconButton>
+					</Tooltip>
+				) }
+
+				{ ! muted && onEditMedia && (
+					<Tooltip title={ section.image || section.video ? 'Photo & video (set)' : 'Add a photo or video to this section' }>
+						<IconButton
+							size="small"
+							onClick={ onEditMedia }
+							sx={ { color: section.image || section.video ? tokens.accent : tokens.muted } }
+						>
+							<ImageOutlinedIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
 				) }

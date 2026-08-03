@@ -23,6 +23,7 @@ import LiveMenuBanner from './LiveMenuBanner';
 import MenuTabs from './MenuTabs';
 import ArchivedDishes from './ArchivedDishes';
 import ConfirmDialog from './ui/ConfirmDialog';
+import SectionMediaDialog from './ui/SectionMediaDialog';
 import { api } from '../api/client';
 
 // Consequences the owner can't see from the menu screen: is this dish sitting on
@@ -176,6 +177,22 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	// silently ungroup every dish in the section (found the hard way in QA).
 	const [ deletingSection, setDeletingSection ] = useState( null ); // { id, name, count }
 	const [ deleteSectionBusy, setDeleteSectionBusy ] = useState( false );
+
+	// Section photo/video dialog.
+	const [ mediaSection, setMediaSection ] = useState( null ); // full section object
+	const [ mediaBusy, setMediaBusy ] = useState( false );
+	const saveSectionMedia = async ( patch ) => {
+		setMediaBusy( true );
+		try {
+			await store.updateSectionMedia( mediaSection.id, mediaSection.name, patch );
+			setMediaSection( null );
+			toast.success( 'Section updated', 'Photo and video changes are live on your menu.' );
+		} catch ( e ) {
+			toast.error( 'Couldn’t save', e.message );
+		} finally {
+			setMediaBusy( false );
+		}
+	};
 	const doDeleteSection = async () => {
 		setDeleteSectionBusy( true );
 		try {
@@ -487,6 +504,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 								onMoveDown={ () => moveSection( index, 1 ) }
 								onAddItem={ () => addItem( key ) }
 								onRename={ ( name ) => store.renameTerm( 'dinekit_section', Number( key ), name ) }
+								onEditMedia={ () => setMediaSection( sectionsById[ key ] ) }
 								onDelete={ () => setDeletingSection( { id: Number( key ), name: ( sectionsById[ key ] || {} ).name || '', count: ( board.map[ key ] || [] ).length, shared: ! ( sectionsById[ key ] || {} ).menu && data.menus.length > 1 } ) }
 								onEditItem={ setEditingId }
 								onDuplicateItem={ async ( id ) => {
@@ -533,7 +551,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					onChange={ ( e ) => importCsv( e.target.files && e.target.files[ 0 ] ) }
 					sx={ { display: 'none' } }
 				/>
-				<Typography sx={ { fontSize: 11.5, color: tokens.muted2 } }>Export to a spreadsheet, edit, and re-import — matches dishes by name within each section.</Typography>
+				<Typography sx={ { fontSize: 11.5, color: tokens.muted2 } }>Export to a spreadsheet, edit, and re-import — dishes keep their ID so edits update the right dish. Importing never deletes anything.</Typography>
 			</Stack>
 
 			<Stack
@@ -581,6 +599,15 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 					store={ store }
 					onArchive={ () => askArchive( editingId ) }
 					onClose={ () => setEditingId( null ) }
+				/>
+			) }
+
+			{ mediaSection && (
+				<SectionMediaDialog
+					section={ mediaSection }
+					busy={ mediaBusy }
+					onSave={ saveSectionMedia }
+					onClose={ () => setMediaSection( null ) }
 				/>
 			) }
 

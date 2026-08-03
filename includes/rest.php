@@ -904,6 +904,15 @@ function can_duplicate_item_cb( $request ) {
  * @return array<string,mixed>
  */
 function term_response( $term ) {
+	$image  = null;
+	$img_id = (int) get_term_meta( $term->term_id, 'dinekit_section_image', true );
+	if ( $img_id ) {
+		$image = array(
+			'id'    => $img_id,
+			'thumb' => (string) wp_get_attachment_image_url( $img_id, 'thumbnail' ),
+			'url'   => (string) wp_get_attachment_image_url( $img_id, 'large' ),
+		);
+	}
 	return array(
 		'id'    => (int) $term->term_id,
 		'name'  => $term->name,
@@ -913,6 +922,9 @@ function term_response( $term ) {
 		'core'  => (bool) get_term_meta( $term->term_id, 'dinekit_core_allergen', true ),
 		// Sections only: the menu this section belongs to (0 = shared/legacy).
 		'menu'  => (int) get_term_meta( $term->term_id, 'dinekit_section_menu', true ),
+		// Sections only: optional banner image + video shown under the heading.
+		'image' => $image,
+		'video' => (string) get_term_meta( $term->term_id, 'dinekit_section_video', true ),
 	);
 }
 
@@ -1576,6 +1588,29 @@ function update_term( $request ) {
 	$result = wp_update_term( $term_id, $taxonomy, array( 'name' => $name ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
+	}
+
+	// Sections only: optional banner image (attachment id, 0 clears) and
+	// video URL ('' clears) shown under the section heading on the public menu.
+	if ( 'dinekit_section' === $taxonomy ) {
+		$image = $request->get_param( 'image' );
+		if ( null !== $image ) {
+			$img_id = (int) $image;
+			if ( $img_id > 0 && wp_attachment_is_image( $img_id ) ) {
+				update_term_meta( $term_id, 'dinekit_section_image', $img_id );
+			} elseif ( 0 === $img_id ) {
+				delete_term_meta( $term_id, 'dinekit_section_image' );
+			}
+		}
+		$video = $request->get_param( 'video' );
+		if ( null !== $video ) {
+			$video = esc_url_raw( trim( (string) $video ) );
+			if ( '' !== $video ) {
+				update_term_meta( $term_id, 'dinekit_section_video', $video );
+			} else {
+				delete_term_meta( $term_id, 'dinekit_section_video' );
+			}
+		}
 	}
 
 	$term = get_term( $term_id, $taxonomy );

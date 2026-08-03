@@ -166,6 +166,20 @@ export function useDineKit() {
 		[ track ]
 	);
 
+	// Section photo/video (term meta) — server returns the full term, so swap it
+	// in whole rather than patching fields locally.
+	const updateSectionMedia = useCallback(
+		async ( id, name, patch ) => {
+			const term = await track( api.updateTerm( 'dinekit_section', id, name, patch ) );
+			setData( ( prev ) => ( {
+				...prev,
+				sections: prev.sections.map( ( t ) => ( t.id === id ? term : t ) ),
+			} ) );
+			return term;
+		},
+		[ track ]
+	);
+
 	const deleteTerm = useCallback(
 		async ( tax, id ) => {
 			const key = taxKey( tax );
@@ -235,6 +249,7 @@ export function useDineKit() {
 		duplicateSection,
 		createTerm,
 		renameTerm,
+		updateSectionMedia,
 		deleteTerm,
 		saveMenuSchedule,
 		duplicateMenu,
