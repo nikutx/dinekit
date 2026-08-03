@@ -56,6 +56,33 @@ const TEMPLATE_PALETTE = {
 	mono: { accent: '#111111', menu_ink: '#111111', menu_muted: '#767676', menu_line: '#e5e5e5', menu_bg: '' },
 };
 
+// One-click looks: a preset bundles template + layout options so one tap
+// transforms the whole menu. Born from real venue requests — keep crediting
+// them in the description; it's the plugin's story.
+const PRESETS = [
+	{
+		key: 'gallery',
+		label: 'Gallery',
+		desc: 'Photo-first cards, big appetite appeal — BBQ, burgers, brunch. Suggested by a real BBQ house.',
+		patch: { template: 'signature' },
+		controls: { layout: 'grid', columns: '3', images: true },
+	},
+	{
+		key: 'classic-list',
+		label: 'Classic list',
+		desc: 'The traditional single-column read — most restaurants.',
+		patch: { template: 'signature' },
+		controls: { layout: 'list', columns: '0', images: true },
+	},
+	{
+		key: 'chalk-wall',
+		label: 'Chalk wall',
+		desc: 'Dark board, no photos — pubs, coffee, specials.',
+		patch: { template: 'noir' },
+		controls: { layout: 'chalkboard', columns: '0', images: false },
+	},
+];
+
 // The Design Studio's clickable element roles. Order = hit-test priority
 // (innermost/most specific first; background last as the catch-all).
 // sizeKey → the per-element multiplier setting; colorKey → the shared design
@@ -120,6 +147,27 @@ export default function DesignView() {
 		clearTimeout( dsave.current );
 		dsave.current = setTimeout( () => api.saveSettings( next ), 500 );
 	};
+
+	// Apply a one-click look: saved template + the layout controls in one tap.
+	const applyPreset = ( p ) => {
+		patchDesign( p.patch );
+		setLayout( p.controls.layout );
+		setColumns( p.controls.columns );
+		setImages( p.controls.images );
+		toast.success(
+			`“${ p.label }” applied`,
+			'The preview shows it now. If your menu page uses a custom shortcode, copy the updated one below onto the page.'
+		);
+	};
+	// Which preset matches the current studio state (for the ✓ highlight).
+	const activePreset = PRESETS.find(
+		( p ) =>
+			design &&
+			design.template === p.patch.template &&
+			layout === p.controls.layout &&
+			columns === p.controls.columns &&
+			images === p.controls.images
+	);
 
 	// Preview HTML only refetches on structural changes — NOT on colour/size
 	// tweaks, which patch into the live iframe without a reload (no flicker,
@@ -424,6 +472,38 @@ export default function DesignView() {
 							<Typography sx={ { fontSize: 12.5, color: tokens.accentDark } }>
 								💡 <strong>Click anything in the preview</strong> — a section title, dish name, price — to style just that element.
 							</Typography>
+						</Card>
+					) }
+
+					{ design && (
+						<Card sx={ { p: 2, mb: 2 } }>
+							<Typography sx={ { ...labelSx, mb: 0.5 } }>One-click looks</Typography>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mb: 1.25 } }>
+								A whole style in one tap — template, layout and photos together.
+							</Typography>
+							<Stack spacing={ 0.75 }>
+								{ PRESETS.map( ( p ) => (
+									<Box
+										key={ p.key }
+										onClick={ () => applyPreset( p ) }
+										sx={ {
+											px: 1.5,
+											py: 1,
+											borderRadius: 2,
+											cursor: 'pointer',
+											border: `1px solid ${ activePreset && activePreset.key === p.key ? tokens.accent : tokens.border }`,
+											bgcolor: activePreset && activePreset.key === p.key ? tokens.accentSoft : 'transparent',
+											'&:hover': { borderColor: tokens.accent },
+										} }
+									>
+										<Box sx={ { fontWeight: 700, fontSize: 13 } }>
+											{ p.label }
+											{ activePreset && activePreset.key === p.key ? ' ✓' : '' }
+										</Box>
+										<Box sx={ { fontSize: 11, color: tokens.muted } }>{ p.desc }</Box>
+									</Box>
+								) ) }
+							</Stack>
 						</Card>
 					) }
 
