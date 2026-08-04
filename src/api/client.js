@@ -132,6 +132,9 @@ export const api = {
 	createItem: ( data ) => request( 'POST', 'items', data ),
 	updateItem: ( id, data ) => request( 'PATCH', `items/${ id }`, data ),
 	deleteItem: ( id ) => request( 'DELETE', `items/${ id }` ), // archives, never deletes
+	// Bin a dish that was opened and closed without anything typed into it. The
+	// server re-checks that it really is blank and archives it instead if not.
+	discardItem: ( id ) => request( 'DELETE', `items/${ id }?force=1` ),
 	restoreItem: ( id ) => request( 'POST', `items/${ id }/restore` ),
 	itemUsage: ( id ) => request( 'GET', `items/${ id }/usage` ),
 	duplicateItem: ( id ) => request( 'POST', `items/${ id }/duplicate` ),

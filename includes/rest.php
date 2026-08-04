@@ -1507,6 +1507,21 @@ function delete_item( $request ) {
 	require_once DINEKIT_DIR . 'includes/items.php';
 	$post_id = (int) $request['id'];
 
+	// The one exception to archive-never-delete: a dish the owner opened and
+	// closed again without entering anything. `force` is only a REQUEST — the
+	// blank test runs here, so a client can never turn this into a real delete.
+	if ( $request->get_param( 'force' ) && \DineKit\Items\is_blank( $post_id ) ) {
+		wp_delete_post( $post_id, true );
+		return rest_ensure_response(
+			array(
+				'deleted'   => true,
+				'archived'  => false,
+				'discarded' => true,
+				'id'        => $post_id,
+			)
+		);
+	}
+
 	// Archive, never delete. Past orders reference this dish and the owner may
 	// want it back. wp_trash_post() looked safe but WP's wp_scheduled_delete cron
 	// permanently destroys trashed posts after EMPTY_TRASH_DAYS (30 by default).

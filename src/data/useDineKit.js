@@ -105,6 +105,21 @@ export function useDineKit() {
 		[ track, toast ]
 	);
 
+	// Closing a dish you never filled in shouldn't leave a nameless dish on the
+	// menu (and, since dishes are created published, on the public page). No
+	// toast: nothing was created as far as the owner is concerned.
+	const discardItem = useCallback(
+		async ( id ) => {
+			setData( ( prev ) => ( { ...prev, items: prev.items.filter( ( it ) => it.id !== id ) } ) );
+			try {
+				await track( api.discardItem( id ) );
+			} catch ( e ) {
+				// It survives on the server; a reload will show it again.
+			}
+		},
+		[ track ]
+	);
+
 	const restoreItem = useCallback(
 		async ( id ) => {
 			const restored = await track( api.restoreItem( id ) );
@@ -244,6 +259,7 @@ export function useDineKit() {
 		createItem,
 		updateItem,
 		deleteItem,
+		discardItem,
 		restoreItem,
 		duplicateItem,
 		duplicateSection,

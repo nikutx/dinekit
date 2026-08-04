@@ -87,6 +87,76 @@ function live_order_statuses() {
 }
 
 /**
+ * Is this dish still completely blank — nothing typed, nothing chosen?
+ *
+ * Opening "Add dish" creates the post up front so the editor has somewhere to
+ * autosave to. If the owner closes it again without entering anything, that
+ * post is litter (and, being published, litter that shows on the public menu),
+ * so the editor asks for it to be binned. The client decides when to ask; this
+ * is the guard that decides whether it's allowed — never trust the caller with
+ * a permanent delete.
+ *
+ * Deliberately strict: ANY sign of intent (a character of a name, a price, a
+ * photo, an allergen) makes the dish worth keeping, and it gets archived the
+ * normal way instead.
+ *
+ * @param int $item_id Dish post id.
+ * @return bool True when the dish holds no owner-entered data at all.
+ */
+function is_blank( $item_id ) {
+	$post = get_post( (int) $item_id );
+	if ( ! $post || 'dinekit_menu_item' !== $post->post_type ) {
+		return false;
+	}
+
+	// create_item() titles a nameless dish "New item" — that's our placeholder,
+	// not something the owner typed.
+	$title = trim( (string) $post->post_title );
+	if ( '' !== $title && __( 'New item', 'dinekit' ) !== $title ) {
+		return false;
+	}
+	if ( '' !== trim( wp_strip_all_tags( (string) $post->post_content ) ) ) {
+		return false;
+	}
+	if ( get_post_thumbnail_id( $post ) ) {
+		return false;
+	}
+
+	// Any non-empty meta the owner could have set.
+	$meta_keys = array( 'dinekit_prices', 'dinekit_modifiers', 'dinekit_badge', 'dinekit_calories', 'dinekit_cost', 'dinekit_allergen_sources', 'dinekit_stock' );
+	// Empty for these means: no array entries, no characters, and none of the
+	// "nothing here" encodings meta picks up ('0' from a cleared number field,
+	// '[]'/'{}' from a JSON blob that was written then emptied).
+	$empty_scalars = array( '', '0', '[]', '{}', 'null', 'false' );
+	foreach ( $meta_keys as $key ) {
+		$value = get_post_meta( $post->ID, $key, true );
+		if ( is_array( $value ) ) {
+			if ( array() !== $value ) {
+				return false;
+			}
+			continue;
+		}
+		if ( ! in_array( trim( (string) $value ), $empty_scalars, true ) ) {
+			return false;
+		}
+	}
+
+	// Allergens/dietary tags are a choice; sections/menus are not (the dish was
+	// created inside one), so those don't count as data.
+	foreach ( array( 'dinekit_allergen', 'dinekit_dietary' ) as $taxonomy ) {
+		$terms = get_the_terms( $post, $taxonomy );
+		if ( is_array( $terms ) && $terms ) {
+			return false;
+		}
+	}
+
+	// Paranoia: a blank dish can't be on an order, but never destroy a post that
+	// order history points at.
+	$used = usage( $post->ID );
+	return 0 === (int) $used['total'];
+}
+
+/**
  * How many orders reference this dish? Line items are a JSON snapshot, so this is
  * only about *warning the owner* — an archived dish never corrupts an order.
  *

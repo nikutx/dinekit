@@ -221,12 +221,43 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 	// topbar reads, so "Saved — safe to close" is only ever shown when it's true.
 	const pillStatus = typing ? 'saving' : store.saveStatus || 'idle';
 
+	// Opening "Add dish" creates the dish up front so this form has somewhere to
+	// autosave to — which means closing it again without typing anything used to
+	// leave a nameless dish sitting on the menu, published. If nothing was
+	// entered, close means "never mind": bin it. (The server re-checks and
+	// archives instead if it finds any data.)
+	const isBlank = () => {
+		const f = form;
+		const hasPrice = ( f.prices || [] ).some( ( p ) => String( p.amount || '' ).trim() !== '' );
+		return (
+			! ( f.title || '' ).trim() &&
+			! ( f.description || '' ).trim() &&
+			! f.image &&
+			! hasPrice &&
+			! ( f.modifiers || [] ).length &&
+			! ( f.allergens || [] ).length &&
+			! ( f.dietary || [] ).length &&
+			! ( f.badge || '' ).trim() &&
+			! String( f.calories || '' ).trim() &&
+			! String( f.cost || '' ).trim()
+		);
+	};
+
+	const closeEditor = () => {
+		// Push any half-typed field first — that decides whether it's blank.
+		flush();
+		if ( isBlank() ) {
+			store.discardItem( item.id );
+		}
+		onClose();
+	};
+
 	return (
 		<>
 		<Drawer
 			anchor="right"
 			open
-			onClose={ onClose }
+			onClose={ closeEditor }
 			// Sit above the WP admin bar (99999) so the drawer header/close isn't
 			// hidden behind it; disableEnforceFocus lets the wp.media modal (which
 			// opens on top) receive clicks instead of the drawer trapping focus.
@@ -254,7 +285,7 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 				<Stack direction="row" alignItems="center" spacing={ 1.25 }>
 					{ /* No Save button on this form — the pill is the receipt. */ }
 					<SavePill status={ pillStatus } safeToClose />
-					<IconButton size="small" onClick={ onClose }>
+					<IconButton size="small" aria-label="Close dish" onClick={ closeEditor }>
 						<CloseIcon fontSize="small" />
 					</IconButton>
 				</Stack>
