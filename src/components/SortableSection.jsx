@@ -112,7 +112,7 @@ export default function SortableSection( {
 				) }
 
 				<Typography className="dinekit-microlabel" sx={ { color: tokens.muted, fontSize: 12.5 } }>
-					{ itemIds.length } { itemIds.length === 1 ? 'item' : 'items' }
+					{ itemIds.length } { itemIds.length === 1 ? 'dish' : 'dishes' }
 				</Typography>
 
 				{ onToggleCollapse && (
@@ -144,7 +144,7 @@ export default function SortableSection( {
 				) }
 
 				{ ! muted && (
-					<Tooltip title="Delete section (items are kept, just unsectioned)">
+					<Tooltip title="Delete section (dishes are kept, just unsectioned)">
 						<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted } }>
 							<DeleteOutlineIcon fontSize="small" />
 						</IconButton>
@@ -175,17 +175,18 @@ export default function SortableSection( {
 					<Typography
 						sx={ { textAlign: 'center', color: tokens.muted2, fontSize: 13, py: 1.5 } }
 					>
-						Drop items here, or add one.
+						Drag dishes here, or add one.
 					</Typography>
 				) }
 
+				{ /* Same word everywhere the owner adds one: a dish. */ }
 				<Button
 					size="small"
 					startIcon={ <AddIcon /> }
 					onClick={ onAddItem }
 					sx={ { mt: 1, color: tokens.accent } }
 				>
-					Add item
+					Add dish
 				</Button>
 			</Box>
 		</Box>

@@ -4,6 +4,8 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
+import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
+import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import { useToast } from './Toast';
 import {
 	DndContext,
@@ -66,6 +68,62 @@ function ArchiveUsage( { usage } ) {
 	);
 }
 
+// One way into a blank menu: a big tap target, a plain-English label and a line
+// saying what happens if you press it.
+function StartAction( { icon, label, hint, primary, disabled, onClick } ) {
+	return (
+		<Stack
+			direction="row"
+			alignItems="center"
+			spacing={ 1.75 }
+			onClick={ disabled ? undefined : onClick }
+			sx={ {
+				textAlign: 'left',
+				px: 2,
+				py: 1.75,
+				borderRadius: '12px',
+				cursor: disabled ? 'default' : 'pointer',
+				opacity: disabled ? 0.6 : 1,
+				bgcolor: primary ? tokens.accent : tokens.surface,
+				border: `1px solid ${ primary ? tokens.accent : tokens.border }`,
+				boxShadow: tokens.shadowSm,
+				transition: 'box-shadow .18s ease, border-color .18s ease, transform .18s ease',
+				'&:hover': disabled
+					? {}
+					: {
+							boxShadow: tokens.shadowMd,
+							borderColor: primary ? tokens.accentDark : tokens.border2,
+							transform: 'translateY(-1px)',
+					  },
+			} }
+		>
+			<Box
+				sx={ {
+					width: 38,
+					height: 38,
+					flexShrink: 0,
+					borderRadius: '10px',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					bgcolor: primary ? 'rgba(255,255,255,0.18)' : tokens.accentSoft,
+					color: primary ? '#fff' : tokens.accent,
+				} }
+			>
+				{ icon }
+			</Box>
+			<Box sx={ { flex: 1, minWidth: 0 } }>
+				<Typography sx={ { fontSize: 14.5, fontWeight: 650, color: primary ? '#fff' : tokens.ink } }>
+					{ label }
+				</Typography>
+				<Typography sx={ { fontSize: 12.5, color: primary ? 'rgba(255,255,255,0.85)' : tokens.muted } }>
+					{ hint }
+				</Typography>
+			</Box>
+		</Stack>
+	);
+}
+
 const NONE = 'none';
 const cid = ( key ) => `container:${ key }`;
 const isContainerId = ( id ) => typeof id === 'string' && id.startsWith( 'container:' );
@@ -111,6 +169,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const [ newSection, setNewSection ] = useState( '' );
 	const [ query, setQuery ] = useState( '' );
 	const [ collapsed, setCollapsed ] = useState( {} );
+	const [ showBulk, setShowBulk ] = useState( false );
 	const toggleCollapse = ( key ) => setCollapsed( ( c ) => ( { ...c, [ key ]: ! c[ key ] } ) );
 
 	// CSV import / export.
@@ -373,6 +432,30 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 		await store.createTerm( 'dinekit_section', name, selectedMenu ? { menu: selectedMenu } : {} );
 	};
 
+	// One tap for the usual three courses, so a brand-new menu has somewhere to
+	// put dishes without the owner having to think about "sections" at all.
+	// Created one at a time on purpose — the order they arrive in is the order
+	// they appear on the board.
+	const [ startBusy, setStartBusy ] = useState( false );
+	const startWithSections = async () => {
+		setStartBusy( true );
+		try {
+			const extra = selectedMenu ? { menu: selectedMenu } : {};
+			for ( const name of [ 'Starters', 'Mains', 'Desserts' ] ) {
+				// eslint-disable-next-line no-await-in-loop
+				await store.createTerm( 'dinekit_section', name, extra );
+			}
+			toast.success(
+				'Starters, Mains and Desserts added',
+				'Add your dishes into them — rename or delete any section you don’t need.'
+			);
+		} catch ( e ) {
+			toast.error( 'Couldn’t add the sections', e.message );
+		} finally {
+			setStartBusy( false );
+		}
+	};
+
 	// Naming the "Unsectioned" bucket turns it into a real section: create the
 	// section (owned by the current menu) and move every unsectioned dish in.
 	const convertUnsectioned = async ( rawName ) => {
@@ -405,6 +488,13 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 	const activeItem = activeId ? itemsById[ activeId ] : null;
 	const selectedMenuName = ( data.menus.find( ( m ) => m.id === selectedMenu ) || {} ).name || '';
 	const boardItemCount = Object.values( board.map ).reduce( ( sum, arr ) => sum + arr.length, 0 );
+	const sectionCount = board.order.filter( ( k ) => k !== NONE && sectionsById[ k ] ).length;
+
+	// A blank menu gets ONE screen with three ways in — nothing else renders
+	// (no search, no bulk row, no section adder) until there's something to
+	// manage. Once sections exist the board takes over, even with no dishes yet,
+	// so "Start with sections" visibly does something.
+	const firstRun = boardItemCount === 0 && sectionCount === 0;
 
 	// Items in scope of the current menu filter — for search + duplicate detection.
 	const scopedItems = useMemo(
@@ -423,6 +513,23 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 		} );
 		return Object.keys( counts ).filter( ( t ) => counts[ t ] > 1 );
 	}, [ scopedItems ] );
+	// A long board pushes "Add dish" off the top of the page. The wp-admin page
+	// itself is the scroller (the app's content box is overflow:auto but never
+	// actually scrolls), so `position: sticky` can't pin to the viewport here —
+	// a small fixed bar appears instead once the header has scrolled away.
+	const headerRef = useRef( null );
+	const [ headerOut, setHeaderOut ] = useState( false );
+	useEffect( () => {
+		const el = headerRef.current;
+		if ( ! el || typeof IntersectionObserver === 'undefined' ) {
+			setHeaderOut( false );
+			return undefined;
+		}
+		const io = new IntersectionObserver( ( [ entry ] ) => setHeaderOut( ! entry.isIntersecting ), { threshold: 0 } );
+		io.observe( el );
+		return () => io.disconnect();
+	}, [ firstRun, q ] );
+
 	const sectionLabel = ( item ) => {
 		const s = ( item.sections || [] ).map( ( id ) => sectionsById[ id ] ).find( Boolean );
 		return s ? s.name : 'Unsectioned';
@@ -434,7 +541,54 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 
 			<MenuTabs menus={ data.menus } selected={ selectedMenu } onSelect={ setSelectedMenu } store={ store } />
 
-			<Stack direction="row" alignItems="center" spacing={ 1 } flexWrap="wrap" sx={ { mb: 1.5 } }>
+			{ /* Blank menu: one calm screen with three ways in. Everything else
+			     (search, bulk edit, section adder, archived) stays out of the way
+			     until there's something to manage. */ }
+			{ firstRun && (
+				<Box sx={ { maxWidth: 560, mx: 'auto', mt: 4, mb: 2 } }>
+					<Typography sx={ { fontSize: 20, fontWeight: 650, color: tokens.ink, textAlign: 'center', letterSpacing: '-0.015em' } }>
+						{ selectedMenuName ? `Let’s fill your “${ selectedMenuName }”` : 'Let’s build your menu' }
+					</Typography>
+					<Typography sx={ { fontSize: 13.5, color: tokens.muted, textAlign: 'center', mt: 0.75, mb: 2.5 } }>
+						Three ways to start — you can change everything later, and nothing goes live on your
+						website until you’re happy with it.
+					</Typography>
+					<Stack spacing={ 1.25 }>
+						<StartAction
+							primary
+							icon={ <RestaurantMenuIcon sx={ { fontSize: 20 } } /> }
+							label="Add your first dish"
+							hint="Name, price, description, allergens — one dish at a time."
+							onClick={ () => addItem( NONE ) }
+						/>
+						<StartAction
+							icon={ <ViewAgendaOutlinedIcon sx={ { fontSize: 20 } } /> }
+							label="Start with sections"
+							hint="Sets up Starters, Mains and Desserts for you to fill in."
+							disabled={ startBusy }
+							onClick={ startWithSections }
+						/>
+						<StartAction
+							icon={ <FileUploadIcon sx={ { fontSize: 20 } } /> }
+							label="Import from a spreadsheet"
+							hint="Already typed up in Excel or Google Sheets? Bring it in as a CSV file."
+							disabled={ csvBusy }
+							onClick={ () => fileRef.current && fileRef.current.click() }
+						/>
+					</Stack>
+				</Box>
+			) }
+
+			{ ! firstRun && (
+			<>
+			<Stack
+				ref={ headerRef }
+				direction="row"
+				alignItems="center"
+				spacing={ 1 }
+				flexWrap="wrap"
+				sx={ { mb: 1.5 } }
+			>
 				<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2 } }>
 					Dishes
 				</Typography>
@@ -443,7 +597,8 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 						? `Everything on your “${ selectedMenuName }” menu. Sections are optional — group dishes when it helps.`
 						: 'All your dishes. Sections are optional — group into Starters, Mains… when it helps, and drag dishes between them.' }
 				</Typography>
-				<Button size="small" variant="outlined" startIcon={ <AddIcon /> } onClick={ () => addItem( NONE ) }>
+				{ /* The primary action stays on screen however far the board scrolls. */ }
+				<Button size="small" variant="contained" startIcon={ <AddIcon /> } onClick={ () => addItem( NONE ) }>
 					Add dish
 				</Button>
 			</Stack>
@@ -455,20 +610,30 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				</Box>
 			) }
 
-			{ /* Search across all dishes (handy once you have a lot). */ }
-			<TextField
-				value={ query }
-				onChange={ ( e ) => setQuery( e.target.value ) }
-				placeholder="Search dishes…"
-				size="small"
-				fullWidth
-				InputProps={ { startAdornment: <InputAdornment position="start"><SearchIcon sx={ { fontSize: 18, color: tokens.muted2 } } /></InputAdornment> } }
-				sx={ { mb: 2, maxWidth: 360 } }
-			/>
+			{ /* Search earns its place only once the board is long enough to get
+			     lost in — a six-dish menu is quicker to read than to search. */ }
+			{ scopedItems.length >= 6 && (
+				<TextField
+					value={ query }
+					onChange={ ( e ) => setQuery( e.target.value ) }
+					placeholder="Search dishes…"
+					size="small"
+					fullWidth
+					InputProps={ { startAdornment: <InputAdornment position="start"><SearchIcon sx={ { fontSize: 18, color: tokens.muted2 } } /></InputAdornment> } }
+					sx={ { mb: 2, maxWidth: 360 } }
+				/>
+			) }
 
-			{ dupTitles.length > 0 && (
+			{ /* One repeated name is usually deliberate (or half-typed) — say it
+			     quietly. Several is a mess worth a proper warning. */ }
+			{ dupTitles.length === 1 && (
+				<Typography sx={ { fontSize: 12.5, color: tokens.muted, mt: -1, mb: 2 } }>
+					Two dishes are both called <strong>{ dupTitles[ 0 ] }</strong> — fine if that’s on purpose.
+				</Typography>
+			) }
+			{ dupTitles.length > 1 && (
 				<Alert severity="warning" sx={ { mb: 2, '& .MuiAlert-message': { fontSize: 13 } } }>
-					Duplicate dish name{ dupTitles.length === 1 ? '' : 's' }: <strong>{ dupTitles.join( ', ' ) }</strong>. Rename or remove copies so diners aren’t confused.
+					Duplicate dish names: <strong>{ dupTitles.join( ', ' ) }</strong>. Rename or remove copies so diners aren’t confused.
 				</Alert>
 			) }
 
@@ -558,20 +723,25 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				</DragOverlay>
 			</DndContext>
 
-			<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" sx={ { mt: 2, mb: 0.5 } }>
-				<Typography sx={ { fontSize: 12.5, color: tokens.muted, mr: 0.5 } }>Bulk edit</Typography>
-				<Button size="small" variant="outlined" startIcon={ <FileDownloadIcon /> } disabled={ csvBusy } onClick={ exportCsv }>Export CSV</Button>
-				<Button size="small" variant="outlined" startIcon={ <FileUploadIcon /> } disabled={ csvBusy } onClick={ () => fileRef.current && fileRef.current.click() }>Import CSV</Button>
-				<Box
-					component="input"
-					ref={ fileRef }
-					type="file"
-					accept=".csv,text/csv"
-					onChange={ ( e ) => importCsv( e.target.files && e.target.files[ 0 ] ) }
-					sx={ { display: 'none' } }
-				/>
-				<Typography sx={ { fontSize: 11.5, color: tokens.muted2 } }>Export to a spreadsheet, edit, and re-import — dishes keep their ID so edits update the right dish. Importing never deletes anything.</Typography>
-			</Stack>
+			{ /* Spreadsheet round-trip is a power tool — folded away until asked for. */ }
+			{ ! showBulk ? (
+				<Button
+					size="small"
+					variant="text"
+					startIcon={ <FileDownloadIcon /> }
+					onClick={ () => setShowBulk( true ) }
+					sx={ { mt: 2, color: tokens.muted } }
+				>
+					Edit this menu in a spreadsheet
+				</Button>
+			) : (
+				<Stack direction="row" spacing={ 1 } alignItems="center" flexWrap="wrap" sx={ { mt: 2, mb: 0.5 } }>
+					<Typography sx={ { fontSize: 12.5, color: tokens.muted, mr: 0.5 } }>Bulk edit</Typography>
+					<Button size="small" variant="outlined" startIcon={ <FileDownloadIcon /> } disabled={ csvBusy } onClick={ exportCsv }>Export CSV</Button>
+					<Button size="small" variant="outlined" startIcon={ <FileUploadIcon /> } disabled={ csvBusy } onClick={ () => fileRef.current && fileRef.current.click() }>Import CSV</Button>
+					<Typography sx={ { fontSize: 11.5, color: tokens.muted2 } }>Export to a spreadsheet, edit, and re-import — dishes keep their ID so edits update the right dish. Importing never deletes anything.</Typography>
+				</Stack>
+			) }
 
 			<Stack
 				direction="row"
@@ -602,15 +772,51 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				separate menus — Lunch, Dinner, Christmas? Use the menu switcher at the top instead.
 			</Typography>
 
-			{ board.order.filter( ( k ) => k !== NONE ).length === 0 && boardItemCount === 0 && (
-				<Typography color="text.secondary" sx={ { textAlign: 'center', mt: 4 } }>
-					Start with “Add dish” above — sections are optional and can come later.
-				</Typography>
-			) }
-
-			<ArchivedDishes archived={ data.archived } onRestore={ store.restoreItem } />
 			</>
 			) }
+			</>
+			) }
+
+			{ ! q && <ArchivedDishes archived={ data.archived } onRestore={ store.restoreItem } /> }
+
+			{ ! firstRun && ! q && headerOut && (
+				<Stack
+					direction="row"
+					alignItems="center"
+					spacing={ 1.25 }
+					sx={ {
+						position: 'fixed',
+						right: 28,
+						bottom: 24,
+						zIndex: 20,
+						px: 1.25,
+						py: 0.75,
+						borderRadius: '999px',
+						bgcolor: tokens.surface,
+						border: `1px solid ${ tokens.border }`,
+						boxShadow: tokens.shadow,
+					} }
+				>
+					<Typography sx={ { fontSize: 12.5, color: tokens.muted, pl: 0.75 } }>
+						{ boardItemCount } dish{ boardItemCount === 1 ? '' : 'es' }
+						{ selectedMenuName ? ` in ${ selectedMenuName }` : '' }
+					</Typography>
+					<Button size="small" variant="contained" startIcon={ <AddIcon /> } onClick={ () => addItem( NONE ) }>
+						Add dish
+					</Button>
+				</Stack>
+			) }
+
+			{ /* Lives at the root so both the first-run card and the bulk-edit row
+			     can open the file picker. */ }
+			<Box
+				component="input"
+				ref={ fileRef }
+				type="file"
+				accept=".csv,text/csv"
+				onChange={ ( e ) => importCsv( e.target.files && e.target.files[ 0 ] ) }
+				sx={ { display: 'none' } }
+			/>
 
 			{ editingId && itemsById[ editingId ] && (
 				<ItemEditor
