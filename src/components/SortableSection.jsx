@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Stack, IconButton, InputBase, Tooltip, Typography, Button } from '../ui';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import CheckIcon from '@mui/icons-material/Check';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -34,8 +36,52 @@ export default function SortableSection( {
 	collapsed,
 	onToggleCollapse,
 } ) {
+	// Renaming is a deliberate act: the heading is plain text with a pencil next
+	// to it until you ask to edit. An always-live input read as greyed-out and
+	// locked — nobody could tell the loose-dishes group was nameable at all.
+	const [ editing, setEditing ] = useState( false );
 	const [ name, setName ] = useState( section ? section.name : '' );
+	const inputRef = useRef( null );
 	const { setNodeRef, isOver } = useDroppable( { id: containerId } );
+
+	// The loose-dishes group has no name of its own yet — naming it is what
+	// creates a section — so it opens empty rather than pre-filled with a label
+	// the owner never chose.
+	const isBucket = !! ( muted && onConvert );
+
+	const startEdit = () => {
+		setName( isBucket ? '' : section.name );
+		setEditing( true );
+	};
+
+	useEffect( () => {
+		if ( editing && inputRef.current ) {
+			inputRef.current.focus();
+			inputRef.current.select();
+		}
+	}, [ editing ] );
+
+	const commit = () => {
+		// Blur and the tick button can both fire — make committing idempotent.
+		if ( ! editing ) {
+			return;
+		}
+		const n = name.trim();
+		setEditing( false );
+		if ( ! n || n === section.name ) {
+			return;
+		}
+		if ( isBucket ) {
+			onConvert( n );
+		} else if ( onRename ) {
+			onRename( n );
+		}
+	};
+
+	const cancel = () => {
+		setName( section.name );
+		setEditing( false );
+	};
 
 	// Belt-and-braces: a section deleted mid-render must never crash the builder.
 	if ( ! section ) {
@@ -53,7 +99,6 @@ export default function SortableSection( {
 				borderRadius: '12px',
 				overflow: 'hidden',
 				transition: 'border-color 0.15s ease-in-out',
-				opacity: muted ? 0.92 : 1,
 			} }
 		>
 			<Stack
@@ -78,37 +123,81 @@ export default function SortableSection( {
 					</Stack>
 				) }
 
-				{ muted && onConvert ? (
-					// "Unsectioned" is nameable: type a real name and it becomes a
-					// proper section with these dishes moved in.
-					<Tooltip title="Type a name (e.g. Starters) to turn these dishes into a real section">
-						<InputBase
-							value={ name }
-							onChange={ ( e ) => setName( e.target.value ) }
-							onFocus={ ( e ) => e.target.select() }
-							onBlur={ () => {
-								const n = name.trim();
-								if ( n && n !== section.name ) {
-									onConvert( n );
-								} else {
-									setName( section.name );
-								}
-							} }
-							onKeyDown={ ( e ) => e.key === 'Enter' && e.target.blur() }
-							sx={ { flex: 1, fontWeight: 650, fontSize: 14, color: tokens.muted } }
-						/>
-					</Tooltip>
-				) : muted ? (
-					<Typography sx={ { flex: 1, fontWeight: 650, color: tokens.muted, fontSize: 14 } }>
-						{ section.name }
-					</Typography>
-				) : (
+				{ editing ? (
 					<InputBase
+						ref={ inputRef }
+						className="dk-section__title-input"
+						aria-label={ isBucket ? 'Name this group' : 'Section name' }
 						value={ name }
 						onChange={ ( e ) => setName( e.target.value ) }
-						onBlur={ () => name.trim() && name !== section.name && onRename( name.trim() ) }
-						sx={ { flex: 1, fontWeight: 650, fontSize: 15, color: tokens.ink } }
+						placeholder={ isBucket ? 'Name this group — e.g. Starters' : 'Section name' }
+						onBlur={ commit }
+						onKeyDown={ ( e ) => {
+							if ( e.key === 'Enter' ) {
+								commit();
+							} else if ( e.key === 'Escape' ) {
+								cancel();
+							}
+						} }
+						sx={ {
+							flex: 1,
+							fontWeight: 650,
+							fontSize: 15,
+							color: tokens.ink,
+							bgcolor: tokens.surface,
+							border: `1px solid ${ tokens.accent }`,
+							boxShadow: `0 0 0 3px ${ tokens.accentSoft }`,
+							borderRadius: '8px',
+							px: 1,
+							py: 0.25,
+						} }
 					/>
+				) : (
+					<Typography
+						className="dk-section__title"
+						onClick={ startEdit }
+						sx={ {
+							flex: 1,
+							fontWeight: 650,
+							fontSize: muted ? 14 : 15,
+							color: tokens.ink,
+							cursor: 'text',
+							borderRadius: '8px',
+							px: 0.75,
+							py: 0.25,
+							mx: -0.75,
+							'&:hover': { bgcolor: tokens.soft },
+						} }
+					>
+						{ section.name }
+					</Typography>
+				) }
+
+				{ editing ? (
+					<Tooltip title={ isBucket ? 'Create this section' : 'Save name' }>
+						{ /* preventDefault on mousedown keeps focus, so blur can't fire
+						     the same commit a split second before the click. */ }
+						<IconButton
+							size="small"
+							aria-label={ isBucket ? 'Create this section' : 'Save name' }
+							onMouseDown={ ( e ) => e.preventDefault() }
+							onClick={ commit }
+							sx={ { color: tokens.green } }
+						>
+							<CheckIcon fontSize="small" />
+						</IconButton>
+					</Tooltip>
+				) : (
+					<Tooltip title={ isBucket ? 'Name this group to turn it into a section' : 'Rename section' }>
+						<IconButton
+							size="small"
+							aria-label={ isBucket ? 'Name this group' : 'Rename section' }
+							onClick={ startEdit }
+							sx={ { color: tokens.muted } }
+						>
+							<EditOutlinedIcon fontSize="small" />
+						</IconButton>
+					</Tooltip>
 				) }
 
 				<Typography className="dinekit-microlabel" sx={ { color: tokens.muted, fontSize: 12.5 } }>
@@ -144,7 +233,7 @@ export default function SortableSection( {
 				) }
 
 				{ ! muted && (
-					<Tooltip title="Delete section (dishes are kept, just unsectioned)">
+					<Tooltip title="Delete section (dishes are kept, they just lose the grouping)">
 						<IconButton size="small" onClick={ onDelete } sx={ { color: tokens.muted } }>
 							<DeleteOutlineIcon fontSize="small" />
 						</IconButton>
@@ -153,6 +242,13 @@ export default function SortableSection( {
 			</Stack>
 
 			<Box ref={ setNodeRef } sx={ { p: 1.25, minHeight: collapsed ? 0 : 56, display: collapsed ? 'none' : 'block' } }>
+				{ isBucket && ! editing && (
+					<Typography sx={ { fontSize: 12, color: tokens.muted, px: 0.75, pb: 0.75 } }>
+						These dishes aren’t in a section — fine as it is. Give the group a name (✎ above) and
+						it becomes a real section with these dishes inside.
+					</Typography>
+				) }
+
 				{ /* The board is rebuilt in an effect, so for one render after a dish is
 				     removed its id is still listed here while itemsById has dropped it.
 				     Render only ids we can resolve, or SortableItem reads item.id of

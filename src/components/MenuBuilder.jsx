@@ -532,7 +532,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 
 	const sectionLabel = ( item ) => {
 		const s = ( item.sections || [] ).map( ( id ) => sectionsById[ id ] ).find( Boolean );
-		return s ? s.name : 'Unsectioned';
+		return s ? s.name : 'No section';
 	};
 
 	return (
@@ -704,8 +704,11 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 						) ) }
 
 					{ board.order.includes( NONE ) && (
+						/* "Unsectioned" is jargon, and it's plain wrong on a flat menu
+						   where this group IS the menu. Name it for what the owner is
+						   looking at. */
 						<SortableSection
-							section={ { id: NONE, name: 'Unsectioned' } }
+							section={ { id: NONE, name: sectionCount ? 'Other dishes' : 'Your dishes' } }
 							itemIds={ board.map[ NONE ] }
 							containerId={ cid( NONE ) }
 							itemsById={ itemsById }
@@ -841,7 +844,7 @@ export default function MenuBuilder( { store, openItemId, onOpenItem } ) {
 				title={ `Delete the “${ deletingSection?.name }” section?` }
 				message={
 					( deletingSection?.count
-						? `Its ${ deletingSection.count } dish${ deletingSection.count === 1 ? '' : 'es' } stay${ deletingSection.count === 1 ? 's' : '' } on the menu — they just lose their grouping and move to “Unsectioned”.`
+						? `Its ${ deletingSection.count } dish${ deletingSection.count === 1 ? '' : 'es' } stay${ deletingSection.count === 1 ? 's' : '' } on the menu — they just lose their grouping and move back in with the other loose dishes.`
 						: 'The section is empty, so nothing else changes.' ) +
 					( deletingSection?.shared
 						? ' ⚠ This is a shared section (created before sections became per-menu), so deleting it removes the grouping from EVERY menu that uses it.'
