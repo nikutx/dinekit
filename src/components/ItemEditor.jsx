@@ -24,6 +24,7 @@ import { tokens } from '../theme';
 import PriceRepeater from './PriceRepeater';
 import ModifierEditor from './ModifierEditor';
 import ConfirmDialog from './ui/ConfirmDialog';
+import SavePill from './ui/SavePill';
 import { openMediaPicker } from '../lib/media';
 import { useToast } from './Toast';
 
@@ -79,6 +80,11 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 	// Keep in sync if the underlying item changes identity.
 	useEffect( () => setForm( item ), [ item.id ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
+	// There's no Save button on this form, so the header pill has to be honest
+	// about keystrokes that are typed but still inside the debounce window —
+	// the global save bus only knows about requests already in flight.
+	const [ typing, setTyping ] = useState( false );
+
 	const save = ( changes ) => store.updateItem( item.id, changes );
 
 	// Write any queued edits through immediately (item switch, drawer close).
@@ -86,6 +92,7 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 		clearTimeout( debounceRef.current );
 		const { id, changes } = pendingRef.current;
 		pendingRef.current = { id: null, changes: {} };
+		setTyping( false );
 		if ( id && Object.keys( changes ).length ) {
 			storeRef.current.updateItem( id, changes );
 		}
@@ -99,6 +106,8 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 		if ( pendingRef.current.id !== item.id ) {
 			flush();
 		}
+		// After the flush above — flush() clears the flag for the item it wrote.
+		setTyping( true );
 		pendingRef.current = {
 			id: item.id,
 			changes: { ...pendingRef.current.changes, [ field ]: value },
@@ -208,6 +217,10 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 		save( patch );
 	};
 
+	// Typed-but-not-yet-sent counts as saving; otherwise follow the same bus the
+	// topbar reads, so "Saved — safe to close" is only ever shown when it's true.
+	const pillStatus = typing ? 'saving' : store.saveStatus || 'idle';
+
 	return (
 		<>
 		<Drawer
@@ -236,11 +249,15 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 				} }
 			>
 				<Typography variant="h6" sx={ { fontSize: 16 } }>
-					Edit item
+					Edit dish
 				</Typography>
-				<IconButton size="small" onClick={ onClose }>
-					<CloseIcon fontSize="small" />
-				</IconButton>
+				<Stack direction="row" alignItems="center" spacing={ 1.25 }>
+					{ /* No Save button on this form — the pill is the receipt. */ }
+					<SavePill status={ pillStatus } safeToClose />
+					<IconButton size="small" onClick={ onClose }>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</Stack>
 			</Stack>
 
 			<Box sx={ { p: 3, display: 'flex', flexDirection: 'column', gap: 3 } }>

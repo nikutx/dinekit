@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import { Box, Typography, Stack, Button, Menu, MenuItem, ListItemIcon } from '../ui';
-import CloudDoneIcon from '@mui/icons-material/CloudDone';
-import CloudSyncIcon from '@mui/icons-material/CloudSync';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import AddIcon from '@mui/icons-material/Add';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
@@ -10,16 +7,9 @@ import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import { tokens } from '../theme';
 import NotificationCenter from './NotificationCenter';
-
-const STATES = {
-	idle: { icon: <CloudDoneIcon sx={ { fontSize: 15 } } />, text: 'Auto-saved', fg: tokens.ink2, bg: tokens.soft },
-	saving: { icon: <CloudSyncIcon sx={ { fontSize: 15 } } />, text: 'Saving…', fg: tokens.accent, bg: tokens.accentSoft },
-	saved: { icon: <CloudDoneIcon sx={ { fontSize: 15 } } />, text: 'Saved', fg: tokens.green, bg: tokens.greenSoft },
-	error: { icon: <ErrorOutlineIcon sx={ { fontSize: 15 } } />, text: 'Save failed', fg: tokens.red, bg: tokens.redSoft },
-};
+import SavePill from './ui/SavePill';
 
 export default function Topbar( { saveStatus, title, navigate, businessType, onQuick } ) {
-	const state = STATES[ saveStatus ] || STATES.idle;
 	const [ anchor, setAnchor ] = useState( null );
 
 	// Quick captures (a phone booking, a walk-in) pop up over the CURRENT
@@ -54,15 +44,7 @@ export default function Topbar( { saveStatus, title, navigate, businessType, onQ
 
 			<Stack direction="row" spacing={ 1.5 } alignItems="center">
 				{ /* Save status pill */ }
-				<Stack
-					direction="row"
-					spacing={ 0.6 }
-					alignItems="center"
-					sx={ { color: state.fg, bgcolor: state.bg, borderRadius: 999, px: 1.25, py: 0.45 } }
-				>
-					{ state.icon }
-					<Typography sx={ { fontSize: 12, fontWeight: 550 } }>{ state.text }</Typography>
-				</Stack>
+				<SavePill status={ saveStatus } />
 
 				{ /* Notification center — actionable items, on every screen */ }
 				<NotificationCenter navigate={ navigate } />
