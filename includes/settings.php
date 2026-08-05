@@ -93,14 +93,139 @@ function venue_schema_type() {
 }
 
 /**
+ * The design keys a single menu may override. Everything else (ordering-page
+ * behaviour, business settings) stays venue-wide by design.
+ *
+ * @return array<int,string>
+ */
+function menu_design_keys() {
+	return array(
+		'template',
+		'accent',
+		'menu_ink',
+		'menu_muted',
+		'menu_line',
+		'menu_bg',
+		'menu_radius',
+		'menu_scale',
+		'menu_size_title',
+		'menu_size_name',
+		'menu_size_desc',
+		'menu_size_price',
+	);
+}
+
+const MENU_DESIGN_META = 'dinekit_menu_design';
+
+/**
+ * A menu's own design overrides — only the keys the owner actually changed for
+ * that menu, so the venue default still shows through everywhere else and a
+ * later change to the house style reaches every menu that hasn't been styled.
+ *
+ * @param int $menu_id dinekit_menu term id.
+ * @return array<string,mixed> Sparse map of design key => value.
+ */
+function menu_design( $menu_id ) {
+	$menu_id = (int) $menu_id;
+	if ( $menu_id <= 0 ) {
+		return array();
+	}
+	$raw = get_term_meta( $menu_id, MENU_DESIGN_META, true );
+	if ( is_string( $raw ) && '' !== $raw ) {
+		$raw = json_decode( $raw, true );
+	}
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	// Stored values go back through the same validation on the way out — an
+	// override written by an older version (or by hand) can't outlive the rules.
+	return menu_design_sanitize( $raw );
+}
+
+/**
+ * Save (or clear) a menu's design overrides.
+ *
+ * @param int                 $menu_id dinekit_menu term id.
+ * @param array<string,mixed> $patch   Design keys to set. A null value removes that override.
+ * @return array<string,mixed> The menu's overrides after the change.
+ */
+function save_menu_design( $menu_id, $patch ) {
+	$menu_id = (int) $menu_id;
+	if ( $menu_id <= 0 ) {
+		return array();
+	}
+	$current = menu_design( $menu_id );
+	$allowed = menu_design_keys();
+
+	foreach ( (array) $patch as $key => $value ) {
+		if ( ! in_array( $key, $allowed, true ) ) {
+			continue;
+		}
+		if ( null === $value ) {
+			unset( $current[ $key ] );   // back to the venue default
+			continue;
+		}
+		$current[ $key ] = $value;
+	}
+
+	$current = menu_design_sanitize( $current );
+	if ( $current ) {
+		update_term_meta( $menu_id, MENU_DESIGN_META, wp_slash( wp_json_encode( $current ) ) );
+	} else {
+		delete_term_meta( $menu_id, MENU_DESIGN_META );
+	}
+	return $current;
+}
+
+/**
+ * Sanitise a sparse design map without filling in defaults.
+ *
+ * @param array<string,mixed> $patch Sparse design map.
+ * @return array<string,mixed>
+ */
+function menu_design_sanitize( $patch ) {
+	$patch    = array_intersect_key( (array) $patch, array_flip( menu_design_keys() ) );
+	$clean    = sanitize( $patch );
+	$defaults = defaults();
+	$out      = array();
+
+	foreach ( $patch as $key => $raw ) {
+		$value = $clean[ $key ];
+		// sanitize() answers with the DEFAULT for anything it rejected, so a
+		// value that came back as the default when the owner sent something
+		// else was refused — store nothing rather than silently pinning the
+		// house style onto this menu.
+		$rejected = ( $value === $defaults[ $key ] ) && ( (string) $raw !== (string) $defaults[ $key ] );
+		if ( ! $rejected ) {
+			$out[ $key ] = $value;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Settings as they apply to one menu: venue defaults with that menu's own
+ * design overrides laid on top. Pass 0 for the venue-wide answer.
+ *
+ * @param int $menu_id dinekit_menu term id, or 0.
+ * @return array<string,mixed>
+ */
+function for_menu( $menu_id = 0 ) {
+	$settings = get();
+	$override = menu_design( $menu_id );
+	return $override ? array_merge( $settings, $override ) : $settings;
+}
+
+/**
  * Front-end menu CSS custom-property declarations, from the saved colours.
  * Filterable so developers can override any token: add_filter( 'dinekit_menu_style_vars', … ).
  *
  * @param string $accent_override Optional per-shortcode accent (#rrggbb) or ''.
+ * @param int    $menu_id         Optional menu whose own design should win.
  * @return string style attribute value (no quotes), may be ''.
  */
-function menu_style_vars( $accent_override = '' ) {
-	$s      = get();
+function menu_style_vars( $accent_override = '', $menu_id = 0 ) {
+	$s      = for_menu( $menu_id );
 	$accent = ( '' !== $accent_override && preg_match( '/^#[0-9a-fA-F]{6}$/', $accent_override ) ) ? $accent_override : (string) $s['accent'];
 	// Radius is structural (always applies); colours are emitted only when the
 	// venue overrides them, so the chosen template's palette shows through.
@@ -130,9 +255,10 @@ function menu_style_vars( $accent_override = '' ) {
 	/**
 	 * Filter the menu's CSS custom properties (design tokens).
 	 *
-	 * @param array<string,string> $vars Map of custom property => value.
+	 * @param array<string,string> $vars    Map of custom property => value.
+	 * @param int                  $menu_id Menu the tokens were resolved for (0 = venue-wide).
 	 */
-	$vars = (array) apply_filters( 'dinekit_menu_style_vars', $vars );
+	$vars = (array) apply_filters( 'dinekit_menu_style_vars', $vars, (int) $menu_id );
 
 	$css = '';
 	foreach ( $vars as $name => $value ) {
@@ -201,12 +327,19 @@ function get() {
 }
 
 /**
- * Sanitize + save settings.
+ * Sanitize settings without saving them.
+ *
+ * Split out from save() so the same rules can validate a single menu's design
+ * overrides — one definition of what a legal accent, template or size is, and
+ * no way for the per-menu path to drift from the venue-wide one.
+ *
+ * Returns a FULL settings array (defaults filled in), so callers wanting a
+ * sparse result must intersect against the keys they actually passed.
  *
  * @param array<string,mixed> $input Raw settings.
- * @return array<string,mixed> Saved settings.
+ * @return array<string,mixed> Clean settings.
  */
-function save( $input ) {
+function sanitize( $input ) {
 	$clean = defaults();
 
 	// Accent: a hex sets an override, empty string clears it (back to template).
@@ -265,6 +398,17 @@ function save( $input ) {
 		}
 	}
 
+	return $clean;
+}
+
+/**
+ * Sanitize + save settings.
+ *
+ * @param array<string,mixed> $input Raw settings.
+ * @return array<string,mixed> Saved settings.
+ */
+function save( $input ) {
+	$clean = sanitize( $input );
 	update_option( OPTION, $clean );
 	return $clean;
 }

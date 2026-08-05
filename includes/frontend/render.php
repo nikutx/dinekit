@@ -140,7 +140,7 @@ function menu( $args = array() ) {
 		$menu_status = \DineKit\Menus\status( (int) $args['menu'] );
 		if ( 'coming' === $menu_status['state'] ) {
 			$term  = get_term( (int) $args['menu'], 'dinekit_menu' );
-			$style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' );
+			$style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '', (int) $args['menu'] );
 			return '<div class="dinekit-menu dinekit-coming"' . ( $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . '>' .
 				'<div class="dinekit-coming__card">' .
 				'<span class="dinekit-coming__badge">' . esc_html__( 'Coming soon', 'dinekit' ) . '</span>' .
@@ -164,9 +164,13 @@ function menu( $args = array() ) {
 	$filter_style = in_array( $args['filter_style'], array( 'chips', 'dropdown' ), true ) ? $args['filter_style'] : 'chips';
 	// Normalised once and read back inside render_item().
 	$args['allergen_display'] = in_array( $args['allergen_display'], array( 'icons', 'text', 'codes' ), true ) ? $args['allergen_display'] : 'icons';
-	$template                 = ! empty( $args['template'] ) ? (string) $args['template'] : \DineKit\Settings\get()['template'];
-	$template                 = in_array( $template, \DineKit\Settings\templates(), true ) ? $template : 'maison';
-	$tpl_class                = ' dinekit-menu--tpl-' . $template;
+	// Template resolution, most specific first: an explicit shortcode/block
+	// attribute, then this menu's own design, then the venue default.
+	$menu_id   = isset( $args['menu'] ) ? (int) $args['menu'] : 0;
+	$resolved  = \DineKit\Settings\for_menu( $menu_id );
+	$template  = ! empty( $args['template'] ) ? (string) $args['template'] : (string) $resolved['template'];
+	$template  = in_array( $template, \DineKit\Settings\templates(), true ) ? $template : 'maison';
+	$tpl_class = ' dinekit-menu--tpl-' . $template;
 
 	$groups = $structure['sections'];
 	if ( $structure['loose'] ) {
@@ -178,7 +182,7 @@ function menu( $args = array() ) {
 
 	ob_start();
 	?>
-	<?php $style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '' ); ?>
+	<?php $style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '', $menu_id ); ?>
 	<div
 		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?><?php echo esc_attr( $tpl_class ); ?>"
 		<?php echo $style ? 'style="' . esc_attr( $style ) . '"' : ''; ?>

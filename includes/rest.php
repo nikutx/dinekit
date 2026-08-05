@@ -255,6 +255,26 @@ function register_routes() {
 		)
 	);
 
+	// A single menu's own look. GET answers with both the sparse overrides and
+	// the resolved result, so the Studio can show "this menu" while still
+	// marking which values are inherited from the venue default.
+	register_rest_route(
+		'dinekit/v1',
+		'/menus/(?P<id>\d+)/design',
+		array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => __NAMESPACE__ . '\\get_menu_design',
+				'permission_callback' => __NAMESPACE__ . '\\can_edit',
+			),
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => __NAMESPACE__ . '\\save_menu_design',
+				'permission_callback' => __NAMESPACE__ . '\\can_manage_settings',
+			),
+		)
+	);
+
 	register_rest_route(
 		'dinekit/v1',
 		'/integrations',
@@ -477,6 +497,72 @@ function get_settings() {
 }
 
 /**
+ * GET /menus/:id/design — this menu's own look.
+ *
+ * `overrides` is only what was changed for this menu; `resolved` is what the
+ * public page will actually use. The Studio needs both: one to show which
+ * controls are inherited, the other to render the preview honestly.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response
+ */
+function get_menu_design( $request ) {
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	$menu_id = (int) $request['id'];
+	return rest_ensure_response(
+		array(
+			'menu'      => $menu_id,
+			'overrides' => (object) \DineKit\Settings\menu_design( $menu_id ),
+			'resolved'  => \DineKit\Settings\for_menu( $menu_id ),
+			'keys'      => \DineKit\Settings\menu_design_keys(),
+		)
+	);
+}
+
+/**
+ * PATCH /menus/:id/design — set or clear this menu's overrides.
+ *
+ * Send a design key with a null value to drop the override and go back to the
+ * venue default; send `reset: true` to clear the whole menu's styling.
+ *
+ * @param \WP_REST_Request $request Request.
+ * @return \WP_REST_Response|\WP_Error
+ */
+function save_menu_design( $request ) {
+	require_once DINEKIT_DIR . 'includes/settings.php';
+	$menu_id = (int) $request['id'];
+	$term    = get_term( $menu_id, 'dinekit_menu' );
+	if ( ! $term || is_wp_error( $term ) ) {
+		return new \WP_Error( 'dinekit_no_menu', __( 'That menu no longer exists.', 'dinekit' ), array( 'status' => 404 ) );
+	}
+
+	if ( $request->get_param( 'reset' ) ) {
+		delete_term_meta( $menu_id, \DineKit\Settings\MENU_DESIGN_META );
+		return rest_ensure_response(
+			array(
+				'menu'      => $menu_id,
+				'overrides' => (object) array(),
+				'resolved'  => \DineKit\Settings\for_menu( $menu_id ),
+			)
+		);
+	}
+
+	$patch = $request->get_param( 'design' );
+	if ( ! is_array( $patch ) ) {
+		$patch = array_intersect_key( (array) $request->get_json_params(), array_flip( \DineKit\Settings\menu_design_keys() ) );
+	}
+	$overrides = \DineKit\Settings\save_menu_design( $menu_id, $patch );
+
+	return rest_ensure_response(
+		array(
+			'menu'      => $menu_id,
+			'overrides' => (object) $overrides,
+			'resolved'  => \DineKit\Settings\for_menu( $menu_id ),
+		)
+	);
+}
+
+/**
  * POST /settings — save plugin settings.
  *
  * @param \WP_REST_Request $request Request.
@@ -585,6 +671,10 @@ function get_preview( $request ) {
 	};
 	$html   = \DineKit\Render\menu(
 		array(
+			// Which menu is being previewed — without this the preview always
+			// showed the whole card deck in the venue's default look, so a
+			// single menu's own design could never be seen before publishing.
+			'menu'             => (int) $request->get_param( 'menu' ),
 			'layout'           => (string) $request->get_param( 'layout' ),
 			'columns'          => (int) $request->get_param( 'columns' ),
 			'template'         => sanitize_key( (string) $request->get_param( 'template' ) ),
