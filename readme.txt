@@ -129,6 +129,8 @@ DineKit's optional **direct support** feature (DineKit → Support) sends your s
 
 If you prefer not to use direct support, the Support screen also links to the plugin's free forum at https://wordpress.org/support/plugin/dinekit/ — using the forum sends nothing to Web Level Up. Web Level Up privacy policy: https://weblevelup.co.uk/privacy-policy/
 
+When you deactivate DineKit, an optional questionnaire asks why, so a free plugin can learn what it got wrong. **Answering is entirely voluntary and nothing is sent unless you choose an answer and press "Send & deactivate"** — choosing "Skip & deactivate" contacts nobody, and deactivation always goes ahead either way. If you do send it, DineKit transmits to Web Level Up at https://weblevelup.co.uk: the answer you picked and anything you typed in the box; your DineKit, WordPress and PHP version numbers; and how far you got with the plugin (days installed, and how many menus, dishes, orders and bookings you had — counts only, never your menu content, your customers or your takings). Your email address and site address are included only if you tick "You can email me about this". The dialog lists all of this before you send. Web Level Up privacy policy: https://weblevelup.co.uk/privacy-policy/
+
 == Development ==
 
 DineKit is open source (GPLv2+). The complete human-readable source — including the React admin application and the build tooling used to generate the bundled `dist/main.js` — is publicly available and maintained at:

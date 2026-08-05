@@ -126,6 +126,9 @@ final class Plugin {
 		if ( $this->load( 'plugin-review.php' ) ) {
 			PluginReview\init();
 		}
+		if ( $this->load( 'leaving.php' ) ) {
+			Leaving\init();
+		}
 		if ( $this->load( 'notifications.php' ) ) {
 			Notifications\init();
 		}
