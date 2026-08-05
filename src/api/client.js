@@ -154,6 +154,12 @@ export const api = {
 	createSetupPage: ( type ) => request( 'POST', 'setup-page', { type } ),
 	getPreview: ( params ) => request( 'GET', 'preview?' + new URLSearchParams( params ).toString() ),
 	getSettings: () => request( 'GET', 'settings' ),
+	// A single menu's own look. `overrides` = what this menu changed; `resolved`
+	// = what the public page will actually use. Send a key as null to drop the
+	// override and go back to the venue default.
+	getMenuDesign: ( id ) => request( 'GET', `menus/${ id }/design` ),
+	saveMenuDesign: ( id, design ) => request( 'PATCH', `menus/${ id }/design`, { design } ),
+	resetMenuDesign: ( id ) => request( 'PATCH', `menus/${ id }/design`, { reset: true } ),
 	saveSettings: ( settings ) => request( 'POST', 'settings', settings ),
 	getAccess: () => request( 'GET', 'access' ),
 	saveAccess: ( matrix ) => request( 'POST', 'access', { matrix } ),

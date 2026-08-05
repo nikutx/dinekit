@@ -11,6 +11,9 @@ import {
 	TextField,
 	Slider,
 	CircularProgress,
+	Select,
+	MenuItem,
+	Chip,
 } from '../ui';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CloseIcon from '@mui/icons-material/Close';
@@ -117,36 +120,101 @@ export default function DesignView() {
 	const [ design, setDesign ] = useState( null );
 	const [ selected, setSelected ] = useState( null ); // ROLES key or null
 	const [ hovered, setHovered ] = useState( null );
+	// What is being styled: 0 = the venue's house style (every menu that hasn't
+	// been styled follows it), or a menu id = just that menu.
+	const [ scope, setScope ] = useState( 0 );
+	const [ menus, setMenus ] = useState( [] );
+	// Which keys this menu overrides — so the rail can say what's inherited.
+	const [ overrides, setOverrides ] = useState( {} );
 	const iframeRef = useRef( null );
 	const designRef = useRef( null );
 	const selectedRef = useRef( null );
 	const dsave = useRef( null );
 	const toast = useToast();
 
+	// The menu list, for the "what am I styling?" picker.
 	useEffect( () => {
-		api.getSettings().then( ( s ) => {
-			const d = {
-				template: s.template || 'signature',
-				// Empty = "use the template's colour" (an override only when set).
-				accent: s.accent || '',
-				menu_ink: s.menu_ink || '',
-				menu_muted: s.menu_muted || '',
-				menu_line: s.menu_line || '',
-				menu_bg: s.menu_bg || '',
-				menu_radius: s.menu_radius != null ? s.menu_radius : 12,
-				menu_scale: s.menu_scale != null ? Number( s.menu_scale ) : 1,
-			};
-			SIZE_KEYS.forEach( ( k ) => ( d[ k ] = s[ k ] != null ? Number( s[ k ] ) : 1 ) );
-			setDesign( d );
-		} );
+		api.getState().then( ( st ) => setMenus( st.menus || [] ) ).catch( () => setMenus( [] ) );
 	}, [] );
+
+	const shapeDesign = ( s ) => {
+		const d = {
+			template: s.template || 'signature',
+			// Empty = "use the template's colour" (an override only when set).
+			accent: s.accent || '',
+			menu_ink: s.menu_ink || '',
+			menu_muted: s.menu_muted || '',
+			menu_line: s.menu_line || '',
+			menu_bg: s.menu_bg || '',
+			menu_radius: s.menu_radius != null ? s.menu_radius : 12,
+			menu_scale: s.menu_scale != null ? Number( s.menu_scale ) : 1,
+		};
+		SIZE_KEYS.forEach( ( k ) => ( d[ k ] = s[ k ] != null ? Number( s[ k ] ) : 1 ) );
+		return d;
+	};
+
+	// Load whatever the current scope is: the house style, or one menu's own
+	// look (resolved, so inherited values still show in the controls).
+	useEffect( () => {
+		let alive = true;
+		if ( ! scope ) {
+			api.getSettings().then( ( s ) => {
+				if ( alive ) {
+					setDesign( shapeDesign( s ) );
+					setOverrides( {} );
+				}
+			} );
+		} else {
+			api.getMenuDesign( scope ).then( ( res ) => {
+				if ( alive ) {
+					setDesign( shapeDesign( res.resolved || {} ) );
+					setOverrides( res.overrides || {} );
+				}
+			} );
+		}
+		return () => {
+			alive = false;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ scope ] );
 
 	const patchDesign = ( p ) => {
 		const next = { ...design, ...p };
 		setDesign( next );
+		if ( scope ) {
+			// Only the keys actually touched become this menu's overrides —
+			// everything else keeps following the house style.
+			setOverrides( ( o ) => ( { ...o, ...p } ) );
+		}
 		clearTimeout( dsave.current );
-		dsave.current = setTimeout( () => api.saveSettings( next ), 500 );
+		dsave.current = setTimeout(
+			() => ( scope ? api.saveMenuDesign( scope, p ) : api.saveSettings( next ) ),
+			500
+		);
 	};
+
+	// Hand one setting back to the house style.
+	const inheritKey = async ( key ) => {
+		if ( ! scope ) {
+			return;
+		}
+		const res = await api.saveMenuDesign( scope, { [ key ]: null } );
+		setOverrides( res.overrides || {} );
+		setDesign( shapeDesign( res.resolved || {} ) );
+	};
+
+	// Hand the whole menu back.
+	const resetScope = async () => {
+		if ( ! scope ) {
+			return;
+		}
+		const res = await api.resetMenuDesign( scope );
+		setOverrides( {} );
+		setDesign( shapeDesign( res.resolved || {} ) );
+		toast.success( 'Back to your house style', 'This menu follows the venue design again.' );
+	};
+
+	const scopeName = ( menus.find( ( m ) => m.id === scope ) || {} ).name || '';
 
 	// Apply a one-click look: saved template + the layout controls in one tap.
 	const applyPreset = ( p ) => {
@@ -175,6 +243,9 @@ export default function DesignView() {
 	const template = design ? design.template : 'signature';
 	const params = useMemo(
 		() => ( {
+			// Preview exactly what's being styled — the whole card deck for the
+			// house style, or just this menu when one is selected.
+			menu: scope || '',
 			layout,
 			columns,
 			template,
@@ -186,7 +257,7 @@ export default function DesignView() {
 			filter_style: filterStyle,
 			allergen_display: allergensAs,
 		} ),
-		[ layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs, template ]
+		[ scope, layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs, template ]
 	);
 
 	useEffect( () => {
@@ -205,6 +276,11 @@ export default function DesignView() {
 
 	const shortcode = useMemo( () => {
 		const parts = [ 'dinekit_menu' ];
+		// A menu-scoped design only makes sense on a shortcode that asks for
+		// that menu — otherwise the page renders everything in the house style.
+		if ( scope ) {
+			parts.push( `menu="${ scope }"` );
+		}
 		if ( layout !== 'list' ) {
 			parts.push( `layout="${ layout }"` );
 		}
@@ -233,7 +309,7 @@ export default function DesignView() {
 			parts.push( `allergens_as="${ allergensAs }"` );
 		}
 		return `[${ parts.join( ' ' ) }]`;
-	}, [ layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs ] );
+	}, [ scope, layout, columns, images, allergens, dietary, matrix, filter, filterStyle, allergensAs ] );
 
 	// ---- Live iframe plumbing -------------------------------------------------
 
@@ -465,6 +541,43 @@ export default function DesignView() {
 			<Stack direction="row" spacing={ 2.5 } alignItems="stretch">
 				{ /* ---- Left rail: contextual panel + global controls ---- */ }
 				<Box sx={ { width: 340, flexShrink: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', minHeight: 560, pr: 0.5 } }>
+					{ /* What am I styling? The house style, or one menu. */ }
+					<Card sx={ { p: 1.5, mb: 2 } }>
+						<Typography sx={ { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tokens.muted2, mb: 0.75 } }>
+							Styling
+						</Typography>
+						<Select
+							value={ String( scope ) }
+							onChange={ ( e ) => setScope( Number( e.target.value ) ) }
+							size="small"
+							fullWidth
+						>
+							<MenuItem value="0">Your house style (all menus)</MenuItem>
+							{ menus.map( ( m ) => (
+								<MenuItem key={ m.id } value={ String( m.id ) }>
+									Just “{ m.name }”
+								</MenuItem>
+							) ) }
+						</Select>
+						<Typography sx={ { fontSize: 12, color: tokens.muted, mt: 0.75 } }>
+							{ scope
+								? `Changes here apply to “${ scopeName }” only. Anything you don’t change follows your house style — including later changes to it.`
+								: 'Your default look. Every menu you haven’t styled separately follows this.' }
+						</Typography>
+						{ scope && Object.keys( overrides ).length > 0 && (
+							<Stack direction="row" alignItems="center" spacing={ 1 } sx={ { mt: 1 } }>
+								<Chip
+									size="small"
+									label={ `${ Object.keys( overrides ).length } own setting${ Object.keys( overrides ).length === 1 ? '' : 's' }` }
+									sx={ { bgcolor: tokens.accentSoft, color: tokens.accentDark, fontWeight: 600 } }
+								/>
+								<Button size="small" variant="text" onClick={ resetScope } sx={ { color: tokens.muted } }>
+									Use my house style
+								</Button>
+							</Stack>
+						) }
+					</Card>
+
 					{ selectedPanel }
 
 					{ ! selectedRole && (
@@ -520,6 +633,8 @@ export default function DesignView() {
 								{ TEMPLATES.map( ( t ) => (
 									<Box
 										key={ t.value }
+										className="dk-template-swatch"
+										data-template={ t.value }
 										onClick={ () => patchDesign( { template: t.value } ) }
 										sx={ {
 											px: 1.5,
