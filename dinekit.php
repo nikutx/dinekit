@@ -123,6 +123,7 @@ register_deactivation_hook(
 		wp_clear_scheduled_hook( 'dinekit_review_cron' );
 		wp_clear_scheduled_hook( 'dinekit_sms_cron' );
 		wp_clear_scheduled_hook( 'dinekit_support_cron' );
+		wp_clear_scheduled_hook( 'dinekit_welcome_email' );
 		wp_clear_scheduled_hook( 'dinekit_daily_sweep' );
 		flush_rewrite_rules();
 	}

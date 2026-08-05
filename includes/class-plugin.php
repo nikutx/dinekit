@@ -129,6 +129,9 @@ final class Plugin {
 		if ( $this->load( 'leaving.php' ) ) {
 			Leaving\init();
 		}
+		if ( $this->load( 'welcome-email.php' ) ) {
+			WelcomeEmail\init();
+		}
 		if ( $this->load( 'notifications.php' ) ) {
 			Notifications\init();
 		}
