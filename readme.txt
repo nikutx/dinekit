@@ -158,6 +158,17 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Changelog ==
 
+= 1.2.18 =
+* New: a blank menu now starts you off instead of staring back — one screen with three ways in: add your first dish, set up Starters/Mains/Desserts in one tap, or import a spreadsheet. Search, the spreadsheet tools and the section adder stay out of the way until you have something to manage.
+* New: "Add dish" follows you down a long menu — a small bar with your dish count and the button, which retires when you scroll back to the top.
+* New: renaming a section is finally obvious — every group shows a pencil next to its dish count; tap it (or the name) and the field opens ready to type. Enter or clicking away saves, Esc cancels.
+* New: the group of dishes that aren't in a section is now called "Your dishes" (or "Other dishes" once you have sections) instead of "Unsectioned", and it explains that naming it turns it into a real section.
+* New: the dish window tells you when it's saved — "Saving..." while your typing goes in, then "Saved - safe to close". No more guessing whether you can shut it.
+* New: a hello when you install — twenty minutes after switching DineKit on, your site sends you one short note from the person who builds it, with a direct address to reply to if anything doesn't work or your venue needs something DineKit doesn't do yet. One email, once, never on a staging or local copy.
+* New: deactivating DineKit asks why, in one optional dialog, with an offer of help on the answers we can do something about. Nothing is sent unless you choose an answer and press send - skipping sends nothing at all, and it's anonymous unless you ask to be contacted.
+* Fix: adding a dish and closing the window without typing anything no longer leaves a nameless dish on your menu and your public page - it's simply binned. Anything you did enter is still archived, never destroyed.
+* Fix: sections say "3 dishes" and "Add dish" instead of "items", so the wording matches everywhere.
+
 = 1.2.17 =
 * New: sections can carry a photo and a video — a new photo/video button on each section in the Menu Builder puts a banner image, a short video (YouTube, Vimeo or an uploaded file), or both under that section's heading on your public menu. Suggested by a real venue running their menu on DineKit.
 * New: one-click looks in the Design Studio — a preset applies a whole style in one tap (template, layout and photos together). Launching with Gallery (photo-first cards for BBQ, burgers and brunch), Classic list, and Chalk wall; more get added as real venues suggest them.
