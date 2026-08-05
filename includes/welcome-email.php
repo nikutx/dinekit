@@ -9,10 +9,15 @@
  * signup. Replies go to a real human via Reply-To.
  *
  * Deliverability note: the From address deliberately stays on the site's own
- * domain (WordPress's default). Putting a weblevelup.co.uk address in From
- * would be a different domain than the sending server, which SPF/DMARC treats
- * as forgery and spam filters bin. The name is ours, the address is theirs, and
- * Reply-To carries the conversation back to us — which is the part that matters.
+ * domain (WordPress's default), and whatever mail setup the venue already uses
+ * carries it. Putting a weblevelup.co.uk address in From would be a different
+ * domain than the sending server, which SPF/DMARC treats as forgery and spam
+ * filters bin.
+ *
+ * Reply-To points at a real person — but plenty of sites run an SMTP plugin
+ * that rewrites From and can strip Reply-To, which would silently route
+ * replies into the venue's own mailbox where nobody reads them. So the address
+ * is written into the body as well: headers can be rewritten, the words can't.
  *
  * Guards: exactly one email per site, ever; never on local, development or
  * staging installs; sent on a short delay so it lands after the owner has had a
@@ -107,7 +112,7 @@ function body( $greeting_name = '' ) {
 		'',
 		'It\'s free, and it stays free: no subscription, no per-cover fee, and 0% commission on your orders. What you take, you keep.',
 		'',
-		'If anything doesn\'t work or doesn\'t make sense, just reply to this email. It comes to me, and I answer it myself — most things turn out to be a five-minute fix. If there\'s something your venue needs that DineKit doesn\'t do yet, tell me that too: the last few releases came almost entirely from restaurants asking.',
+		'If anything doesn\'t work or doesn\'t make sense, just reply to this email — or write to me directly at ' . REPLYTO . '. Either way it comes to me, and I answer it myself; most things turn out to be a five-minute fix. If there\'s something your venue needs that DineKit doesn\'t do yet, tell me that too: the last few releases came almost entirely from restaurants asking.',
 		'',
 		'Good luck with service.',
 		'',
