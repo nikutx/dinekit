@@ -70,8 +70,11 @@ const NAV = [
 	{ key: 'builder', label: 'Menu Builder', icon: <RestaurantMenuIcon fontSize="small" /> },
 	{ key: 'design', label: 'Design & Preview', icon: <PaletteIcon fontSize="small" /> },
 	{ key: 'qr', label: 'QR Code', icon: <QrCode2Icon fontSize="small" /> },
-	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
 	{ group: 'Setup' },
+	// Hours live under Setup, not Menu: they describe the venue (bookings,
+	// ordering cutoffs, the open/closed banner) — a reviewer read "Opening
+	// Hours inside Menu" as a filing mistake, and he had a point.
+	{ key: 'hours', label: 'Opening Hours', icon: <ScheduleIcon fontSize="small" /> },
 	{ key: 'integrations', label: 'Integrations', icon: <ExtensionIcon fontSize="small" /> },
 	{ key: 'emails', label: 'Emails', icon: <MailOutlineIcon fontSize="small" /> },
 	{ key: 'access', label: 'Access Control', icon: <LockIcon fontSize="small" /> },
@@ -123,7 +126,24 @@ function visibleNav( businessType, caps ) {
 export default function App() {
 	const { view, itemId, navigate } = useRoute();
 	const store = useDineKit();
-	const [ navCollapsed, setNavCollapsed ] = useState( false );
+	// Collapsed is a preference, not a session whim — remember it.
+	const [ navCollapsed, setNavCollapsed ] = useState( () => {
+		try {
+			return '1' === window.localStorage.getItem( 'dinekitNavCollapsed' );
+		} catch ( e ) {
+			return false;
+		}
+	} );
+	const toggleNavCollapsed = () => {
+		setNavCollapsed( ( v ) => {
+			try {
+				window.localStorage.setItem( 'dinekitNavCollapsed', v ? '0' : '1' );
+			} catch ( e ) {
+				// Private-mode storage failures just lose the preference.
+			}
+			return ! v;
+		} );
+	};
 	// Global quick-capture from the "+ New" button: pops the booking/walk-in
 	// form over WHATEVER screen is open (phone rings mid-floor-plan), then
 	// drops you back exactly where you were.
@@ -147,6 +167,26 @@ export default function App() {
 		startSync();
 	}, [] );
 
+	// Keep wp-admin's own DineKit submenu highlighting the current screen.
+	// WordPress can only mark the entry the page LOADED on; after that the
+	// route changes client-side (hash), so the sidebar is synced from here.
+	useEffect( () => {
+		const menu = document.getElementById( 'toplevel_page_dinekit' );
+		if ( ! menu ) {
+			return; // Standalone/PWA shell — no wp-admin chrome to sync.
+		}
+		menu.querySelectorAll( '.wp-submenu li' ).forEach( ( li ) => {
+			const link = li.querySelector( 'a' );
+			if ( ! link ) {
+				return;
+			}
+			const hash = ( link.getAttribute( 'href' ) || '' ).split( '#' )[ 1 ];
+			const target = hash ? hash.replace( /^\//, '' ) : 'home';
+			li.classList.toggle( 'current', target === view );
+			link.classList.toggle( 'current', target === view );
+		} );
+	}, [ view ] );
+
 	// First run: guide the owner through the setup wizard before anything else.
 	if ( ! store.loading && store.data && ! store.data.onboarded ) {
 		return (
@@ -169,7 +209,7 @@ export default function App() {
 				view={ activeView }
 				onChange={ ( key ) => navigate( key ) }
 				collapsed={ navCollapsed }
-				onToggleCollapse={ () => setNavCollapsed( ( v ) => ! v ) }
+				onToggleCollapse={ toggleNavCollapsed }
 			/>
 
 			<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>

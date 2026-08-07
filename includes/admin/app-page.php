@@ -81,6 +81,31 @@ function register_page() {
 		'dashicons-food',
 		26
 	);
+
+	// The app's main destinations, mirrored as native WP submenu links so
+	// DineKit navigates like every other plugin. Each slug after the first is
+	// the page slug plus a hash route: WordPress prints it verbatim, so from
+	// anywhere in wp-admin the link loads the app on the right screen — and
+	// from inside the app only the hash changes, which is instant. A curated
+	// set, not every screen: the app's own sidebar remains the full map.
+	$destinations = array(
+		array( __( 'Dashboard', 'dinekit' ), 'dinekit' ),
+		array( __( 'Bookings', 'dinekit' ), 'dinekit#/bookings' ),
+		array( __( 'Orders', 'dinekit' ), 'dinekit#/orders' ),
+		array( __( 'Take Order', 'dinekit' ), 'dinekit#/pos' ),
+		array( __( 'Kitchen Display', 'dinekit' ), 'dinekit#/kds' ),
+		array( __( 'Menu Builder', 'dinekit' ), 'dinekit#/builder' ),
+		array( __( 'Design Studio', 'dinekit' ), 'dinekit#/design' ),
+		array( __( 'Guests', 'dinekit' ), 'dinekit#/guests' ),
+		array( __( 'Staff', 'dinekit' ), 'dinekit#/staff' ),
+		array( __( 'Settings', 'dinekit' ), 'dinekit#/settings' ),
+	);
+	foreach ( $destinations as $dest ) {
+		// Every entry registers the render callback: WordPress only builds an
+		// admin.php?page=… link for slugs with a page hook. The browser keeps
+		// the #route client-side, so the server always loads page=dinekit.
+		add_submenu_page( 'dinekit', $dest[0], $dest[0], 'dinekit_access', $dest[1], __NAMESPACE__ . '\\render' );
+	}
 }
 
 /**

@@ -34,4 +34,12 @@
 			</property>
 		</properties>
 	</rule>
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<!-- Granted in includes/access.php (user_has_cap + role add_cap). -->
+			<property name="custom_capabilities" type="array">
+				<element value="dinekit_access"/>
+			</property>
+		</properties>
+	</rule>
 </ruleset>
