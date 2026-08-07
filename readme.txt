@@ -158,6 +158,19 @@ To build the admin app from source: `npm install` then `npm run build` (Vite). S
 
 == Changelog ==
 
+= 1.2.19 =
+* Fix: restyling no longer wipes your settings — changing anything in the Design Studio could silently reset your currency to £ and blank your restaurant address. Saving one setting now leaves every other setting exactly as it was. (Reported by a live venue — thank you, John.)
+* New: DineKit now lives in the normal WordPress menu — hover it in the sidebar and every screen is there, with icons, one click from anywhere in WordPress. Inside wp-admin the app no longer draws its own second menu; what you see follows your role and business type.
+* New: every menu can carry its own look — Lunch as a clean list, Christmas as a dark poster — while unstyled menus keep following your house style. The Design Studio opens with a picker: your house style, or one menu.
+* New: click a section photo in the Design Studio and choose Short banner, Standard or Full image — a huge photo no longer swallows the menu.
+* New: colour by badge — click a badge in the Design Studio and Seasonal, Must try and friends each get their own tone instead of all wearing the accent. On every template, including the dark ones.
+* New: a pressable Save & close in the dish and team-member windows, for anyone who doesn't trust a form without one — it saves anything half-typed immediately, then closes. The team-member window also gains the Saving/Saved indicator.
+* Fix: in the photo card grid, the photo now fills the top of its card edge to edge on every template, and card text sets a little tighter.
+* Fix: you can change your order on a phone — checkout lines now carry minus/plus and Remove at every screen size, totals update as you tap, and what you typed into the form stays put.
+* Fix: letters typed into a price box now say so ("Numbers only — like 8.50") instead of quietly vanishing on reload.
+* Fix: the save message no longer shows twice on Settings — the pill in the top bar is the one voice.
+* Fix: the review-request consent wording you set in Reviews now actually appears on the booking form, at the moment the email is collected — the way UK soft opt-in is supposed to work.
+
 = 1.2.18 =
 * New: a blank menu now starts you off instead of staring back — one screen with three ways in: add your first dish, set up Starters/Mains/Desserts in one tap, or import a spreadsheet. Search, the spreadsheet tools and the section adder stay out of the way until you have something to manage.
 * New: "Add dish" follows you down a long menu — a small bar with your dish count and the button, which retires when you scroll back to the top.

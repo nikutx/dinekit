@@ -2,20 +2,22 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: DineKit 1.2.17\n"
+"Project-Id-Version: DineKit 1.2.18\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/app\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-05T00:59:29+00:00\n"
+"POT-Creation-Date: 2026-08-07T17:53:44+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: dinekit\n"
 
 #. Plugin Name of the plugin
 #: dinekit.php
+#: includes/admin-page.php:77
+#: includes/admin-page.php:78
 #: includes/post-types.php:35
 #: includes/pwa.php:216
 msgid "DineKit"
@@ -53,6 +55,7 @@ msgstr ""
 
 #: includes/access.php:97
 #: includes/activity.php:37
+#: includes/admin-page.php:148
 #: includes/ordering/ordering.php:309
 msgid "Orders"
 msgstr ""
@@ -86,6 +89,7 @@ msgid "Refunds & voids"
 msgstr ""
 
 #: includes/activity.php:38
+#: includes/admin-page.php:135
 #: includes/bookings/register.php:236
 msgid "Bookings"
 msgstr ""
@@ -120,6 +124,103 @@ msgstr ""
 msgid "%s signed in"
 msgstr ""
 
+#: includes/admin/admin.php:37
+msgid "Price"
+msgstr ""
+
+#: includes/admin-page.php:62
+msgid "Want it set up for you?"
+msgstr ""
+
+#: includes/admin-page.php:63
+msgid "Short on time? Web Level Up can build and style your whole menu for you."
+msgstr ""
+
+#: includes/admin-page.php:65
+msgid "Get done-for-you setup →"
+msgstr ""
+
+#: includes/admin-page.php:123
+msgid "Home"
+msgstr ""
+
+#: includes/admin-page.php:129
+msgid "Reports"
+msgstr ""
+
+#: includes/admin-page.php:142
+msgid "Floor Plan"
+msgstr ""
+
+#: includes/admin-page.php:154
+msgid "Kitchen Display"
+msgstr ""
+
+#: includes/admin-page.php:160
+msgid "Take Order"
+msgstr ""
+
+#: includes/admin-page.php:166
+#: includes/events/events.php:51
+msgid "Events"
+msgstr ""
+
+#: includes/admin-page.php:172
+#: includes/bookings/emails.php:82
+#: includes/bookings/form.php:139
+#: includes/emails.php:248
+msgid "Guests"
+msgstr ""
+
+#: includes/admin-page.php:178
+msgid "Reviews"
+msgstr ""
+
+#: includes/admin-page.php:184
+#: includes/staff.php:227
+msgid "Staff"
+msgstr ""
+
+#: includes/admin-page.php:190
+msgid "Menu Builder"
+msgstr ""
+
+#: includes/admin-page.php:197
+msgid "Design & Preview"
+msgstr ""
+
+#: includes/admin-page.php:203
+msgid "QR Code"
+msgstr ""
+
+#: includes/admin-page.php:209
+msgid "Opening Hours"
+msgstr ""
+
+#: includes/admin-page.php:216
+msgid "Integrations"
+msgstr ""
+
+#: includes/admin-page.php:222
+msgid "Emails"
+msgstr ""
+
+#: includes/admin-page.php:228
+msgid "Access Control"
+msgstr ""
+
+#: includes/admin-page.php:234
+msgid "Activity"
+msgstr ""
+
+#: includes/admin-page.php:240
+msgid "Settings"
+msgstr ""
+
+#: includes/admin-page.php:246
+msgid "Support"
+msgstr ""
+
 #: includes/bookings/emails.php:79
 #: includes/bookings/form.php:148
 #: includes/emails.php:245
@@ -144,12 +245,6 @@ msgstr ""
 #: includes/emails.php:247
 #: includes/privacy.php:163
 msgid "Time"
-msgstr ""
-
-#: includes/bookings/emails.php:82
-#: includes/bookings/form.php:139
-#: includes/emails.php:248
-msgid "Guests"
 msgstr ""
 
 #: includes/bookings/emails.php:85
@@ -215,6 +310,7 @@ msgstr ""
 
 #: includes/bookings/form.php:40
 #: includes/bookings/register.php:75
+#: assets/block/booking-editor.js:28
 msgid "Book a table"
 msgstr ""
 
@@ -343,11 +439,11 @@ msgstr ""
 msgid "Leave this field empty"
 msgstr ""
 
-#: includes/bookings/form.php:176
+#: includes/bookings/form.php:188
 msgid "Request booking"
 msgstr ""
 
-#: includes/bookings/form.php:176
+#: includes/bookings/form.php:188
 msgid "Book now"
 msgstr ""
 
@@ -477,8 +573,8 @@ msgid "A combination needs at least two tables."
 msgstr ""
 
 #: includes/bookings/rest.php:494
-#: includes/rest.php:1578
-#: includes/rest.php:1620
+#: includes/rest.php:1668
+#: includes/rest.php:1710
 msgid "A name is required."
 msgstr ""
 
@@ -683,10 +779,6 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: includes/events/events.php:51
-msgid "Events"
-msgstr ""
-
 #: includes/events/events.php:52
 msgid "Event"
 msgstr ""
@@ -817,101 +909,101 @@ msgstr ""
 msgid "No menu items to show yet."
 msgstr ""
 
-#: includes/frontend/render.php:217
+#: includes/frontend/render.php:224
 msgid "No dishes match your filters."
 msgstr ""
 
-#: includes/frontend/render.php:274
-#: includes/frontend/render.php:277
+#: includes/frontend/render.php:294
+#: includes/frontend/render.php:297
 msgid "Section video"
 msgstr ""
 
-#: includes/frontend/render.php:349
+#: includes/frontend/render.php:369
 #: includes/ordering/form.php:81
 msgid "Currently unavailable"
 msgstr ""
 
 #. translators: %d: calorie count.
-#: includes/frontend/render.php:370
+#: includes/frontend/render.php:390
 #, php-format
 msgid "%d kcal"
 msgstr ""
 
-#: includes/frontend/render.php:398
+#: includes/frontend/render.php:418
 #: includes/post-types.php:117
 msgid "Allergens"
 msgstr ""
 
 #. translators: 1: dishes shown, 2: total dishes.
-#: includes/frontend/render.php:490
+#: includes/frontend/render.php:510
 #, php-format
 msgid "Showing %1$s of %2$s dishes"
 msgstr ""
 
-#: includes/frontend/render.php:504
-#: includes/frontend/render.php:505
-#: includes/frontend/render.php:540
+#: includes/frontend/render.php:524
+#: includes/frontend/render.php:525
+#: includes/frontend/render.php:560
 msgid "Show only"
 msgstr ""
 
-#: includes/frontend/render.php:520
-#: includes/frontend/render.php:521
+#: includes/frontend/render.php:540
+#: includes/frontend/render.php:541
 msgid "Avoid allergens"
 msgstr ""
 
-#: includes/frontend/render.php:536
-#: includes/frontend/render.php:560
+#: includes/frontend/render.php:556
+#: includes/frontend/render.php:580
 msgid "Clear filters"
 msgstr ""
 
-#: includes/frontend/render.php:551
+#: includes/frontend/render.php:571
 msgid "Avoid"
 msgstr ""
 
-#: includes/frontend/render.php:648
+#: includes/frontend/render.php:668
 #: includes/ordering/form.php:145
 #: includes/ordering/ordering.php:262
 msgid "Order online"
 msgstr ""
 
-#: includes/frontend/render.php:688
+#: includes/frontend/render.php:708
 msgid "may contain"
 msgstr ""
 
 #. translators: %s: allergen name.
-#: includes/frontend/render.php:692
-#: includes/frontend/render.php:709
+#: includes/frontend/render.php:712
+#: includes/frontend/render.php:729
 #, php-format
 msgid "May contain %s"
 msgstr ""
 
 #. translators: %s: comma-separated allergen names.
-#: includes/frontend/render.php:720
+#: includes/frontend/render.php:740
 #, php-format
 msgid "May contain: %s"
 msgstr ""
 
-#: includes/frontend/render.php:740
+#: includes/frontend/render.php:760
 msgid "Allergen key"
 msgstr ""
 
-#: includes/frontend/render.php:770
+#: includes/frontend/render.php:790
 msgid "Full allergen matrix (printable)"
 msgstr ""
 
-#: includes/frontend/render.php:775
+#: includes/frontend/render.php:795
 msgid "Dish"
 msgstr ""
 
-#: includes/frontend/render.php:797
+#: includes/frontend/render.php:817
 msgid "May contain (traces)"
 msgstr ""
 
-#: includes/frontend/render.php:808
+#: includes/frontend/render.php:828
 msgid "✓ contains · ± may contain (traces)"
 msgstr ""
 
-#: includes/frontend/render.php:858
+#: includes/frontend/render.php:878
 #: includes/post-types.php:58
 #: includes/sample.php:208
 msgid "Menu"
@@ -990,7 +1082,7 @@ msgid "Stripe could not register the domain."
 msgstr ""
 
 #: includes/items.php:115
-#: includes/rest.php:1352
+#: includes/rest.php:1442
 msgid "New item"
 msgstr ""
 
@@ -1204,8 +1296,8 @@ msgstr ""
 #. translators: %s: original dish name.
 #. translators: %s: original section name.
 #: includes/menus.php:204
-#: includes/rest.php:1395
-#: includes/rest.php:1467
+#: includes/rest.php:1485
+#: includes/rest.php:1557
 #, php-format
 msgid "%s (copy)"
 msgstr ""
@@ -2408,59 +2500,63 @@ msgstr ""
 msgid "Run your restaurant — orders, bookings, POS and kitchen display."
 msgstr ""
 
-#: includes/rest.php:437
+#: includes/rest.php:457
 msgid "Menu not found."
 msgstr ""
 
-#: includes/rest.php:453
+#: includes/rest.php:473
 msgid "Could not duplicate the menu."
 msgstr ""
 
-#: includes/rest.php:523
+#: includes/rest.php:536
+msgid "That menu no longer exists."
+msgstr ""
+
+#: includes/rest.php:609
 msgid "Registered Stripe webhook & wallet domain"
 msgstr ""
 
-#: includes/rest.php:571
+#: includes/rest.php:657
 msgid "Updated Stripe settings"
 msgstr ""
 
-#: includes/rest.php:689
+#: includes/rest.php:779
 msgid "Main Restaurant"
 msgstr ""
 
-#: includes/rest.php:731
+#: includes/rest.php:821
 msgid "A URL is required."
 msgstr ""
 
-#: includes/rest.php:735
+#: includes/rest.php:825
 msgid "That URL is too long for a QR code."
 msgstr ""
 
-#: includes/rest.php:1193
+#: includes/rest.php:1283
 msgid "A guest email or name is required."
 msgstr ""
 
-#: includes/rest.php:1448
+#: includes/rest.php:1538
 msgid "Could not duplicate the dish."
 msgstr ""
 
-#: includes/rest.php:1463
+#: includes/rest.php:1553
 msgid "Section not found."
 msgstr ""
 
-#: includes/rest.php:1529
+#: includes/rest.php:1619
 msgid "Could not archive the item."
 msgstr ""
 
-#: includes/rest.php:1550
+#: includes/rest.php:1640
 msgid "Could not restore the item."
 msgstr ""
 
-#: includes/rest.php:1623
+#: includes/rest.php:1713
 msgid "The 14 legal allergens can’t be renamed."
 msgstr ""
 
-#: includes/rest.php:1666
+#: includes/rest.php:1756
 msgid "The 14 legal allergens can’t be deleted."
 msgstr ""
 
@@ -2809,10 +2905,6 @@ msgstr ""
 msgid "Other"
 msgstr ""
 
-#: includes/staff.php:227
-msgid "Staff"
-msgstr ""
-
 #: includes/staff.php:228
 msgid "Shifts"
 msgstr ""
@@ -2889,6 +2981,114 @@ msgstr ""
 
 #: includes/welcome-email.php:159
 msgid "Thanks for installing DineKit — reply if you need me"
+msgstr ""
+
+#: assets/block/booking-editor.js:25
+msgid "Booking form"
+msgstr ""
+
+#: assets/block/booking-editor.js:27
+msgid "Heading"
+msgstr ""
+
+#: assets/block/booking-editor.js:35
+msgid "Intro text (optional)"
+msgstr ""
+
+#: assets/block/hours-editor.js:25
+msgid "Opening hours"
+msgstr ""
+
+#: assets/block/hours-editor.js:27
+msgid "Heading (optional)"
+msgstr ""
+
+#: assets/block/hours-editor.js:34
+msgid "Show open / closed status"
+msgstr ""
+
+#: assets/block/menu-editor.js:40
+msgid "All items"
+msgstr ""
+
+#: assets/block/menu-editor.js:46
+msgid "All sections"
+msgstr ""
+
+#: assets/block/menu-editor.js:57
+msgid "Menu settings"
+msgstr ""
+
+#: assets/block/menu-editor.js:59
+msgid "Which menu"
+msgstr ""
+
+#: assets/block/menu-editor.js:67
+msgid "Limit to section"
+msgstr ""
+
+#: assets/block/menu-editor.js:76
+msgid "Layout"
+msgstr ""
+
+#: assets/block/menu-editor.js:79
+msgid "Classic list"
+msgstr ""
+
+#: assets/block/menu-editor.js:80
+msgid "Card grid"
+msgstr ""
+
+#: assets/block/menu-editor.js:81
+msgid "Compact chalkboard"
+msgstr ""
+
+#: assets/block/menu-editor.js:88
+msgid "Columns"
+msgstr ""
+
+#: assets/block/menu-editor.js:91
+msgid "Automatic"
+msgstr ""
+
+#: assets/block/menu-editor.js:92
+msgid "1 column"
+msgstr ""
+
+#: assets/block/menu-editor.js:93
+msgid "2 columns"
+msgstr ""
+
+#: assets/block/menu-editor.js:94
+msgid "3 columns"
+msgstr ""
+
+#: assets/block/menu-editor.js:95
+msgid "4 columns"
+msgstr ""
+
+#: assets/block/menu-editor.js:104
+msgid "Show"
+msgstr ""
+
+#: assets/block/menu-editor.js:106
+msgid "Photos"
+msgstr ""
+
+#: assets/block/menu-editor.js:113
+msgid "Allergen icons + key"
+msgstr ""
+
+#: assets/block/menu-editor.js:120
+msgid "Dietary labels"
+msgstr ""
+
+#: assets/block/menu-editor.js:127
+msgid "Printable allergen matrix"
+msgstr ""
+
+#: assets/block/menu-editor.js:134
+msgid "Diner filter (show only / avoid)"
 msgstr ""
 
 #: blocks/booking/block.json
