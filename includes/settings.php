@@ -404,11 +404,19 @@ function sanitize( $input ) {
 /**
  * Sanitize + save settings.
  *
+ * Patch semantics: only the keys the caller actually sent change — everything
+ * else keeps its stored value. sanitize() fills defaults into keys it wasn't
+ * given, so saving its result wholesale would let a partial save (the Design
+ * Studio posts design keys only) silently reset currency, address and every
+ * other untouched setting.
+ *
  * @param array<string,mixed> $input Raw settings.
  * @return array<string,mixed> Saved settings.
  */
 function save( $input ) {
-	$clean = sanitize( $input );
+	$input = (array) $input;
+	$patch = array_intersect_key( sanitize( $input ), $input );
+	$clean = array_merge( get(), $patch );
 	update_option( OPTION, $clean );
 	return $clean;
 }
