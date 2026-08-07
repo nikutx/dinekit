@@ -113,10 +113,15 @@ export default function ReviewsView() {
 
 				<Card sx={ { p: 2.5 } }>
 					{ section( 'Post-visit review request', 'Ask for feedback a few hours after the visit.' ) }
-					<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 2 } }>
+					<Stack direction="row" spacing={ 3 } flexWrap="wrap" useFlexGap sx={ { mb: 1 } }>
 						{ onOff( 'Send review requests', 'enabled' ) }
 						{ onOff( 'Remind them what they ordered', 'jog_memory', 'Includes the dish(es) from their booking/order so feedback is specific.' ) }
 					</Stack>
+					{ /* The legal caveat belongs next to the switch that arms the
+					     emails, not only in its own section further down. */ }
+					<Typography sx={ { fontSize: 12, color: tokens.muted, mb: 2 } }>
+						These go only to guests who booked with you and left an email — and your consent note (below) now shows on the booking form, so they know at the time. That&rsquo;s the &ldquo;soft opt-in&rdquo; UK law expects.
+					</Typography>
 					<Stack direction="row" spacing={ 1.5 } flexWrap="wrap" useFlexGap>
 						<TextField
 							label="Send after (hours)"

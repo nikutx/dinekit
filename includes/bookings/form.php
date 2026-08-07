@@ -172,6 +172,18 @@ function render( $atts = array() ) {
 
 			<?php echo $deposit_note; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_html above. ?>
 
+			<?php
+			// PECR soft opt-in disclosure: when post-visit review requests are
+			// on, the diner must be told AT COLLECTION that their email may be
+			// used for one follow-up. The venue writes the wording in Reviews →
+			// Consent & unsubscribe; until now it was never actually shown.
+			require_once DINEKIT_DIR . 'includes/reviews.php';
+			$review_cfg = \DineKit\Reviews\get();
+			if ( ! empty( $review_cfg['enabled'] ) && '' !== trim( (string) $review_cfg['consent_note'] ) ) :
+				?>
+				<p class="dinekit-booking__consent"><?php echo esc_html( $review_cfg['consent_note'] ); ?></p>
+			<?php endif; ?>
+
 			<button type="submit" class="dinekit-booking__submit">
 				<?php echo empty( $cfg['autoConfirm'] ) ? esc_html__( 'Request booking', 'dinekit' ) : esc_html__( 'Book now', 'dinekit' ); ?>
 			</button>
