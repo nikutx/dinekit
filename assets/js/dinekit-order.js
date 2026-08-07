@@ -617,16 +617,60 @@
 				box.appendChild( seg );
 			}
 
+			// Order lines — editable here too. On phones the menu view's cart panel
+			// is effectively out of reach (the sticky bar jumps straight here), so
+			// checkout must let the guest change a quantity or remove a line.
+			// Edits update totals in place: a re-render would wipe anything the
+			// guest has already typed into the form below.
 			state.lines.forEach( function ( line ) {
-				var r = el( 'div', 'dinekit-order__sum-line' );
-				r.appendChild( el( 'span', null, line.qty + '× ' + ( findItem( line.itemId ) || {} ).title ) );
-				r.appendChild( el( 'span', null, money( lineTotal( line ) ) ) );
+				var r = el( 'div', 'dinekit-order__sum-line dinekit-order__sum-line--item' );
+				var left = el( 'div', 'dinekit-order__cart-left' );
+				left.appendChild( el( 'div', 'dinekit-order__cart-name', ( findItem( line.itemId ) || {} ).title ) );
+				var ol = optsLabel( line );
+				if ( ol ) {
+					left.appendChild( el( 'div', 'dinekit-order__cart-opts', ol ) );
+				}
+				var price = el( 'span', 'dinekit-order__cart-price', money( lineTotal( line ) ) );
+				var qtyBox = stepper(
+					function () { line.qty--; if ( line.qty < 1 ) { removeLine(); } else { syncLine(); } },
+					function () { if ( line.qty < 20 ) { line.qty++; } syncLine(); },
+					line.qty
+				);
+				function syncLine() {
+					qtyBox.querySelector( 'span' ).textContent = String( line.qty );
+					price.textContent = money( lineTotal( line ) );
+					refreshTotals();
+				}
+				function removeLine() {
+					var i = state.lines.indexOf( line );
+					if ( i > -1 ) {
+						state.lines.splice( i, 1 );
+					}
+					if ( ! state.lines.length ) {
+						state.view = 'menu';
+						render();
+						return;
+					}
+					r.parentNode.removeChild( r );
+					refreshTotals();
+				}
+				var rm = el( 'button', 'dinekit-order__sum-remove', t.remove || 'Remove' );
+				rm.type = 'button';
+				rm.addEventListener( 'click', removeLine );
+				var controls = el( 'div', 'dinekit-order__sum-controls' );
+				controls.appendChild( qtyBox );
+				controls.appendChild( rm );
+				left.appendChild( controls );
+				r.appendChild( left );
+				r.appendChild( price );
 				box.appendChild( r );
 			} );
+			var subAmt = null;
 			if ( deliver ) {
 				var subL = el( 'div', 'dinekit-order__sum-line' );
 				subL.appendChild( el( 'span', null, t.subtotal || 'Subtotal' ) );
-				subL.appendChild( el( 'span', null, money( subtotal() ) ) );
+				subAmt = el( 'span', null, money( subtotal() ) );
+				subL.appendChild( subAmt );
 				box.appendChild( subL );
 				var feeL = el( 'div', 'dinekit-order__sum-line' );
 				feeL.appendChild( el( 'span', null, t.deliveryFee || 'Delivery' ) );
@@ -635,8 +679,29 @@
 			}
 			var sub = el( 'div', 'dinekit-order__subtotal' );
 			sub.appendChild( el( 'span', null, t.total || 'Total' ) );
-			sub.appendChild( el( 'strong', null, money( orderTotal ) ) );
+			var totalAmt = el( 'strong', null, money( orderTotal ) );
+			sub.appendChild( totalAmt );
 			box.appendChild( sub );
+
+			// After a line edit: recompute the money row + the submit button, and
+			// re-apply the venue's minimum-order guard (the same one the cart's
+			// checkout button enforces on the way in).
+			function refreshTotals() {
+				var st = subtotal();
+				orderTotal = st + feeVal;
+				if ( subAmt ) {
+					subAmt.textContent = money( st );
+				}
+				totalAmt.textContent = money( orderTotal );
+				var min = cfg.minOrder || 0;
+				if ( min > 0 && st < min ) {
+					submit.disabled = true;
+					submit.textContent = ( t.minOrder || 'Minimum order' ) + ' ' + money( min );
+				} else {
+					submit.disabled = false;
+					submit.textContent = placeLabel + ' · ' + money( orderTotal );
+				}
+			}
 
 			var form = el( 'form', 'dinekit-order__form' );
 			function field( name, label, type ) {
