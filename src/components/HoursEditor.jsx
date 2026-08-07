@@ -108,21 +108,17 @@ export default function HoursEditor() {
 			<PageHeader
 				title="Opening Hours"
 				actions={
-					<>
-						{ status && (
-							<Chip
-								label={ status.open ? `Open now${ status.until ? ' · until ' + status.until : '' }` : 'Closed now' }
-								sx={ {
-									fontWeight: 600,
-									bgcolor: status.open ? tokens.greenSoft : tokens.redSoft,
-									color: status.open ? tokens.green : tokens.red,
-								} }
-							/>
-						) }
-						<Typography sx={ { fontSize: 13, color: tokens.muted, minWidth: 54 } }>
-							{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
-						</Typography>
-					</>
+					/* Save feedback lives in the topbar pill only (no duplicates). */
+					status && (
+						<Chip
+							label={ status.open ? `Open now${ status.until ? ' · until ' + status.until : '' }` : 'Closed now' }
+							sx={ {
+								fontWeight: 600,
+								bgcolor: status.open ? tokens.greenSoft : tokens.redSoft,
+								color: status.open ? tokens.green : tokens.red,
+							} }
+						/>
+					)
 				}
 			/>
 

@@ -105,14 +105,10 @@ export default function BookingSettingsView( { onBack } ) {
 				title="Booking settings"
 				subtitle="The rules behind your diary and the public booking widget."
 				actions={
-					<>
-						<Typography sx={ { fontSize: 12, color: saveState === 'error' ? tokens.red : tokens.muted, minWidth: 50, textAlign: 'right' } }>
-							{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Save failed' : '' }
-						</Typography>
-						<Button startIcon={ <ArrowBackIcon /> } onClick={ onBack } variant="outlined">
-							Back to diary
-						</Button>
-					</>
+					/* Save feedback lives in the topbar pill only (no duplicates). */
+					<Button startIcon={ <ArrowBackIcon /> } onClick={ onBack } variant="outlined">
+						Back to diary
+					</Button>
 				}
 			/>
 

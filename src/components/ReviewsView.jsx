@@ -69,14 +69,10 @@ export default function ReviewsView() {
 
 	return (
 		<Page>
+			{ /* Save feedback lives in the topbar pill only (no duplicates). */ }
 			<PageHeader
 				title="Reviews & retention"
 				subtitle="Turn happy visits into public reviews and repeat bookings — the honest, compliant way."
-				actions={
-					<Typography sx={ { fontSize: 12, color: saveState === 'error' ? tokens.red : tokens.muted } }>
-						{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
-					</Typography>
-				}
 			/>
 
 			<Alert severity="info" icon={ <StarBorderIcon /> } sx={ { mb: 2, '& .MuiAlert-message': { fontSize: 13 } } }>

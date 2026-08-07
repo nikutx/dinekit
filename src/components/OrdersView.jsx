@@ -987,9 +987,7 @@ function OrderSettings() {
 		<Box sx={ { bgcolor: tokens.surface, border: `1px solid ${ tokens.border }`, borderRadius: 3, p: 2.5, mb: 2 } }>
 			<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
 				<Typography variant="subtitle2" sx={ { color: tokens.ink } }>Ordering settings</Typography>
-				<Typography sx={ { fontSize: 12, color: tokens.muted, minWidth: 50 } }>
-					{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
-				</Typography>
+				{ /* Save feedback lives in the topbar pill only (no duplicates). */ }
 			</Stack>
 
 			<SGroup title="Taking orders">

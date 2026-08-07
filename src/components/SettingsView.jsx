@@ -73,14 +73,11 @@ export default function SettingsView() {
 
 	return (
 		<Page>
+			{ /* Save feedback lives in the topbar pill only — a second "Saving…"
+			     here read as a bug to users (it showed twice). */ }
 			<PageHeader
 				title="Settings"
 				subtitle="These apply to every DineKit menu on your website."
-				actions={
-					<Typography sx={ { fontSize: 13, color: tokens.muted } }>
-						{ saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : '' }
-					</Typography>
-				}
 			/>
 
 			<Stack spacing={ 2.5 }>
