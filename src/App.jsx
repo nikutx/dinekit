@@ -200,17 +200,24 @@ export default function App() {
 	const nav = visibleNav( store.data && store.data.businessType, caps );
 	const activeView = nav.some( ( n ) => n.key === view ) ? view : 'home';
 	// Installed/standalone app has no wp-admin bar, so fill the full viewport.
-	const shellHeight = window.DINEKIT && window.DINEKIT.standalone ? '100vh' : 'calc(100vh - 32px)';
+	const standalone = !! ( window.DINEKIT && window.DINEKIT.standalone );
+	const shellHeight = standalone ? '100vh' : 'calc(100vh - 32px)';
 
 	return (
 		<Box sx={ { display: 'flex', minHeight: shellHeight, bgcolor: tokens.bg } }>
-			<Sidebar
-				nav={ nav }
-				view={ activeView }
-				onChange={ ( key ) => navigate( key ) }
-				collapsed={ navCollapsed }
-				onToggleCollapse={ toggleNavCollapsed }
-			/>
+			{ /* Inside wp-admin, WordPress's own sidebar carries the full
+			     DineKit submenu — showing the rail as well means two menus
+			     saying the same thing (a reviewer called it, and he was
+			     right). The rail is the standalone app's navigation. */ }
+			{ standalone && (
+				<Sidebar
+					nav={ nav }
+					view={ activeView }
+					onChange={ ( key ) => navigate( key ) }
+					collapsed={ navCollapsed }
+					onToggleCollapse={ toggleNavCollapsed }
+				/>
+			) }
 
 			<Box sx={ { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } }>
 				<Topbar

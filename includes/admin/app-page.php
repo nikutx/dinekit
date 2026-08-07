@@ -23,6 +23,7 @@ function init() {
 	add_filter( 'admin_body_class', __NAMESPACE__ . '\\body_class' );
 	add_action( 'current_screen', __NAMESPACE__ . '\\help_tab' );
 	add_action( 'current_screen', __NAMESPACE__ . '\\disable_emoji_swap' );
+	add_action( 'admin_print_footer_scripts', __NAMESPACE__ . '\\menu_chrome' );
 }
 
 /**
@@ -82,30 +83,234 @@ function register_page() {
 		26
 	);
 
-	// The app's main destinations, mirrored as native WP submenu links so
-	// DineKit navigates like every other plugin. Each slug after the first is
-	// the page slug plus a hash route: WordPress prints it verbatim, so from
-	// anywhere in wp-admin the link loads the app on the right screen — and
-	// from inside the app only the hash changes, which is instant. A curated
-	// set, not every screen: the app's own sidebar remains the full map.
-	$destinations = array(
-		array( __( 'Dashboard', 'dinekit' ), 'dinekit' ),
-		array( __( 'Bookings', 'dinekit' ), 'dinekit#/bookings' ),
-		array( __( 'Orders', 'dinekit' ), 'dinekit#/orders' ),
-		array( __( 'Take Order', 'dinekit' ), 'dinekit#/pos' ),
-		array( __( 'Kitchen Display', 'dinekit' ), 'dinekit#/kds' ),
-		array( __( 'Menu Builder', 'dinekit' ), 'dinekit#/builder' ),
-		array( __( 'Design Studio', 'dinekit' ), 'dinekit#/design' ),
-		array( __( 'Guests', 'dinekit' ), 'dinekit#/guests' ),
-		array( __( 'Staff', 'dinekit' ), 'dinekit#/staff' ),
-		array( __( 'Settings', 'dinekit' ), 'dinekit#/settings' ),
-	);
-	foreach ( $destinations as $dest ) {
+	// EVERY app screen, mirrored as native WP submenu links, so inside
+	// wp-admin this submenu IS the navigation (the app hides its own rail
+	// there — one menu, not two; the rail still runs the standalone app).
+	// Each slug after the first is the page slug plus a hash route:
+	// WordPress prints it verbatim, so from anywhere in wp-admin the link
+	// loads the app on the right screen — and from inside the app only the
+	// hash changes, which is instant.
+	foreach ( screens() as $screen ) {
 		// Every entry registers the render callback: WordPress only builds an
 		// admin.php?page=… link for slugs with a page hook. The browser keeps
 		// the #route client-side, so the server always loads page=dinekit.
-		add_submenu_page( 'dinekit', $dest[0], $dest[0], 'dinekit_access', $dest[1], __NAMESPACE__ . '\\render' );
+		$slug = 'home' === $screen['route'] ? 'dinekit' : 'dinekit#/' . $screen['route'];
+		add_submenu_page( 'dinekit', $screen['label'], $screen['label'], 'dinekit_access', $slug, __NAMESPACE__ . '\\render' );
 	}
+}
+
+/**
+ * The app screens the CURRENT USER may open — same order, labels, business-type
+ * gating and permission rules as the app's own navigation, so the WP submenu
+ * and the standalone app can never disagree about what exists.
+ *
+ * `sep` marks where the app draws a group line (Front of house / Menu / Setup);
+ * `icon` is a dashicons class painted into the submenu by menu_chrome().
+ *
+ * @return array<int,array{route:string,label:string,icon:string,sep?:bool}>
+ */
+function screens() {
+	require_once DINEKIT_DIR . 'includes/access.php';
+	require_once DINEKIT_DIR . 'includes/settings.php';
+
+	$type  = (string) \DineKit\Settings\get()['businessType'];
+	$owner = current_user_can( 'manage_options' );
+	$menu  = $owner || current_user_can( 'edit_others_posts' );
+
+	$all = array(
+		array(
+			'route' => 'home',
+			'label' => __( 'Home', 'dinekit' ),
+			'icon'  => 'dashicons-dashboard',
+			'can'   => \DineKit\Access\can_access(),
+		),
+		array(
+			'route' => 'reports',
+			'label' => __( 'Reports', 'dinekit' ),
+			'icon'  => 'dashicons-chart-bar',
+			'can'   => \DineKit\Access\can_access(),
+		),
+		array(
+			'route' => 'bookings',
+			'label' => __( 'Bookings', 'dinekit' ),
+			'icon'  => 'dashicons-calendar-alt',
+			'can'   => 'takeaway' !== $type && \DineKit\Access\can( 'bookings' ),
+			'sep'   => true,
+		),
+		array(
+			'route' => 'floor',
+			'label' => __( 'Floor Plan', 'dinekit' ),
+			'icon'  => 'dashicons-grid-view',
+			'can'   => 'takeaway' !== $type && \DineKit\Access\can( 'bookings' ),
+		),
+		array(
+			'route' => 'orders',
+			'label' => __( 'Orders', 'dinekit' ),
+			'icon'  => 'dashicons-list-view',
+			'can'   => 'dinein' !== $type && \DineKit\Access\can( 'orders' ),
+		),
+		array(
+			'route' => 'kds',
+			'label' => __( 'Kitchen Display', 'dinekit' ),
+			'icon'  => 'dashicons-food',
+			'can'   => \DineKit\Access\can( 'orders' ),
+		),
+		array(
+			'route' => 'pos',
+			'label' => __( 'Take Order', 'dinekit' ),
+			'icon'  => 'dashicons-cart',
+			'can'   => \DineKit\Access\can( 'orders' ),
+		),
+		array(
+			'route' => 'events',
+			'label' => __( 'Events', 'dinekit' ),
+			'icon'  => 'dashicons-tickets-alt',
+			'can'   => \DineKit\Access\can( 'events' ),
+		),
+		array(
+			'route' => 'guests',
+			'label' => __( 'Guests', 'dinekit' ),
+			'icon'  => 'dashicons-groups',
+			'can'   => \DineKit\Access\can( 'bookings' ),
+		),
+		array(
+			'route' => 'reviews',
+			'label' => __( 'Reviews', 'dinekit' ),
+			'icon'  => 'dashicons-star-filled',
+			'can'   => \DineKit\Access\can( 'settings' ),
+		),
+		array(
+			'route' => 'staff',
+			'label' => __( 'Staff', 'dinekit' ),
+			'icon'  => 'dashicons-id',
+			'can'   => \DineKit\Access\can( 'staff' ),
+		),
+		array(
+			'route' => 'builder',
+			'label' => __( 'Menu Builder', 'dinekit' ),
+			'icon'  => 'dashicons-menu-alt',
+			'can'   => $menu,
+			'sep'   => true,
+		),
+		array(
+			'route' => 'design',
+			'label' => __( 'Design & Preview', 'dinekit' ),
+			'icon'  => 'dashicons-admin-appearance',
+			'can'   => $menu,
+		),
+		array(
+			'route' => 'qr',
+			'label' => __( 'QR Code', 'dinekit' ),
+			'icon'  => 'dashicons-screenoptions',
+			'can'   => $menu,
+		),
+		array(
+			'route' => 'hours',
+			'label' => __( 'Opening Hours', 'dinekit' ),
+			'icon'  => 'dashicons-clock',
+			'can'   => $menu,
+			'sep'   => true,
+		),
+		array(
+			'route' => 'integrations',
+			'label' => __( 'Integrations', 'dinekit' ),
+			'icon'  => 'dashicons-admin-plugins',
+			'can'   => \DineKit\Access\can( 'settings' ),
+		),
+		array(
+			'route' => 'emails',
+			'label' => __( 'Emails', 'dinekit' ),
+			'icon'  => 'dashicons-email-alt',
+			'can'   => \DineKit\Access\can( 'settings' ),
+		),
+		array(
+			'route' => 'access',
+			'label' => __( 'Access Control', 'dinekit' ),
+			'icon'  => 'dashicons-lock',
+			'can'   => $owner,
+		),
+		array(
+			'route' => 'activity',
+			'label' => __( 'Activity', 'dinekit' ),
+			'icon'  => 'dashicons-backup',
+			'can'   => \DineKit\Access\can( 'staff' ),
+		),
+		array(
+			'route' => 'settings',
+			'label' => __( 'Settings', 'dinekit' ),
+			'icon'  => 'dashicons-admin-generic',
+			'can'   => \DineKit\Access\can( 'settings' ),
+		),
+		array(
+			'route' => 'support',
+			'label' => __( 'Support', 'dinekit' ),
+			'icon'  => 'dashicons-sos',
+			'can'   => \DineKit\Access\can_access(),
+		),
+	);
+
+	return array_values( array_filter( $all, fn( $s ) => $s['can'] ) );
+}
+
+/**
+ * Paint the DineKit submenu: a dashicon per entry and a hairline where the app
+ * draws its group breaks. WordPress submenus carry no icon support of their
+ * own, so a few footer lines decorate the links by their hash — class names,
+ * not glyph codepoints, so nothing breaks if dashicons renumber. Runs on every
+ * admin screen (the menu shows everywhere) and exits fast when absent.
+ *
+ * @return void
+ */
+function menu_chrome() {
+	$map  = array( 'home' => 'dashicons-dashboard' );
+	$seps = array();
+	foreach ( screens() as $screen ) {
+		$map[ $screen['route'] ] = $screen['icon'];
+		if ( ! empty( $screen['sep'] ) ) {
+			$seps[] = $screen['route'];
+		}
+	}
+	?>
+	<style>
+		#toplevel_page_dinekit .wp-submenu a .dashicons {
+			font-size: 16px;
+			width: 16px;
+			height: 16px;
+			line-height: 1.2;
+			margin-right: 7px;
+			vertical-align: text-bottom;
+			opacity: 0.75;
+		}
+		#toplevel_page_dinekit .wp-submenu li.dinekit-sep {
+			border-top: 1px solid rgba(255, 255, 255, 0.12);
+			margin-top: 4px;
+			padding-top: 4px;
+		}
+	</style>
+	<script>
+		( function () {
+			var menu = document.getElementById( 'toplevel_page_dinekit' );
+			if ( ! menu ) {
+				return;
+			}
+			var icons = <?php echo wp_json_encode( $map ); ?>;
+			var seps = <?php echo wp_json_encode( $seps ); ?>;
+			menu.querySelectorAll( '.wp-submenu li a' ).forEach( function ( a ) {
+				var hash = ( a.getAttribute( 'href' ) || '' ).split( '#/' )[ 1 ];
+				var route = hash || 'home';
+				if ( icons[ route ] && ! a.querySelector( '.dashicons' ) ) {
+					var i = document.createElement( 'span' );
+					i.className = 'dashicons ' + icons[ route ];
+					i.setAttribute( 'aria-hidden', 'true' );
+					a.insertBefore( i, a.firstChild );
+				}
+				if ( seps.indexOf( route ) !== -1 ) {
+					a.parentElement.classList.add( 'dinekit-sep' );
+				}
+			} );
+		}() );
+	</script>
+	<?php
 }
 
 /**
