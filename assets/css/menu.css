@@ -1425,6 +1425,26 @@ video.dinekit-section__video {
 	border-color: var(--dinekit-ink);
 }
 
+/* ---- Card grid guard ----
+   Every template above styles .dinekit-item as a menu ROW (vertical padding,
+   rules between courses, centred columns). In the card grid the item is a
+   CARD: the photo must sit flush at the top and the card carries its own
+   border. These sit after the template styles on purpose — same specificity,
+   later wins — so no template's row spacing can leak into the cards. */
+.dinekit-menu--grid .dinekit-item {
+	padding: 0;
+	margin: 0;
+	max-width: none;
+	border: 1px solid var(--dinekit-line);
+	border-radius: var(--dinekit-radius);
+}
+
+.dinekit-menu--grid .dinekit-item__desc {
+	/* Card text sets tighter than the roomy list read. */
+	line-height: 1.45;
+	max-width: none;
+}
+
 /* ---- Opening hours ---- */
 .dinekit-hours {
 	--dinekit-accent: #b91c1c;
