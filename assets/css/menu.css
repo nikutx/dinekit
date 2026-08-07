@@ -134,7 +134,9 @@
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
 	color: #fff;
-	background: var(--dinekit-accent);
+	/* --dinekit-badge is set per badge by "colour by badge" (Design Studio);
+	   otherwise every badge wears the accent as before. */
+	background: var(--dinekit-badge, var(--dinekit-accent));
 	border-radius: 999px;
 	padding: 0.1rem 0.5rem;
 	margin-left: 0.4rem;
@@ -295,6 +297,10 @@
 	height: auto;
 	margin: 0;
 	border-radius: var(--dinekit-radius);
+	/* Photo-height choice from the Design Studio (Short banner / Standard /
+	   Full image). Unset = natural height; capped = crop, never squash. */
+	max-height: var(--dinekit-media-h, none);
+	object-fit: cover;
 }
 
 .dinekit-section__video {
@@ -1012,8 +1018,8 @@ video.dinekit-section__video {
 }
 .dinekit-menu--tpl-signature .dinekit-badge {
 	background: transparent;
-	color: var(--dinekit-accent);
-	border: 1px solid var(--dinekit-accent);
+	color: var(--dinekit-badge, var(--dinekit-accent));
+	border: 1px solid var(--dinekit-badge, var(--dinekit-accent));
 	font-size: 0.58em;
 	font-weight: 700;
 	letter-spacing: 0.08em;
@@ -1132,7 +1138,7 @@ video.dinekit-section__video {
 }
 .dinekit-menu--tpl-maison .dinekit-badge {
 	background: transparent;
-	color: var(--dinekit-accent);
+	color: var(--dinekit-badge, var(--dinekit-accent));
 	border: 1px solid currentColor;
 	font-weight: 600;
 	letter-spacing: 0.12em;
@@ -1252,8 +1258,8 @@ video.dinekit-section__video {
 }
 .dinekit-menu--tpl-noir .dinekit-badge {
 	background: transparent;
-	color: var(--dinekit-accent);
-	border: 1px solid var(--dinekit-accent);
+	color: var(--dinekit-badge, var(--dinekit-accent));
+	border: 1px solid var(--dinekit-badge, var(--dinekit-accent));
 	letter-spacing: 0.1em;
 }
 .dinekit-menu--tpl-noir .dinekit-diet {
@@ -1309,7 +1315,7 @@ video.dinekit-section__video {
 	font-style: italic;
 }
 .dinekit-menu--tpl-bistro .dinekit-badge {
-	background: var(--dinekit-accent);
+	background: var(--dinekit-badge, var(--dinekit-accent));
 	letter-spacing: 0.06em;
 }
 
@@ -1407,7 +1413,7 @@ video.dinekit-section__video {
 	color: var(--dinekit-muted);
 }
 .dinekit-menu--tpl-mono .dinekit-badge {
-	background: var(--dinekit-ink);
+	background: var(--dinekit-badge, var(--dinekit-ink));
 	border-radius: 3px;
 	letter-spacing: 0.1em;
 }
@@ -1424,6 +1430,25 @@ video.dinekit-section__video {
 	background: var(--dinekit-ink);
 	border-color: var(--dinekit-ink);
 }
+
+/* ---- Badge hues ("colour by badge") ----
+   Each badge's label hashes to one of six tones (class set server-side).
+   These only wake up under the mode's root class, so the default look —
+   every badge in the accent — is untouched. */
+.dinekit-menu--badges-varied .dinekit-badge--h0 { --dinekit-badge: #b45309; }
+.dinekit-menu--badges-varied .dinekit-badge--h1 { --dinekit-badge: #b91c1c; }
+.dinekit-menu--badges-varied .dinekit-badge--h2 { --dinekit-badge: #15803d; }
+.dinekit-menu--badges-varied .dinekit-badge--h3 { --dinekit-badge: #0e7490; }
+.dinekit-menu--badges-varied .dinekit-badge--h4 { --dinekit-badge: #6d28d9; }
+.dinekit-menu--badges-varied .dinekit-badge--h5 { --dinekit-badge: #475569; }
+
+/* Noir sets badge text on a near-black ground — the same six need light tones. */
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h0 { --dinekit-badge: #fbbf24; }
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h1 { --dinekit-badge: #f87171; }
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h2 { --dinekit-badge: #4ade80; }
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h3 { --dinekit-badge: #22d3ee; }
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h4 { --dinekit-badge: #a78bfa; }
+.dinekit-menu--tpl-noir.dinekit-menu--badges-varied .dinekit-badge--h5 { --dinekit-badge: #94a3b8; }
 
 /* ---- Card grid guard ----
    Every template above styles .dinekit-item as a menu ROW (vertical padding,

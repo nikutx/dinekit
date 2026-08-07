@@ -96,6 +96,7 @@ const ROLES = [
 	{ key: 'desc', selector: '.dinekit-item__desc', label: 'Descriptions', sizeKey: 'menu_size_desc', colorKey: 'menu_muted', colorLabel: 'Secondary text colour', colorNote: 'Shared with other quiet text.' },
 	{ key: 'price', selector: '.dinekit-item__prices', label: 'Prices', sizeKey: 'menu_size_price', colorKey: 'accent', colorLabel: 'Accent colour', colorNote: 'Prices use your accent — this also recolours badges and highlights.' },
 	{ key: 'badge', selector: '.dinekit-badge, .dinekit-diet, .dinekit-allergens', label: 'Badges & allergens', sizeKey: null, colorKey: null },
+	{ key: 'media', selector: '.dinekit-section__media', label: 'Section photos', sizeKey: null, colorKey: null },
 	{ key: 'filter', selector: '.dinekit-filter', label: 'Diner filter', sizeKey: null, colorKey: null },
 	{ key: 'background', selector: '.dinekit-menu', label: 'Menu background', sizeKey: null, colorKey: 'menu_bg', colorLabel: 'Background colour' },
 ];
@@ -148,6 +149,8 @@ export default function DesignView() {
 			menu_bg: s.menu_bg || '',
 			menu_radius: s.menu_radius != null ? s.menu_radius : 12,
 			menu_scale: s.menu_scale != null ? Number( s.menu_scale ) : 1,
+			menu_media_size: s.menu_media_size || 'full',
+			menu_badge_style: s.menu_badge_style || 'accent',
 		};
 		SIZE_KEYS.forEach( ( k ) => ( d[ k ] = s[ k ] != null ? Number( s[ k ] ) : 1 ) );
 		return d;
@@ -335,6 +338,13 @@ export default function DesignView() {
 		[ [ 'menu_size_title', 'title' ], [ 'menu_size_name', 'name' ], [ 'menu_size_desc', 'desc' ], [ 'menu_size_price', 'price' ] ].forEach( ( [ k, t ] ) => {
 			menu.style.setProperty( `--dinekit-size-${ t }`, String( d[ k ] != null ? d[ k ] : 1 ) );
 		} );
+		const mediaH = { banner: '220px', standard: '420px' }[ d.menu_media_size ];
+		if ( mediaH ) {
+			menu.style.setProperty( '--dinekit-media-h', mediaH );
+		} else {
+			menu.style.removeProperty( '--dinekit-media-h' );
+		}
+		menu.classList.toggle( 'dinekit-menu--badges-varied', d.menu_badge_style === 'varied' );
 	};
 
 	const markSelection = () => {
@@ -501,7 +511,30 @@ export default function DesignView() {
 								<ToggleButton value="codes" sx={ { px: 1.5, textTransform: 'none' } }>Codes</ToggleButton>
 							</ToggleButtonGroup>
 						</Box>
+						<Box>
+							<Typography sx={ { ...labelSx, mb: 0.5 } }>Badge colours</Typography>
+							<ToggleButtonGroup exclusive size="small" value={ design.menu_badge_style || 'accent' } onChange={ ( e, v ) => v && patchDesign( { menu_badge_style: v } ) }>
+								<ToggleButton value="accent" sx={ { px: 1.5, textTransform: 'none' } }>One colour</ToggleButton>
+								<ToggleButton value="varied" sx={ { px: 1.5, textTransform: 'none' } }>Colour by badge</ToggleButton>
+							</ToggleButtonGroup>
+							<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 0.5 } }>
+								Colour by badge gives each badge its own tone, so Seasonal and Must try stop looking alike. Suggested by a real BBQ house.
+							</Typography>
+						</Box>
 					</Stack>
+				) }
+				{ selectedRole.key === 'media' && (
+					<Box>
+						<Typography sx={ { ...labelSx, mb: 0.5 } }>Photo size</Typography>
+						<ToggleButtonGroup exclusive size="small" value={ design.menu_media_size || 'full' } onChange={ ( e, v ) => v && patchDesign( { menu_media_size: v } ) }>
+							<ToggleButton value="banner" sx={ { px: 1.5, textTransform: 'none' } }>Short banner</ToggleButton>
+							<ToggleButton value="standard" sx={ { px: 1.5, textTransform: 'none' } }>Standard</ToggleButton>
+							<ToggleButton value="full" sx={ { px: 1.5, textTransform: 'none' } }>Full image</ToggleButton>
+						</ToggleButtonGroup>
+						<Typography sx={ { fontSize: 11.5, color: tokens.muted2, mt: 0.5 } }>
+							Short banner keeps the menu about the food — wide, shallow photos (around 1600 × 500 pixels) look best.
+						</Typography>
+					</Box>
 				) }
 				{ selectedRole.key === 'filter' && (
 					<Stack spacing={ 0.75 }>

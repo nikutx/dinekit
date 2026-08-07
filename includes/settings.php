@@ -49,6 +49,8 @@ function defaults() {
 		'menu_size_name'   => 1.0,      // Dish names.
 		'menu_size_desc'   => 1.0,      // Dish descriptions.
 		'menu_size_price'  => 1.0,      // Prices.
+		'menu_media_size'  => 'full',   // Section photo height: banner | standard | full.
+		'menu_badge_style' => 'accent', // Badges: accent (one colour) | varied (colour by badge).
 	);
 }
 
@@ -112,6 +114,8 @@ function menu_design_keys() {
 		'menu_size_name',
 		'menu_size_desc',
 		'menu_size_price',
+		'menu_media_size',
+		'menu_badge_style',
 	);
 }
 
@@ -251,6 +255,11 @@ function menu_style_vars( $accent_override = '', $menu_id = 0 ) {
 		if ( abs( $mult - 1.0 ) > 0.001 ) {
 			$vars[ '--dinekit-size-' . $role ] = rtrim( rtrim( number_format( $mult, 3, '.', '' ), '0' ), '.' );
 		}
+	}
+	// Section photo height — 'full' (the default) keeps the natural height.
+	$media = (string) $s['menu_media_size'];
+	if ( 'banner' === $media || 'standard' === $media ) {
+		$vars['--dinekit-media-h'] = 'banner' === $media ? '220px' : '420px';
 	}
 	/**
 	 * Filter the menu's CSS custom properties (design tokens).
@@ -396,6 +405,12 @@ function sanitize( $input ) {
 		if ( isset( $input[ $size_key ] ) ) {
 			$clean[ $size_key ] = max( 0.7, min( 1.6, (float) $input[ $size_key ] ) );
 		}
+	}
+	if ( isset( $input['menu_media_size'] ) && in_array( (string) $input['menu_media_size'], array( 'banner', 'standard', 'full' ), true ) ) {
+		$clean['menu_media_size'] = (string) $input['menu_media_size'];
+	}
+	if ( isset( $input['menu_badge_style'] ) && in_array( (string) $input['menu_badge_style'], array( 'accent', 'varied' ), true ) ) {
+		$clean['menu_badge_style'] = (string) $input['menu_badge_style'];
 	}
 
 	return $clean;

@@ -171,6 +171,9 @@ function menu( $args = array() ) {
 	$template  = ! empty( $args['template'] ) ? (string) $args['template'] : (string) $resolved['template'];
 	$template  = in_array( $template, \DineKit\Settings\templates(), true ) ? $template : 'maison';
 	$tpl_class = ' dinekit-menu--tpl-' . $template;
+	// Colour-by-badge mode: the root class is what turns the per-badge hue
+	// classes (always present on badges) from inert into active.
+	$badge_mode = 'varied' === (string) $resolved['menu_badge_style'] ? ' dinekit-menu--badges-varied' : '';
 
 	$groups = $structure['sections'];
 	if ( $structure['loose'] ) {
@@ -184,7 +187,7 @@ function menu( $args = array() ) {
 	?>
 	<?php $style = \DineKit\Settings\menu_style_vars( isset( $args['accent'] ) ? (string) $args['accent'] : '', $menu_id ); ?>
 	<div
-		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?><?php echo esc_attr( $tpl_class ); ?>"
+		class="dinekit-menu dinekit-menu--<?php echo esc_attr( $layout ); ?><?php echo esc_attr( $col_class ); ?><?php echo esc_attr( $tpl_class ); ?><?php echo esc_attr( $badge_mode ); ?>"
 		<?php echo $style ? 'style="' . esc_attr( $style ) . '"' : ''; ?>
 	>
 		<?php
@@ -234,6 +237,19 @@ function menu( $args = array() ) {
 	echo schema_jsonld( $groups, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 	return (string) ob_get_clean();
+}
+
+/**
+ * Badge classes. Every badge carries a stable hue class — its label hashed to
+ * one of six tones — so "colour by badge" (Design Studio) can give Seasonal,
+ * Must try and friends their own colours from CSS alone. Without the mode's
+ * root class on the menu the hue class is inert.
+ *
+ * @param string $badge Badge label.
+ * @return string Space-separated class list.
+ */
+function badge_classes( $badge ) {
+	return 'dinekit-badge dinekit-badge--h' . ( abs( crc32( strtolower( (string) $badge ) ) ) % 6 );
 }
 
 /**
@@ -346,7 +362,7 @@ function render_item( $post, $args, $allergen_map ) {
 				<h4 class="dinekit-item__name">
 					<?php echo esc_html( get_the_title( $post ) ); ?>
 					<?php if ( $badge ) : ?>
-						<span class="dinekit-badge"><?php echo esc_html( $badge ); ?></span>
+						<span class="<?php echo esc_attr( badge_classes( $badge ) ); ?>"><?php echo esc_html( $badge ); ?></span>
 					<?php endif; ?>
 				</h4>
 				<?php if ( $out ) : ?>
