@@ -26,6 +26,8 @@ import PageHeader from './ui/PageHeader';
 import EmptyState from './ui/EmptyState';
 import Card from './ui/Card';
 import ConfirmDialog from './ui/ConfirmDialog';
+import SavePill from './ui/SavePill';
+import { saveBus } from '../lib/saveBus';
 import { ListSkeleton } from './ui/Skeletons';
 import PageTour from './PageTour';
 import StaffRota from './StaffRota';
@@ -66,6 +68,11 @@ export default function StaffView() {
 		}
 		api.updateStaff( id, p );
 	};
+
+	// The drawer autosaves every change; the pill + Save & close say so —
+	// silent saving reads as "did it take?" to anyone new to it.
+	const [ saveStatus, setSaveStatus ] = useState( 'idle' );
+	useEffect( () => saveBus.subscribe( setSaveStatus ), [] );
 	const remove = async ( id ) => {
 		await api.deleteStaff( id );
 		setStaff( ( s ) => s.filter( ( m ) => m.id !== id ) );
@@ -168,7 +175,13 @@ export default function StaffView() {
 					<Box sx={ { p: 3 } }>
 						<Stack direction="row" alignItems="center" justifyContent="space-between" sx={ { mb: 2 } }>
 							<Typography variant="h6" sx={ { fontSize: 18 } }>Team member</Typography>
-							<IconButton size="small" onClick={ () => setEditing( null ) }><CloseIcon fontSize="small" /></IconButton>
+							<Stack direction="row" alignItems="center" spacing={ 1.25 }>
+								<SavePill status={ saveStatus } safeToClose />
+								<Button variant="contained" size="small" onClick={ () => setEditing( null ) }>
+									Save &amp; close
+								</Button>
+								<IconButton size="small" aria-label="Close team member" onClick={ () => setEditing( null ) }><CloseIcon fontSize="small" /></IconButton>
+							</Stack>
 						</Stack>
 						<Stack spacing={ 2 }>
 							<TextField label="Name" size="small" value={ editing.name } onChange={ ( e ) => patch( editing.id, { name: e.target.value } ) } fullWidth />

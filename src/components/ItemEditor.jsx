@@ -283,8 +283,13 @@ export default function ItemEditor( { item, store, onArchive, onClose } ) {
 					Edit dish
 				</Typography>
 				<Stack direction="row" alignItems="center" spacing={ 1.25 }>
-					{ /* No Save button on this form — the pill is the receipt. */ }
 					<SavePill status={ pillStatus } safeToClose />
+					{ /* Everything autosaves, but a pressable Save calms people
+					     who don't trust that yet — and it's real: it pushes any
+					     half-typed field NOW instead of on the debounce. */ }
+					<Button variant="contained" size="small" onClick={ closeEditor }>
+						Save &amp; close
+					</Button>
 					<IconButton size="small" aria-label="Close dish" onClick={ closeEditor }>
 						<CloseIcon fontSize="small" />
 					</IconButton>
