@@ -13,6 +13,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import TuneIcon from '@mui/icons-material/Tune';
 import { tokens } from '../theme';
+import { isMoneyish, isIntish } from '../lib/numbers';
 
 const labelSx = {
 	textTransform: 'uppercase',
@@ -142,6 +143,7 @@ function OptionRow( { g, o, onChange, onRemove } ) {
 						size="small"
 						placeholder="+ price"
 						value={ o.price }
+						error={ ! isMoneyish( o.price ) }
 						onChange={ ( e ) => onChange( { price: e.target.value } ) }
 						sx={ { width: 84 } }
 					/>
@@ -155,8 +157,8 @@ function OptionRow( { g, o, onChange, onRemove } ) {
 			</Stack>
 			{ open && (
 				<Stack direction="row" spacing={ 1 } sx={ { mt: 0.75, pl: 0.5 } }>
-					<TextField size="small" placeholder="Cost" value={ o.cost || '' } onChange={ ( e ) => onChange( { cost: e.target.value } ) } sx={ { width: 100 } } />
-					<TextField size="small" placeholder="kcal" value={ o.calories || '' } onChange={ ( e ) => onChange( { calories: e.target.value } ) } sx={ { width: 100 } } />
+					<TextField size="small" placeholder="Cost" value={ o.cost || '' } error={ ! isMoneyish( o.cost ) } onChange={ ( e ) => onChange( { cost: e.target.value } ) } sx={ { width: 100 } } />
+					<TextField size="small" placeholder="kcal" value={ o.calories || '' } error={ ! isIntish( o.calories ) } onChange={ ( e ) => onChange( { calories: e.target.value } ) } sx={ { width: 100 } } />
 				</Stack>
 			) }
 		</Box>
